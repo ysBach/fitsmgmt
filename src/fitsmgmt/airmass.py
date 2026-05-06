@@ -4,14 +4,13 @@ Airmass related functions.
 Don't you think these must be implemented to astropy...?
 """
 
-from __future__ import annotations
-
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.io import fits
 from astropy.io.fits import Card
 from astropy.time import Time
+from typing import TypeAlias
 
 from .hduutil import cmt2hdr, get_if_none
 from .logging import logger
@@ -19,8 +18,15 @@ from .misc import change_to_quantity
 
 __all__ = ["calc_airmass", "airmass_obs", "airmass_to_hdr", "airmass_from_hdr"]
 
+NumberLike: TypeAlias = float | np.ndarray | u.Quantity
+AirmassTrace: TypeAlias = dict[str, list[float | str]]
 
-def calc_airmass(zd_deg=None, cos_zd=None, scale=750.0):
+
+def calc_airmass(
+    zd_deg: NumberLike | None = None,
+    cos_zd: NumberLike | None = None,
+    scale: float = 750.0,
+) -> NumberLike:
     """Calculate airmass by nonrefracting radially symmetric atmosphere model.
 
     Parameters
@@ -76,8 +82,14 @@ def calc_airmass(zd_deg=None, cos_zd=None, scale=750.0):
 
 
 def airmass_obs(
-    targetcoord, obscoord, ut, exptime, scale=750.0, full=False, in_deg=True
-):
+    targetcoord: SkyCoord,
+    obscoord: EarthLocation,
+    ut: str | Time,
+    exptime: float | u.Quantity,
+    scale: float = 750.0,
+    full: bool = False,
+    in_deg: bool = True,
+) -> NumberLike | tuple[NumberLike, AirmassTrace]:
     """Calculate airmass by nonrefracting radially symmetric atmosphere model.
 
     Parameters
@@ -156,16 +168,16 @@ def airmass_obs(
 def airmass_to_hdr(
     header: fits.Header,
     obscoord: EarthLocation,
-    targetcoord: SkyCoord = None,
+    targetcoord: SkyCoord | None = None,
     ra: str | float | u.Quantity = "RA",
     dec: str | float | u.Quantity = "DEC",
     time_start: str | Time = "DATE-OBS",
     time_scale: str = "utc",
     exptime: str | float | u.Quantity = "EXPTIME",
-    scale=750.0,
-    in_deg=True,
+    scale: float = 750.0,
+    in_deg: bool = True,
     frame: str = "icrs",
-):
+) -> None:
     """
     Calculates airmass from a given header and location information
 
@@ -266,37 +278,37 @@ def airmass_to_hdr(
 
 # TODO: change key, unit, etc as input dict.
 def airmass_from_hdr(
-    header,
-    ra=None,
-    dec=None,
-    ut=None,
-    exptime=None,
-    lon=None,
-    lat=None,
-    height=None,
-    equinox=None,
-    frame=None,
-    scale=750.0,
-    ra_key="RA",
-    dec_key="DEC",
-    ut_key="DATE-OBS",
-    lon_key="LONGITUD",
-    lat_key="LATITUDE",
-    height_key="HEIGHT",
-    exptime_key="EXPTIME",
-    equinox_key="EPOCH",
-    frame_key="RADECSYS",
-    ra_unit=u.hourangle,
-    dec_unit=u.deg,
-    exptime_unit=u.s,
-    lon_unit=u.deg,
-    lat_unit=u.deg,
-    height_unit=u.m,
-    ut_format="isot",
-    ut_scale="utc",
-    return_header=False,
-    verbose=False,
-):
+    header: fits.Header,
+    ra: str | float | u.Quantity | None = None,
+    dec: str | float | u.Quantity | None = None,
+    ut: str | Time | None = None,
+    exptime: float | u.Quantity | None = None,
+    lon: str | float | u.Quantity | None = None,
+    lat: str | float | u.Quantity | None = None,
+    height: str | float | u.Quantity | None = None,
+    equinox: str | float | None = None,
+    frame: str | None = None,
+    scale: float = 750.0,
+    ra_key: str = "RA",
+    dec_key: str = "DEC",
+    ut_key: str = "DATE-OBS",
+    lon_key: str = "LONGITUD",
+    lat_key: str = "LATITUDE",
+    height_key: str = "HEIGHT",
+    exptime_key: str = "EXPTIME",
+    equinox_key: str = "EPOCH",
+    frame_key: str = "RADECSYS",
+    ra_unit: u.UnitBase = u.hourangle,
+    dec_unit: u.UnitBase = u.deg,
+    exptime_unit: u.UnitBase = u.s,
+    lon_unit: u.UnitBase = u.deg,
+    lat_unit: u.UnitBase = u.deg,
+    height_unit: u.UnitBase = u.m,
+    ut_format: str = "isot",
+    ut_scale: str = "utc",
+    return_header: bool = False,
+    verbose: bool = False,
+) -> fits.Header | tuple[NumberLike, AirmassTrace]:
     """Calculate airmass using the header.
 
     Parameters

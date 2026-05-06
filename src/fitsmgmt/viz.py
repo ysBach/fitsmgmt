@@ -4,13 +4,14 @@ This module provides convenience functions for displaying astronomical
 images with appropriate normalization (ZScale, etc.) using astropy and
 matplotlib.
 """
-from __future__ import annotations
-
+from collections.abc import Sequence
+from typing import Any, TypeAlias
 from warnings import warn
 
 from astropy.visualization import (
     AsinhStretch,
     AsymmetricPercentileInterval,
+    BaseInterval,
     BaseStretch,
     ImageNormalize,
     LinearStretch,
@@ -25,6 +26,10 @@ from astropy.visualization import (
 from matplotlib.ticker import FixedLocator
 
 __all__ = ["znorm", "zimshow", "norm_imshow", "astropy_stretch", "imshow_norm"]
+
+ImageLike: TypeAlias = Any
+TickOffsets: TypeAlias = Sequence[int] | None
+ImshowResult: TypeAlias = Any
 
 _STRETCH_MAP: dict[str, BaseStretch] = {
     "linear": LinearStretch(),
@@ -67,7 +72,11 @@ def astropy_stretch(name: str) -> BaseStretch:
     return _STRETCH_MAP[key]
 
 
-def znorm(image, stretch=LinearStretch(), **kwargs):
+def znorm(
+    image: ImageLike,
+    stretch: BaseStretch = LinearStretch(),
+    **kwargs: Any,
+) -> ImageNormalize:
     """Create an ImageNormalize object using ZScale interval.
 
     Parameters
@@ -89,13 +98,13 @@ def znorm(image, stretch=LinearStretch(), **kwargs):
 
 def zimshow(
     ax,
-    image,
-    stretch=LinearStretch(),
-    cmap=None,
-    origin="lower",
-    zscale_kw=None,
-    **kwargs
-):
+    image: ImageLike,
+    stretch: BaseStretch = LinearStretch(),
+    cmap: Any = None,
+    origin: str = "lower",
+    zscale_kw: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> ImshowResult:
     """Display an image with ZScale normalization.
 
     Parameters
@@ -169,8 +178,8 @@ def _symmetric_ticks(half: int, n_ticks: int) -> list[int]:
 def _apply_center_origin_ticks(
     ax,
     shape: tuple[int, int],
-    xticks=None,
-    yticks=None,
+    xticks: TickOffsets = None,
+    yticks: TickOffsets = None,
 ) -> None:
     """Relabel axes ticks so that coordinate 0 sits at the image center.
 
@@ -209,30 +218,30 @@ def _apply_center_origin_ticks(
 
 
 def imshow_norm(
-    data,
-    ax=None,
-    stretch="linear",
-    interval=None,
-    origin="lower",
-    tickorigin2center=False,
-    xticks=None,
-    yticks=None,
-    return_norm=False,
+    data: ImageLike,
+    ax: Any = None,
+    stretch: str | BaseStretch = "linear",
+    interval: str | BaseInterval | None = None,
+    origin: str = "lower",
+    tickorigin2center: bool = False,
+    xticks: TickOffsets = None,
+    yticks: TickOffsets = None,
+    return_norm: bool = False,
     # stretch tuning
-    asinh_a=0.1,
-    log_a=1000.0,
-    power=1.0,
-    sinh_a=0.3,
+    asinh_a: float = 0.1,
+    log_a: float = 1000.0,
+    power: float = 1.0,
+    sinh_a: float = 0.3,
     # range / clipping
-    vmin=None,
-    vmax=None,
-    min_percent=None,
-    max_percent=None,
-    percent=None,
-    clip=False,
-    invalid=-1.0,
-    **kwargs,
-):
+    vmin: float | None = None,
+    vmax: float | None = None,
+    min_percent: float | None = None,
+    max_percent: float | None = None,
+    percent: float | None = None,
+    clip: bool = False,
+    invalid: float | None = -1.0,
+    **kwargs: Any,
+) -> ImshowResult | tuple[ImshowResult, ImageNormalize]:
     """Display an image with astropy normalization.
 
     A unified wrapper around `astropy.visualization.imshow_norm` that
@@ -392,7 +401,10 @@ def imshow_norm(
     return im
 
 
-def norm_imshow(*args, **kwargs):
+def norm_imshow(
+    *args: Any,
+    **kwargs: Any,
+) -> ImshowResult | tuple[ImshowResult, ImageNormalize]:
     """Deprecated alias for `imshow_norm`. Use `imshow_norm` instead."""
     warn(
         "norm_imshow is deprecated and will be removed in a future version. "
