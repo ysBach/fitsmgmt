@@ -1,13 +1,16 @@
 """FITS image loading helpers."""
 
+import glob
 import sys
-from pathlib import Path
+from pathlib import Path, PosixPath, WindowsPath
 
 import numpy as np
+import pandas as pd
 from astro_ndslice import is_list_like, listify, slicefy
 from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
+from astropy.table import Table
 from astropy.wcs import WCS
 
 from .logging import logger
@@ -26,6 +29,8 @@ __all__ = [
     "_has_header",
     "_parse_extension",
     "get_size",
+    "write2fits",
+    "inputs2list",
     "load_ccd",
     "load_ccds",
 ]
@@ -597,7 +602,7 @@ def _load_ccd_astropy(
 
     if trimsec is not None:
         # Do imslice AFTER loading the data to easily add LTV/LTM...
-        from .hduutil import imslice
+        from .ccdutils import imslice
 
         ccd = imslice(ccd, trimsec=trimsec)
 
@@ -860,8 +865,6 @@ def load_ccds(
         %timeit ccds = fm.load_ccds("h_20191021_000*")
         105 ms +- 2.11 ms per loop (mean +- std. dev. of 7 runs, 10 loops each)
     """
-    from .hduutil import inputs2list
-
     paths2load = []
     for p in listify(paths):
         paths2load += inputs2list(p, sort=True, accept_ccdlike=False)
@@ -884,3 +887,131 @@ def load_ccds(
         )
         for p in np.array(paths2load).ravel()
     ]
+
+
+def write2fits(data, header, output, return_ccd=False, **kwargs):
+    """A convenience function to write proper FITS file.
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        The data
+
+    header : `~astropy.io.fits.Header`
+        The header
+
+    output : path-like
+        The output file path
+
+    return_ccd : `bool`, optional.
+        Whether to return the generated `~astropy.nddata.CCDData`.
+
+    **kwargs :
+        The keyword arguements to write FITS file by
+        `~astropy.nddata.fits_data_writer`, such as ``output_verify=True``,
+        ``overwrite=True``.
+        Default: `False`.
+    """
+    ccd = CCDData(data=data, header=header, unit=header.get("BUNIT", "adu"))
+
+    try:
+        ccd.write(output, **kwargs)
+    except fits.VerifyError:
+        logger.warning("Try using output_verify='fix' to avoid this error.")
+    if return_ccd:
+        return ccd
+
+
+def inputs2list(
+    inputs, sort=True, accept_ccdlike=True, path_to_text=False, check_coherency=False
+):
+    """Convert glob pattern or `list`-like of path-like to `list` of `~pathlib.Path`
+
+    Parameters
+    ----------
+    inputs : `str`, path-like, `~astropy.nddata.CCDData`, `~astropy.io.fits.PrimaryHDU`, `~astropy.io.fits.ImageHDU`, `~pandas.DataFrame`-convertable.
+        If `~pandas.DataFrame`-convertable, e.g., `dict`, `~pandas.DataFrame` or
+        `~astropy.table.Table`, it must have column named ``"file"``, such that
+        ``outlist = `list`(inputs["file"])`` is possible. Otherwise, please use,
+        e.g., ``inputs = `list`(that_table["filenamecolumn"])``. If a `str` starts
+        with ``"@"`` (e.g., ``"@darks.`list`"``), it assumes the file contains a
+        `list` of paths separated by ``"\\n"``, as in IRAF.
+
+    sort : `bool`, optional.
+        Whether to sort the output `list`.
+        Default: `True`.
+
+    accept_ccdlike: `bool`, optional.
+        Whether to accept `~astropy.nddata.CCDData`-like objects and simpley
+        return ``[inputs]``.
+        Default: `True`.
+
+    path_to_text: `bool`, optional.
+        Whether to convert the `pathlib.Path` object to `str`.
+        Default: `True`.
+
+    check_coherence: `bool`, optional.
+        Whether to check if all elements of the `inputs` have the identical
+        type.
+        Default: `False`.
+    """
+    contains_ccdlike = False
+    if inputs is None:
+        return None
+    elif isinstance(inputs, str):
+        if inputs.startswith("@"):
+            with open(inputs[1:]) as ff:
+                outlist = ff.read().splitlines()
+        else:
+            # If str, "dir/file.fits" --> [Path("dir/file.fits")]
+            #         "dir/*.fits"    --> [Path("dir/file.fits"), ...]
+            outlist = glob.glob(inputs)
+    elif isinstance(inputs, (PosixPath, WindowsPath)):
+        # If Path, ``TOP/"file*.fits"`` --> [Path("top/file1.fits"), ...]
+        outlist = glob.glob(str(inputs))
+    elif isinstance(inputs, ASTROPY_CCD_TYPES):
+        if accept_ccdlike:
+            outlist = [inputs]
+        else:
+            raise TypeError(
+                f"{type(inputs)} is given as `inputs`. "
+                + "Turn off accept_ccdlike or use path-like."
+            )
+    elif isinstance(inputs, (Table, dict, pd.DataFrame)):
+        # Do this before is_list_like because DataFrame returns True in
+        # is_list_like as it is iterable.
+        try:
+            outlist = list(inputs["file"])
+        except KeyError:
+            raise KeyError(
+                "If inputs is DataFrame convertible, it must have column named 'file'."
+            )
+    elif is_list_like(inputs):
+        type_ref = type(inputs[0])
+        outlist = []
+        for i, item in enumerate(inputs):
+            if check_coherency and not isinstance(item, type_ref):
+                raise TypeError(
+                    f"The 0-th item has {type_ref} while {i}-th has {type(item)}."
+                )
+            if isinstance(item, ASTROPY_CCD_TYPES):
+                contains_ccdlike = True
+                if accept_ccdlike:
+                    outlist.append(item)
+                else:
+                    raise TypeError(
+                        f"{type(item)} is given in the {i}-th element. "
+                        + "Turn off accept_ccdlike or use path-like."
+                    )
+            else:  # assume it is path-like
+                if path_to_text:
+                    outlist.append(str(item))
+                else:
+                    outlist.append(Path(item))
+    else:
+        raise TypeError(f"inputs type ({type(inputs)})not accepted.")
+
+    if sort and not contains_ccdlike:
+        outlist.sort()
+
+    return outlist

@@ -1,4 +1,4 @@
-"""WCS helper utilities from the raw hduutil port."""
+"""WCS helper utilities."""
 
 import re
 
