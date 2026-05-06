@@ -21,6 +21,7 @@ full = [
     "matplotlib>=3.8.0",
     "numba>=0.59",
     "numexpr>=2.8",
+    "pyarrow>=14",
     "scipy>=1.9.2",
 ]
 
