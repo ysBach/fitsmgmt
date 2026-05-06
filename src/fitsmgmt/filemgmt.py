@@ -14,7 +14,8 @@ from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from .hduutil import _parse_extension, cut_ccd, inputs2list, key_mapper, key_remover
+from .hduutil import cut_ccd, inputs2list, key_mapper, key_remover
+from .io import _parse_extension
 from .logging import logger
 
 __all__ = [
