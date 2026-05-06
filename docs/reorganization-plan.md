@@ -8,7 +8,7 @@ This document coordinates the first-wave port into:
 - `fitsimred` in `/Users/ysbach/Dropbox/github/fitsimred`
 - `fitsimphot` in `/Users/ysbach/Dropbox/github/fitsimphot`
 
-All packages target Python `>=3.9`. `fitsimspec` is deferred.
+All packages target Python `>=3.11`. `fitsimspec` is deferred.
 
 Preferred import aliases:
 
@@ -19,7 +19,7 @@ Preferred import aliases:
 The first commit should preserve the raw, archaic legacy code style as much as
 practical: keep original comments, docstrings, TODOs, notes, historical
 explanations, and naming unless a minimal change is required for package
-boundaries, imports, Python 3.9 compatibility, or tests.
+boundaries, imports, Python 3.11 compatibility, or tests.
 
 ## Package Boundaries
 
@@ -30,18 +30,15 @@ airmass/observation metadata helpers, and lightweight FITS image visualization.
 
 Ported from:
 
-- `ysfitsutilpy/hduutil.py` -> `fitsmgmt.hduutil`
-- `ysfitsutilpy/filemgmt.py` -> `fitsmgmt.filemgmt`
-- `ysfitsutilpy/misc.py` -> `fitsmgmt.misc`
+- `ysfitsutilpy/hduutil.py` -> `fitsmgmt.io`, `fitsmgmt.headers`, `fitsmgmt.ccdutils`, and `fitsmgmt.pixels`
+- `ysfitsutilpy/filemgmt.py` -> `fitsmgmt.summary` and `fitsmgmt.paths`
+- `ysfitsutilpy/misc.py` -> `fitsmgmt.misc`, `fitsmgmt.io`, `fitsmgmt.mathutils`, and `fitsmgmt.imstat`
 - `ysfitsutilpy/airmass.py` -> `fitsmgmt.airmass`
 - `ysvisutilpy/astro.py` -> `fitsmgmt.viz`
 
-Compatibility aliases retained for the disposable old skeleton:
+Compatibility alias retained for the disposable old skeleton:
 
-- `fitsmgmt.images` -> `fitsmgmt.hduutil`
-- `fitsmgmt.files` -> `fitsmgmt.filemgmt`
-- `fitsmgmt.utils` -> `fitsmgmt.misc`
-- `fitsmgmt.wcstools` -> WCS helpers from `fitsmgmt.hduutil`
+- `fitsmgmt.wcstools` -> canonical WCS helper module
 
 Deferred from `fitsmgmt`:
 
@@ -83,19 +80,19 @@ comments.
 - Prefer direct copy-and-paste over cleanup.
 - Preserve legacy comments and docstrings as much as possible.
 - Avoid stylistic modernization, type-hinting, renaming, typo fixes, and bug
-  fixes unless necessary for importability, Python 3.9 syntax, package
+  fixes unless necessary for importability, Python 3.11 syntax, package
   boundaries, or test execution.
 - Do not port legacy broad package-level star imports directly if they pull in
   unrelated heavy dependencies.
 - Fix only mechanical issues caused by the split: imports, package names,
-  optional dependencies, broken `__all__`, Python 3.9 syntax, and missing files.
+  optional dependencies, broken `__all__`, Python 3.11 syntax, and missing files.
 - Current `fitsmgmt` files are not authoritative and may be replaced.
 
 ## Test Plan
 
 `fitsmgmt`:
 
-- Port/expand tests for `hduutil`, `filemgmt`, `misc`, and `airmass`.
+- Port/expand tests for `io`, `headers`, `ccdutils`, `pixels`, `summary`, `paths`, `misc`, and `airmass`.
 - Cover `make_summary`, `inputs2list`, `load_ccd`, `write2fits`, extension
   parsing, header edits, WCS helpers, FITS slicing, path/glob behavior, and CLI
   summary output.
@@ -116,7 +113,7 @@ comments.
 
 All packages:
 
-- Run Python 3.9 import smoke tests.
+- Run Python 3.11 import smoke tests.
 - Run editable-install checks and `pip check` where feasible.
 
 ## Prompts For Other Threads
@@ -126,9 +123,9 @@ Prompt for `fitsimred`:
 ```text
 Load skill ysfitsutilpy. Work in /Users/ysbach/Dropbox/github/fitsimred. Read /Users/ysbach/Dropbox/github/fitsmgmt/docs/reorganization-plan.md first. Do not edit fitsmgmt.
 
-Target Python >=3.9. This is the image-in/image-out reduction package. Spawn at least three subagents before editing: senior architect, code-reviewer, and tester/user advocate.
+Target Python >=3.11. This is the image-in/image-out reduction package. Spawn at least three subagents before editing: senior architect, code-reviewer, and tester/user advocate.
 
-Port near-verbatim from ysfitsutilpy: preproc.py, combutil.py, and the full imutil package. Preserve original comments, docstrings, TODOs, and archaic style as much as possible. Only change imports/package names, Python 3.9 syntax issues, dependency boundaries, and tests needed for the package split.
+Port near-verbatim from ysfitsutilpy: preproc.py, combutil.py, and the full imutil package. Preserve original comments, docstrings, TODOs, and archaic style as much as possible. Only change imports/package names, Python 3.11 syntax issues, dependency boundaries, and tests needed for the package split.
 
 Replace ysfitsutilpy base helper imports with fitsmgmt equivalents. Do not import fitsimphot. Port focused tests and regression fixtures, especially imcombine regression and preproc tests.
 ```
@@ -138,9 +135,9 @@ Prompt for `fitsimphot`:
 ```text
 Load skill ysphotutilpy. Work in /Users/ysbach/Dropbox/github/fitsimphot. Read /Users/ysbach/Dropbox/github/fitsmgmt/docs/reorganization-plan.md first. Do not edit fitsmgmt or fitsimred.
 
-Target Python >=3.9. This is the local imaging photometry/source-measurement package. Spawn at least three subagents before editing: senior architect, code-reviewer, and tester/user advocate.
+Target Python >=3.11. This is the local imaging photometry/source-measurement package. Spawn at least three subagents before editing: senior architect, code-reviewer, and tester/user advocate.
 
-Port near-verbatim from ysphotutilpy: aperture.py, aputil.py, apphot.py, background.py, center.py, seputil.py, radprof.py, growth.py, daopsf.py, polarimetry.py, util.py, and logging.py if needed. Preserve original comments, docstrings, TODOs, and archaic style as much as possible. Only change imports/package names, Python 3.9 syntax issues, dependency boundaries, and tests needed for the package split.
+Port near-verbatim from ysphotutilpy: aperture.py, aputil.py, apphot.py, background.py, center.py, seputil.py, radprof.py, growth.py, daopsf.py, polarimetry.py, util.py, and logging.py if needed. Preserve original comments, docstrings, TODOs, and archaic style as much as possible. Only change imports/package names, Python 3.11 syntax issues, dependency boundaries, and tests needed for the package split.
 
 Keep photutils >=2,<3 explicit. Defer queryutil.py, query_cols.py, and smallbody.py. Port focused tests from ysphotutilpy/tests and avoid live network tests.
 ```

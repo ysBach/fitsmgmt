@@ -1,7 +1,7 @@
 [project]
 name = "fitsmgmt"
 version = "0.2.0"
-description = "Add your description here"
+description = "FITS file management and lightweight inspection utilities."
 readme = "README.md"
 authors = [
     { name = "ysBach", email = "ysbach93@gmail.com" }
@@ -27,6 +27,8 @@ full = [
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "sphinx>=7.2",
+    "sphinx-rtd-theme>=2.0",
 ]
 
 [build-system]

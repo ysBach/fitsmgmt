@@ -15,7 +15,9 @@ management (`hduutil.py`, `filemgmt.py`), image combination (`imutil/`,
 (`airmass.py`, WCS helpers), remote astrometry (`astrometry.py`), and generic
 math helpers (`misc.py`, `fitting.py`). The current `fitsmgmt` repo has already
 ported much of the FITS I/O/header/file-management layer and some WCS/stat
-helpers into `images.py`, `files.py`, `wcstools.py`, and `utils.py`.
+helpers into focused modules such as `io.py`, `headers.py`, `summary.py`,
+`paths.py`, `ccdutils.py`, `pixels.py`, `imstat.py`, `misc.py`, `airmass.py`, and
+`wcstools.py`.
 
 `ysphotutilpy` is a photometry/image-analysis package. Its core is aperture
 geometry, aperture photometry, sky/background estimation, centroiding, SEP
@@ -31,86 +33,82 @@ statistical diagnostic plots.
 
 Use a small package family rather than one large package:
 
-1. `fitskit` as the package family/root distribution.
+1. `fitsmgmt` as the package family/root distribution.
    - Owns FITS file discovery, summaries, header editing, CCDData/HDU parsing,
      extension selection, basic WCS metadata extraction, and small visualization
      helpers that inspect FITS images.
-   - Can expose subpackages such as `fitskit.io`, `fitskit.headers`,
-     `fitskit.images`, `fitskit.wcs`, and `fitskit.viz`.
+   - Exposes modules such as `fitsmgmt.io`, `fitsmgmt.headers`,
+     `fitsmgmt.ccdutils`, `fitsmgmt.wcstools`, and `fitsmgmt.viz`.
    - Should not own calibration policy, object photometry, polarimetry, catalog
      queries, or spectroscopy.
-2. `fitsreduc` for image-in/image-out reduction.
+2. `fitsimred` for image-in/image-out reduction.
    - Bias/dark/flat/fringe/illumination correction, cosmic ray rejection,
      image arithmetic, stacking/combination, rejection masks, and reduction
      planning.
-   - Depends on `fitskit`; optional dependencies include `ccdproc`,
+   - Depends on `fitsmgmt`; optional dependencies include `ccdproc`,
      `astroscrappy`, `numba`, and `bottleneck`.
-3. `astrophot` for science measurement on imaging data.
+3. `fitsimphot` for science measurement on imaging data.
    - Apertures, source detection, background estimation, centroiding, PSF/PRF
      helpers, radial profiles, growth curves, photometry tables, and
      polarimetry.
-   - Depends on `fitskit`; may optionally use `fitsreduc` only in examples or
+   - Depends on `fitsmgmt`; may optionally use `fitsimred` only in examples or
      pipeline glue.
-4. `astrospec` later.
+4. `fitsimspec` later.
    - Keep spectroscopy out until there is real code pressure. Spectroscopy has
      a different data model, calibration vocabulary, and visualization surface.
 5. Optional catalog/query package or module.
    - `ysphotutilpy/queryutil.py` is useful, but it mixes network services,
      catalog-specific schemas, and FOV filtering. Consider keeping it outside
-     the core photometry package, or under an optional `astrophot.catalogs`
+     the core photometry package, or under an optional `fitsimphot.catalogs`
      extra.
 
 ## Boundary rules
 
-Keep code in `fitskit` when it can answer questions about files, HDUs, headers,
+Keep code in `fitsmgmt` when it can answer questions about files, HDUs, headers,
 CCDData containers, image sections, pixel arrays as arrays, or WCS metadata
 without making science decisions about sources.
 
-Move code to `fitsreduc` when it transforms one or more images into calibrated
+Move code to `fitsimred` when it transforms one or more images into calibrated
 or combined images, creates/rejects masks as part of calibration, or records
 reduction history.
 
-Move code to `astrophot` when it measures sources, estimates sky around
+Move code to `fitsimphot` when it measures sources, estimates sky around
 sources, fits centroids/PSFs, builds apertures, computes flux/magnitude/error,
 or computes polarization.
 
 Keep visualization small and optional. `ysvisutilpy/astro.py` fits naturally
-inside `fitskit.viz` if `fitskit` is the user-facing umbrella. Heavier
+inside `fitsmgmt.viz` if `fitsmgmt` is the user-facing umbrella. Heavier
 Matplotlib/statistical diagnostic helpers should be optional extras or a
 separate `astroviz` package if they grow.
 
-WCS belongs in `fitskit` only up to metadata: parse WCS, pixel scale, image
+WCS belongs in `fitsmgmt` only up to metadata: parse WCS, pixel scale, image
 center, footprint/radius, rotation, and removing WCS keywords. Coordinate
 science such as catalog matching, ephemerides, FOV membership for moving
-objects, or source association belongs outside `fitskit`.
+objects, or source association belongs outside `fitsmgmt`.
 
 ## Naming
 
-`fitsmgmt` is accurate but narrow and a bit administrative. If this repository
-will be the low-level base plus light visualization, `fitskit` is a better
-name: it reads as a toolkit and leaves room for I/O, headers, WCS metadata, and
-inspection utilities without implying full reduction or photometry.
+`fitsmgmt` is the low-level FITS management package for I/O, headers, WCS
+metadata, summaries, and light visualization. It should not absorb full
+reduction or photometry workflows.
 
-Avoid naming the umbrella `fitsreduc` if it contains only a small amount of
-reduction code, because users will expect calibration pipelines. Reserve
-`fitsreduc` for the image-in/image-out reduction layer.
+Use `fitsimred` for the image-in/image-out reduction layer, where users will
+expect calibration pipelines and combination tools.
 
-`astrophot` is preferable to `fitsphot` if the package will support `CCDData`,
-arrays, tables, or non-FITS intermediates. Use `fitsphot` only if the public
-surface stays strongly FITS-file-centric.
+`fitsimphot` owns local imaging photometry and source-measurement utilities.
+It may still support `CCDData`, arrays, tables, and non-FITS intermediates,
+but this wave keeps the FITS-imaging package family naming.
 
 `astroviz` is preferable to `fitsviz` if it includes generic Matplotlib,
-statistics, or catalog visualizations. Use `fitskit.viz` for compact FITS image
+statistics, or catalog visualizations. Use `fitsmgmt.viz` for compact FITS image
 inspection helpers before creating a separate package.
 
 ## Practical migration order
 
-1. Rename or define this repo as `fitskit` before APIs become harder to change.
-2. Finish hardening the low-level FITS/CCDData layer already present in
-   `fitsmgmt`.
-3. Move `ysfitsutilpy/imutil` and reduction-specific `preproc.py` code into a
-   separate `fitsreduc` package, not into the low-level base.
-4. Move `ysphotutilpy` local image-analysis code into `astrophot`; keep
+1. Keep this repo as `fitsmgmt` and harden the low-level FITS/CCDData layer.
+2. Move `ysfitsutilpy/imutil` and reduction-specific `preproc.py` code into a
+   separate `fitsimred` package, not into the low-level base.
+3. Move `ysphotutilpy` local image-analysis code into `fitsimphot`; keep
    `queryutil.py` optional or separate.
-5. Port only `ysvisutilpy/astro.py` into `fitskit.viz` initially. Defer the rest
+4. Port only `ysvisutilpy/astro.py` into `fitsmgmt.viz` initially. Defer the rest
    unless plotting becomes a real supported product surface.
