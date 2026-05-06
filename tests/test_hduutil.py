@@ -9,7 +9,7 @@ from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
 
-from fitsmgmt import hduutil
+from fitsmgmt import hduutil, wcstools
 
 # Strict tolerance for numerical comparisons
 RTOL = 1e-6
@@ -215,3 +215,28 @@ class TestGiveStats:
         np.testing.assert_allclose(
             stats["std"], np.std(arr, ddof=1), rtol=RTOL, atol=ATOL
         )
+
+
+class TestWcsTools:
+    """Tests for WCS helper compatibility exports."""
+
+    def test_hduutil_exports_wcstools_functions(self):
+        """WCS helpers live in wcstools and are re-exported from hduutil."""
+        for name in ["wcs_crota", "center_radec", "fov_radius", "wcsremove", "pixel_scale"]:
+            assert getattr(hduutil, name) is getattr(wcstools, name)
+
+    def test_wcsremove_header(self, sample_header):
+        """Test WCS keyword removal from an in-memory header."""
+        hdr = sample_header.copy()
+        hdr["CRVAL1"] = 1.0
+        hdr["CRVAL2"] = 2.0
+        hdr["CTYPE1"] = "RA---TAN"
+        hdr["CTYPE2"] = "DEC--TAN"
+
+        out = wcstools.wcsremove(hdr, verbose=False)
+
+        assert "CRVAL1" not in out
+        assert "CRVAL2" not in out
+        assert "CTYPE1" not in out
+        assert "CTYPE2" not in out
+        assert "OBJECT" in out
