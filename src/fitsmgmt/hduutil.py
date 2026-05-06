@@ -2,7 +2,6 @@ import glob
 import re
 from copy import deepcopy
 from pathlib import Path, PosixPath, WindowsPath
-from warnings import warn
 
 import bottleneck as bn
 import erfa
@@ -1584,9 +1583,9 @@ def cut_ccd(ccd, position, size, wcs=None, mode="trim", fill_value=np.nan, warni
             nonlin = False
 
         if nonlin:
-            warn(
+            logger.warning(
                 "Nonlinear WCS in `ccd.wcs.get_axis_types()`. "
-                + "This may result in slightly inaccurate WCS calculation."
+                "This may result in slightly inaccurate WCS calculation."
             )
 
     return nccd, cutout
@@ -2585,9 +2584,9 @@ def chk_keyval(type_key, type_val, group_key):
     # If there is overlap
     overlap = set(type_key).intersection(set(group_key))
     if len(overlap) > 0:
-        warn(
+        logger.warning(
             f"{overlap} appear in both `type_key` and `group_key`."
-            + "It may not be harmful but better to avoid."
+            "It may not be harmful but better to avoid."
         )
 
     return type_key, type_val, group_key
@@ -2707,7 +2706,7 @@ def get_from_header(header, key, unit=None, verbose=True, default=0):
             logger.info("header: %-8s = %s", key, q)
     except (KeyError, IndexError):
         q = change_to_quantity(default, desired=unit)
-        warn(f"The key {key} not found in header: setting to {default}.")
+        logger.warning("The key %s not found in header: setting to %s.", key, default)
 
     return q
 
@@ -3422,8 +3421,10 @@ def give_stats(
 
     if N_extrema is not None:
         if 2 * N_extrema > result["num"]:
-            warn(
-                f"Extrema overlaps (2*N_extrema ({2*N_extrema}) > N_pix ({result['num']}))"
+            logger.warning(
+                "Extrema overlaps (2*N_extrema (%s) > N_pix (%s))",
+                2 * N_extrema,
+                result["num"],
             )
         data_flatten = np.sort(data, axis=None)  # axis=None will do flatten.
         d_los = data_flatten[:N_extrema]
@@ -3454,7 +3455,7 @@ def give_stats(
 
         if N_extrema is not None:
             if N_extrema > 99:
-                warn("N_extrema > 99 may not work properly in header.")
+                logger.warning("N_extrema > 99 may not work properly in header.")
             for i in range(N_extrema):
                 hdr[f"STATLO{i+1:02d}"] = (
                     result["ext_lo"][i],

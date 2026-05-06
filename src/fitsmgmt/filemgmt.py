@@ -5,7 +5,6 @@ Contains convenience functions which are
 """
 
 from pathlib import Path
-from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -337,7 +336,10 @@ def make_summary(
             if key_i in skip_keys:
                 continue
             elif key_i in keywords:
-                warn(f"Key {key_i} is duplicated! Only the first one will be saved.")
+                logger.warning(
+                    "Key %s is duplicated! Only the first one will be saved.",
+                    key_i,
+                )
                 continue
             keywords.append(key_i)
 
@@ -366,9 +368,9 @@ def make_summary(
                         "Key {:s} not found for {:s}, filling with None."
                     )
                     if isinstance(item, CCDData):
-                        warn(str_keyerror_fill.format(k, f"fitslist[{i}]"))
+                        logger.warning(str_keyerror_fill.format(k, f"fitslist[{i}]"))
                     else:
-                        warn(str_keyerror_fill.format(k, str(item)))
+                        logger.warning(str_keyerror_fill.format(k, str(item)))
                 summarytab[k].append(None)
                 missing_keys.add(k)
 
@@ -1021,9 +1023,9 @@ def fitsrenamer(
         if not isinstance(add_header, fits.Header) and not isinstance(
             add_header, fits.header.Card
         ):
-            warn(
+            logger.warning(
                 "add_header is not either Header or Card. "
-                + "Be careful about possible error."
+                "Be careful about possible error."
             )
         hdr += add_header
 

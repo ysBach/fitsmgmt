@@ -6,8 +6,6 @@ Don't you think these must be implemented to astropy...?
 
 from __future__ import annotations
 
-from warnings import warn
-
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord
@@ -16,6 +14,7 @@ from astropy.io.fits import Card
 from astropy.time import Time
 
 from .hduutil import cmt2hdr, get_if_none
+from .logging import logger
 from .misc import change_to_quantity
 
 __all__ = ["calc_airmass", "airmass_obs", "airmass_to_hdr", "airmass_from_hdr"]
@@ -119,10 +118,10 @@ def airmass_obs(
     Partly contributed by Geonwoo Kang (Seoul National University) in Apr 2018.
     """
     if not isinstance(ut, Time):
-        warn("ut is not Time object. Assume format='isot', scale='utc'.")
+        logger.warning("ut is not Time object. Assume format='isot', scale='utc'.")
         ut = Time(ut, format="isot", scale="utc")
     if not isinstance(exptime, u.Quantity):
-        warn("exptime is not astropy Quantity. Assume it is in seconds.")
+        logger.warning("exptime is not astropy Quantity. Assume it is in seconds.")
         exptime = exptime * u.s
 
     t_start = ut
