@@ -84,7 +84,7 @@ def set_ccd_attribute(
     wrapper=None,
     wrapper_kw={},
 ):
-    """Set attributes from given paramters.
+    """Set CCDData attributes from explicit values or header keywords.
 
     Parameters
     ----------
@@ -200,7 +200,7 @@ def set_ccd_gain_rdnoise(
         The gain and readnoise value. If `gain` or `readnoise` is specified,
         they are interpreted with `gain_unit` and `rdnoise_unit`, respectively.
         If they are not specified, this function will seek for the header with
-        keywords of `gain_key` and `rdnoise_key`, and interprete the header
+        keywords of `gain_key` and `rdnoise_key`, and interpret the header
         value in the unit of `gain_unit` and `rdnoise_unit`, respectively.
 
     gain_key, rdnoise_key : `str`, optional.
@@ -304,7 +304,7 @@ def imslice(
         slice_for_axis1, ...]``).
         Default: `True`.
 
-    fill_value : `None`, `float`-like, optinoal, optional.
+    fill_value : `None` or `float`-like, optional.
         If `None`, it removes the pixels outside of it. If given as `float`-like
         (including `np.nan`), the bezel pixels will be replaced with this
         value.
@@ -535,7 +535,7 @@ def bin_ccd(
     factor_x, factor_y : `int`, optional.
         The binning factors in x, y direction.
 
-    binfunc : funciton object, optional.
+    binfunc : callable, optional.
         The function to be applied for binning, such as ``np.sum``,
         ``np.mean``, and ``np.median``.
         Default: ``np.mean``.
@@ -551,7 +551,7 @@ def bin_ccd(
 
     Notes
     -----
-    This is ~ 20-30 to upto 10^5 times faster than astropy.nddata's
+    This is ~ 20-30 to up to 10^5 times faster than astropy.nddata's
     block_reduce:
 
     >>> from astropy.nddata.blocks import block_reduce
@@ -567,8 +567,8 @@ def bin_ccd(
     >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
     >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
     >>> # 5.e+5   ...      ...     ...     ...     27  -- times slower
-    >>> # some strange chaching happens?
-    Tested on  MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
+    >>> # some strange caching happens?
+    Tested on MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
     GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
     """
     _t_start = Time.now()

@@ -33,7 +33,7 @@ def cmt2hdr(
     set_kw=None,
     verbose=False,
 ):
-    """Automatically add timestamp as well as HISTORY or COMMENT string
+    """Add HISTORY/COMMENT entries, optionally with a timestamp.
 
     Parameters
     ----------
@@ -69,7 +69,7 @@ def cmt2hdr(
         Default: ``'(dt = {:.3f} s)'``.
 
     verbose : `bool`, optional.
-        Whether to print the same information on the output terminal.
+        Whether to log the same information.
         Default: `False`.
 
     set_kw : `dict`, optional.
@@ -239,7 +239,7 @@ def hedit(
     output_verify="fix",
     verbose=True,
 ):
-    """Edit the header key (usu. to update value of a keyword).
+    """Edit FITS header keyword values.
 
     Parameters
     ----------
@@ -255,22 +255,19 @@ def hedit(
         single `key`, use a `list` of it (e.g., `[[1, 2, 3]]`) to circumvent
         problem.
 
-    comment : `str`, `list`-like of `str` optional.
-        The comment to add.
+    comments : `str`, `list`-like of `str`, optional
+        Comments to add.
 
     add : `bool`, optional.
         Whether to add the key if it is not in the header.
         Default: `False`.
 
-    befores : `str`, `int`, `list`-like of such, optional
+    befores, afters : `str`, `int`, `list`-like of such, optional
         Name of the keyword, or index of the `Card` before which this card
-        should be located in the header. The argument `before` takes
-        precedence over `after` if both specified.
+        should be located in the header, or after which this card should be
+        located. The argument `before` takes precedence over `after` if both
+        specified.
         Default: `None`.
-
-    after : `str`, `int`, `list`-like of such, optional
-        Name of the keyword, or index of the `Card` after which this card
-        should be located in the header.
 
     output: path-like, optional
         The output file.
@@ -279,7 +276,8 @@ def hedit(
     Returns
     -------
     ccd : `~astropy.nddata.CCDData`
-        The header-updated `~astropy.nddata.CCDData.` `None` if `item` was pure `~astropy.io.fits.Header`.
+        The header-updated `~astropy.nddata.CCDData`. `None` if `item` was
+        pure `~astropy.io.fits.Header`.
     """
 
     def _add_key(header, key, val, infostr, cmt=None, before=None, after=None):
@@ -340,7 +338,7 @@ def hedit(
 
 
 def key_remover(header, remove_keys, deepremove=True):
-    """Removes keywords from the header.
+    """Remove keywords from a header.
 
     Parameters
     ----------
@@ -350,13 +348,13 @@ def key_remover(header, remove_keys, deepremove=True):
     remove_keys : `list` of `str`
         The header keywords to be removed.
 
-    deepremove : `True`, optional
+    deepremove : `bool`, optional
         FITS standard does not have any specification of duplication of
         keywords as discussed in the following issue:
         https://github.com/astropy/ccdproc/issues/464
         If it is set to `True`, ALL the keywords having the name specified in
         `remove_keys` will be removed. If not, only the first occurence of each
-        key in `remove_keys` will be removed. It is more sensical to set it
+        key in `remove_keys` will be removed. It is more sensible to set it
         `True` in most of the cases.
         Default: `True`.
     """
@@ -379,7 +377,7 @@ def key_remover(header, remove_keys, deepremove=True):
 
 
 def key_mapper(header, keymap=None, deprecation=False, remove=False):
-    """Update the header to meed the standard (keymap).
+    """Update a header to match a keyword map.
 
     Parameters
     ----------
@@ -406,7 +404,7 @@ def key_mapper(header, keymap=None, deprecation=False, remove=False):
 
     Returns
     -------
-    newhdr: `~astropy.io.fits.Heade`r
+    newhdr : `~astropy.io.fits.Header`
         The updated (key-mapped) header.
 
     Notes
@@ -447,7 +445,7 @@ def key_mapper(header, keymap=None, deprecation=False, remove=False):
 
 
 def chk_keyval(type_key, type_val, group_key):
-    """Checks the validity of key and values used heavily in combutil.
+    """Validate type and group keyword/value arguments.
 
     Parameters
     ----------
@@ -567,7 +565,7 @@ def hdrval(
 
     unit : `str`, optional.
         `None` to ignore unit. ``''`` (empty string) means `Unit(dimensionless)`.
-        Better to leave it as `None` unless astropy unit is truely needed.
+        Better to leave it as `None` unless astropy unit is truly needed.
         Default: `None`.
 
     verbose : `bool`, optional.
@@ -665,17 +663,17 @@ def midtime_obs(
     exptime="EXPTIME",
     exptime_unit=u.s,
 ):
-    """Calculates the mid-obs time (exposure start + exposure/2)
+    """Calculate the mid-observation time.
 
     Parameters
     ----------
-    header : astropy.Header, optional.
+    header : `~astropy.io.fits.Header`, optional.
         The header to extract the value. `midtime_obs` can be used without
         header. But to do so, `dateobs` must be in `~astropy.time.Time` and
         `exptime` must be given as `float` or `~astropy.units.Quantity`.
         Default: `None`.
 
-    dateobs : `str`, `~astropy.Time`, optional.
+    dateobs : `str` or `~astropy.time.Time`, optional.
         The header keyword for DATE-OBS (start of exposure) or the
         `~astropy.Time` object.
         Default: ``'DATE-OBS'``.
@@ -684,6 +682,12 @@ def midtime_obs(
         The header keyword for exposure time or the exposure time as `float` (in
         seconds) or `~astropy.units.Quantity`.
         Default: ``'EXPTIME'``.
+
+    format, scale, precision, in_subfmt, out_subfmt, location : optional
+        Passed to `~astropy.time.Time` when `dateobs` is read from the header.
+
+    exptime_unit : `~astropy.units.Unit`, optional
+        Unit applied to numeric exposure times. Default is seconds.
 
     """
     if isinstance(dateobs, str):

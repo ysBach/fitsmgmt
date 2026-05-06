@@ -39,10 +39,10 @@ ASTROPY_CCD_TYPES = (CCDData, fits.PrimaryHDU, fits.ImageHDU)  # fits.CompImageH
 
 
 def get_size(obj, seen=None):
-    """Recursively finds size of objects.
-    Directly from
-    https://goshippo.com/blog/measure-real-size-any-python-object/
-    Returns the size in bytes.
+    """Recursively estimate an object's memory size in bytes.
+
+    Based on the recursive recipe from
+    https://goshippo.com/blog/measure-real-size-any-python-object/.
     """
     size = sys.getsizeof(obj)
     if seen is None:
@@ -75,7 +75,7 @@ def get_size(obj, seen=None):
 def _parse_data_header(
     ccdlike, extension=None, parse_data=True, parse_header=True, copy=True
 ):
-    """Parses data and header and return them separately after copy.
+    """Parse data and header from a CCD-like object, array, header, or path.
 
     Parameters
     ---------
@@ -88,11 +88,11 @@ def _parse_data_header(
         `str` and `int`: ``(EXTNAME, EXTVER)``. If `None` (default), the *first
         extension with data* will be used.
 
-    parse_data, parse_header : `bool`, optional.
+    parse_data, parse_header : `bool`, optional
         Because this function uses ``.copy()`` for safety, it may take a bit of
         time if this function is used iteratively. One then can turn off one of
         these to ignore either data or header part.
-        Default: `None`.
+        Default: `True`.
 
     Returns
     -------
@@ -212,7 +212,7 @@ def _parse_image(
     prefer_ccddata=False,
     copy=True,
 ):
-    """Parse and return input image as desired format (`~numpy.ndarray` or `~astropy.nddata.CCDData`)
+    """Parse an image-like input as an array or `~astropy.nddata.CCDData`.
 
     Parameters
     ----------
@@ -228,17 +228,14 @@ def _parse_image(
         extension with data* will be used.
         Default: `None`.
 
-    force_ccddata: `bool`, optional.
-        To force the return im as `~astropy.nddata.CCDData` object. This is
+    force_ccddata, prefer_ccddata : `bool`, optional
+        `force_ccddata` forces return as `~astropy.nddata.CCDData`. This is
         useful when error calculation is turned on.
-        Default is `False`.
-
-    prefer_ccddata: `bool`, optional.
-        Mildly use `~astropy.nddata.CCDData`, i.e., return
-        `~astropy.nddata.CCDData` only if `im` was `~astropy.nddata.CCDData`,
+        `prefer_ccddata` returns `~astropy.nddata.CCDData` only if `im` was
+        `~astropy.nddata.CCDData`,
         HDU object, or `~pathlib.Path`-like to a FITS file, but **not** if it was `~numpy.ndarray`
         or numbers.
-        Default is `False`.
+        Default: `False`.
 
     Returns
     -------
@@ -376,7 +373,7 @@ def _parse_image(
 
 
 def _has_header(ccdlike, extension=None, open_if_file=True):
-    """Checks if the object has header; similar to _parse_data_header.
+    """Return whether an object has, or points to, a FITS-like header.
 
     Parameters
     ---------
@@ -690,7 +687,7 @@ def load_ccd(
     as_ccd=True,  # DEPRECATED
     **kwd,
 ):
-    """Loads FITS file of CCD image data (not table, etc).
+    """Load CCD-like image data from a FITS file.
 
     Parameters
     ---------
@@ -754,8 +751,8 @@ def load_ccd(
         `extension`.
         Default: ``'MASK'``.
 
-    hdu_flags : `str` or `None`, optional
-        Currently not implemented.N ame is changed from `hdu_flags` in ccdproc
+    extension_flags : `str` or `None`, optional
+        Currently not implemented. Name is changed from `hdu_flags` in ccdproc
         to `extension_flags` here.
         Default: `None`.
 
@@ -847,7 +844,7 @@ def load_ccds(
     memmap=False,
     **kwd,
 ):
-    """Simple recursion of `~fitsmgmt.io.load_ccd`
+    """Load multiple FITS files with `load_ccd`.
 
     Parameters
     ---------
@@ -890,7 +887,7 @@ def load_ccds(
 
 
 def write2fits(data, header, output, return_ccd=False, **kwargs):
-    """A convenience function to write proper FITS file.
+    """Write data and a header to a FITS file via `~astropy.nddata.CCDData`.
 
     Parameters
     ----------
@@ -907,10 +904,8 @@ def write2fits(data, header, output, return_ccd=False, **kwargs):
         Whether to return the generated `~astropy.nddata.CCDData`.
 
     **kwargs :
-        The keyword arguements to write FITS file by
-        `~astropy.nddata.fits_data_writer`, such as ``output_verify=True``,
-        ``overwrite=True``.
-        Default: `False`.
+        Keyword arguments passed to `~astropy.nddata.CCDData.write`, such as
+        ``output_verify="fix"`` or ``overwrite=True``.
     """
     ccd = CCDData(data=data, header=header, unit=header.get("BUNIT", "adu"))
 
@@ -925,12 +920,12 @@ def write2fits(data, header, output, return_ccd=False, **kwargs):
 def inputs2list(
     inputs, sort=True, accept_ccdlike=True, path_to_text=False, check_coherency=False
 ):
-    """Convert glob pattern or `list`-like of path-like to `list` of `~pathlib.Path`
+    """Convert paths, globs, tables, or CCD-like objects to a list.
 
     Parameters
     ----------
-    inputs : `str`, path-like, `~astropy.nddata.CCDData`, `~astropy.io.fits.PrimaryHDU`, `~astropy.io.fits.ImageHDU`, `~pandas.DataFrame`-convertable.
-        If `~pandas.DataFrame`-convertable, e.g., `dict`, `~pandas.DataFrame` or
+    inputs : `str`, path-like, CCD-like, or table-like
+        If `~pandas.DataFrame`-convertible, e.g., `dict`, `~pandas.DataFrame` or
         `~astropy.table.Table`, it must have column named ``"file"``, such that
         ``outlist = `list`(inputs["file"])`` is possible. Otherwise, please use,
         e.g., ``inputs = `list`(that_table["filenamecolumn"])``. If a `str` starts
@@ -941,16 +936,16 @@ def inputs2list(
         Whether to sort the output `list`.
         Default: `True`.
 
-    accept_ccdlike: `bool`, optional.
-        Whether to accept `~astropy.nddata.CCDData`-like objects and simpley
+    accept_ccdlike : `bool`, optional
+        Whether to accept `~astropy.nddata.CCDData`-like objects and simply
         return ``[inputs]``.
         Default: `True`.
 
-    path_to_text: `bool`, optional.
+    path_to_text : `bool`, optional
         Whether to convert the `pathlib.Path` object to `str`.
         Default: `True`.
 
-    check_coherence: `bool`, optional.
+    check_coherency : `bool`, optional
         Whether to check if all elements of the `inputs` have the identical
         type.
         Default: `False`.

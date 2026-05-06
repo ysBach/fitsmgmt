@@ -17,7 +17,16 @@ __all__ = ["wcs_crota", "center_radec", "fov_radius", "wcsremove", "pixel_scale"
 
 
 def wcs_crota(wcs, degree=True):
-    """
+    """Calculate CROTA-like rotation angle from a WCS CD matrix.
+
+    Parameters
+    ----------
+    wcs : `~astropy.wcs.WCS` or `~astropy.wcs.Wcsprm`
+        WCS object containing a CD matrix.
+
+    degree : `bool`, optional
+        Whether to return the angle in degrees. If `False`, radians are
+        returned.
 
     Notes
     -----
@@ -66,8 +75,9 @@ def center_radec(
 
     Parameters
     ----------
-    ccd_or_header : CCD-like, `~astropy.io.fits.Header`
-        The ccd or header to extract the central RA/DEC from keywords or `~astropy.wcs.WCS`.
+    ccd_or_header : `~astropy.nddata.CCDData` or `~astropy.io.fits.Header`
+        The CCDData or header to extract central RA/DEC from keywords or
+        `~astropy.wcs.WCS`.
 
     center_of_image : `bool`, optional
         If `True`, `~astropy.wcs.WCS` information will be extracted from the ccd or header,
@@ -78,14 +88,14 @@ def center_radec(
     equinox, frame : `str`, optional
         The `equinox` and `frame` for SkyCoord. Default (`None`) will use the
         default of SkyCoord. Important only if ``usewcs=False``.
-        Default: `True`.
+        Default: `None`.
 
-    XX_key : `str`, optional
-        The header key to find XX if ``XX`` is `None`. Important only if
-        ``usewcs=False``.
+    ra_key, dec_key, equinox_key, frame_key : `str`, optional
+        Header keys used when ``center_of_image=False``.
 
-    XX_unit : `~astropy.units.Quantity`, optional
-        The unit of ``XX``. Important only if ``usewcs=False``.
+    ra_unit, dec_unit : `~astropy.units.Unit`, optional
+        Units of RA and DEC values read from header keywords when
+        ``center_of_image=False``.
 
     mode : 'all' or 'wcs', optional
         Whether to do the transformation including distortions (``'all'``) or
@@ -95,6 +105,8 @@ def center_radec(
 
     plain : `bool`, optional.
         If `True`, only the values of RA/DEC in degrees will be returned.
+        Otherwise (default), a `~astropy.coordinates.SkyCoord` object will be
+        returned.
         Default: `False`.
     """
     from .headers import hdrval
@@ -136,7 +148,7 @@ def fov_radius(header=None, wcs=None, unit=u.deg):
 
     Parameters
     ----------
-    header : `~astropy.io.fits.Heade`r, optional.
+    header : `~astropy.io.fits.Header`, optional.
         The header to extract `~astropy.wcs.WCS` information.
         Default: `None`.
 
@@ -418,7 +430,7 @@ def pixel_scale(header=None, wcs=None, unit=u.arcsec, position=None):
 
     Parameters
     ----------
-    header : `~astropy.io.fits.Heade`r, optional.
+    header : `~astropy.io.fits.Header`, optional.
         The header to extract `~astropy.wcs.WCS` information.
         It is used when `wcs` is `None` or `position` is `"physical"`.
         Default: `None`.

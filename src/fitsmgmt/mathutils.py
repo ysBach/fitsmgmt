@@ -15,7 +15,19 @@ __all__ = [
 
 
 def weighted_avg(val, err):
-    # Weighted mean and standard error
+    """Return the inverse-variance weighted mean and standard error.
+
+    Parameters
+    ----------
+    val, err : array-like
+        Values and 1-sigma uncertainties. Weights are calculated as
+        ``1 / err**2``.
+
+    Returns
+    -------
+    mean, stderr : float
+        Weighted mean and its standard error.
+    """
     val = np.asarray(val)
     err = np.asarray(err)
     w = 1 / (err**2)
@@ -35,11 +47,12 @@ def quantile_lh(
     linterp=None,
     hinterp=None,
 ):
-    """Find quantiles for lower and higher values
+    """Return lower and upper quantiles.
 
     Parameters
     ----------
-    a : `~numpy.ndarray`
+    a : array-like
+        Input data.
 
     lq, hq : array_like of `float`
         Quantile or sequence of quantiles to compute, which must be between 0
@@ -49,8 +62,8 @@ def quantile_lh(
         Axis or axes along which the quantiles are computed. The default is to
         compute the quantile(s) along a flattened version of the array.
 
-    nanfunc : `bool`, optional.
-        Whether to use `~np.nanquantile` instead of `~np.qualtile`.
+    nanfunc : `bool`, optional
+        Whether to use `~numpy.nanquantile` instead of `~numpy.quantile`.
         Default: `False`.
 
     interpolation, linterp, hinterp : ``{'linear', 'lower', 'higher', 'midpoint', 'nearest'}``, optional.
@@ -92,7 +105,7 @@ def quantile_lh(
 def quantile_sigma(
     a, axis=None, nanfunc=False, interpolation="linear", linterp=None, hinterp=None
 ):
-    """Extract "sigma" (std. dev.) from quantile to avoid bad values."""
+    """Estimate sigma from the 15.87 and 84.13 percent quantiles."""
     low, upp = quantile_lh(
         a,
         0.1587,
@@ -107,7 +120,7 @@ def quantile_sigma(
 
 
 def min_max_med_1d(arr):
-    """Return minimum, maximum and median of array."""
+    """Return the minimum, maximum, and median of a 1-D array."""
     arr = np.asarray(arr)
     if arr.size < 1000:
         _a = np.sort(arr)
@@ -122,7 +135,17 @@ def min_max_med_1d(arr):
 
 
 def mean_std_1d(arr, ddof=0, std=True, var=False):
-    """Return mean and standard deviation of array."""
+    """Return mean with standard deviation and/or variance.
+
+    Parameters
+    ----------
+    arr : array-like
+        Input values.
+    ddof : int, optional
+        Delta degrees of freedom for variance normalization.
+    std, var : bool, optional
+        Select whether to include standard deviation and/or variance.
+    """
     arr = np.asarray(arr)
     sum_a = np.sum(arr)
     sqsum = np.sum(arr**2)
@@ -148,14 +171,14 @@ def binning(
     binfunc=np.mean,
     trim_end=False,
 ):
-    """Bins the given arr frame.
+    """Bin an array by integer factors.
 
     Parameters
     ---------
-    arr: 2d array
-        The array to be binned
+    arr : array-like
+        Input array.
 
-    factor_x, factor_y: `int` or `None`, optional.
+    factor_x, factor_y : `int` or `None`, optional
         The binning factors in x, y direction. This is left as legacy and for
         clarity, because mostly this function is used for 2-D CCD data. If any
         of these is given, `order_xyz` is overridden as `True`.
@@ -167,7 +190,7 @@ def binning(
         that axis.
         Default: `None`.
 
-    binfunc : funciton object, optional.
+    binfunc : callable, optional
         The function to be applied for binning, such as ``np.sum``,
         ``np.mean``, and ``np.median``.
         Default: ``np.mean``.
@@ -196,7 +219,7 @@ def binning(
     >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
     >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
     >>> # 5.e+5   ...      ...     ...     ...     27  -- times slower
-    >>> # some strange chaching happens?
+    >>> # some strange caching happens?
     Tested on MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
     GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
     """
@@ -254,8 +277,10 @@ def binning(
 # FIXME: I am not sure whether these gain conversions are universal or just
 # for ASI cameras...
 def dB2epadu(gain_dB: float) -> float:
+    """Convert gain from decibels to electron/ADU."""
     return 5 / 10 ** (gain_dB / 20)
 
 
 def epadu2dB(gain_epadu: float) -> float:
+    """Convert gain from electron/ADU to decibels."""
     return 20 * np.log10(5 / gain_epadu)

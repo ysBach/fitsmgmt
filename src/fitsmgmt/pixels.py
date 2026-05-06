@@ -353,7 +353,7 @@ def find_satpix(
         Default: `None`.
 
     satlevel: numeric, optional.
-        The saturation level. Pixels >= `satlevel` will be retarded as
+        The saturation level. Pixels >= `satlevel` will be treated as
         saturated pixels, except for those masked by `mask`.
         Default: ``65535``.
 

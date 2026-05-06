@@ -94,7 +94,7 @@ def make_summary(
 
     fullmatch : `dict`, optional
         The ``{column: regex}`` style `dict` to be used for selecting rows by
-        ``summarytab[column].`str`.fullmatch(regex, case=`True`)``.
+        ``summarytab[column].str.fullmatch(regex, case=True)``.
         Default: `None`
 
     negate_fullmatch: `bool`, optional.
@@ -124,7 +124,8 @@ def make_summary(
 
     Returns
     -------
-    summarytab: astropy.Table
+    summarytab : `~pandas.DataFrame`
+        Summary table with one row per input FITS file.
 
     Notes
     -----
@@ -148,7 +149,6 @@ def make_summary(
     >>>     TOPPATH/"rawdata/*.fits",
     >>>     keywords=keys,
     >>>     fname_option='name',
-    >>>     pandas=True,
     >>>     sort_by="DATE-OBS",
     >>>     output=savepath
     >>> )
@@ -160,7 +160,7 @@ def make_summary(
     ``EXPTIME`` is 2 or 3:
 
     >>> # fullmatch = {"OBJECT": "Ves.*", "FILTER": "J"},
-    >>> # querystr="EXPTIME in [2, 3]
+    >>> # querystr="EXPTIME in [2, 3]"
     """
     if inputs is None:
         return None
@@ -357,7 +357,7 @@ def df_selector(
         information.
     fullmatch : `dict`, optional
         The ``{column: regex}`` style `dict` to be used for selecting rows by
-        ``summarytab[column].`str`.fullmatch(regex, case=`True`)``. An example:
+        ``summarytab[column].str.fullmatch(regex, case=True)``. An example:
         ``{"OBJECT": "Ves.*"}``. All corresponding columns must have dtype of
         `str` to apply regex.
         Default: `None`

@@ -33,7 +33,7 @@ def fits_newpath(
     fillnan="",
     fileext=".fits",
 ):
-    """Gives the new path of the FITS file from header.
+    """Give the new path of a FITS file from header values.
 
     Parameters
     ----------
@@ -64,7 +64,6 @@ def fits_newpath(
         Default: ``''``.
 
     fileext : `str`, optional
-        The extension of the file name to be returned. Normally it should be
         The extension of the file name to be returned. Normally it should be
         ``'.fits'`` since this function is `fits_newname`, but you may prefer,
         e.g., ``'.fit'`` for some reason. If `fileext` does not start with a
@@ -115,7 +114,7 @@ def fitsrenamer(
     verbose=True,
     add_header=None,
 ):
-    """Renames a FITS file by ``rename_by`` with delimiter.
+    """Rename a FITS file using header values.
 
     Parameters
     ----------
@@ -165,8 +164,8 @@ def fitsrenamer(
         Default: `True`.
 
     trimsec : `str` or `None`, optional
-        Region of ``~astropy.nddata.CCDData`` from which the overscan is extracted; see
-        `~ccdproc.subtract_overscan` for details. Default is `None`.
+        FITS-style section string used to trim the image before writing the
+        renamed file. Default is `None`.
 
     fillnan : `str`, optional
         The string that will be inserted if the keyword is not found from the
@@ -177,7 +176,7 @@ def fitsrenamer(
         The header keywords to be removed.
         Default: `None`.
 
-    add_header : header or Card object, optional.
+    add_header : `~astropy.io.fits.Header` or `~astropy.io.fits.Card`, optional.
         The header keyword, value (and comment) to add after the renaming.
         Default: `None`.
 

@@ -1,8 +1,4 @@
-"""
-Airmass related functions.
-
-Don't you think these must be implemented to astropy...?
-"""
+"""Airmass calculation and FITS header annotation helpers."""
 
 import numpy as np
 from astropy import units as u
@@ -90,7 +86,7 @@ def airmass_obs(
     full: bool = False,
     in_deg: bool = True,
 ) -> NumberLike | tuple[NumberLike, AirmassTrace]:
-    """Calculate airmass by nonrefracting radially symmetric atmosphere model.
+    """Calculate effective airmass during an exposure.
 
     Parameters
     ----------
@@ -112,8 +108,13 @@ def airmass_obs(
         this `scale` is the "scale height".
         Default: ``750.0``.
 
+    full : `bool`, optional
+        If `True`, return the effective airmass and the start/mid/end trace.
+        Default: `False`.
+
     in_deg : `bool`, optional
-        If `True`, return alt/az in degrees. Otherwise, return in string with separation ":".
+        If `True`, store alt/az trace values in degrees. Otherwise, store
+        strings with ``":"`` separators.
         Default: `True`.
 
     Notes
@@ -178,8 +179,7 @@ def airmass_to_hdr(
     in_deg: bool = True,
     frame: str = "icrs",
 ) -> None:
-    """
-    Calculates airmass from a given header and location information
+    """Calculate airmass from a header and write the result into the header.
 
     Parameters
     ----------
@@ -217,7 +217,8 @@ def airmass_to_hdr(
         this `scale` is the "scale height".
         Default: ``750.0``.
     in_deg : `bool`, optional
-        If `True`, return alt/az in degrees. Otherwise, return in string with separation ":".
+        If `True`, store alt/az trace values in degrees. Otherwise, store
+        strings with ``":"`` separators.
         Default: `True`.
 
     """
@@ -320,7 +321,7 @@ def airmass_from_hdr(
     ut: `str` or `~astropy.time.Time`, optional
         The *starting* time of the observation in UT.
 
-    exptime: `float` or `~astropy.time.Time`, optional
+    exptime: `float` or `~astropy.units.Quantity`, optional
         The exposure time.
 
     lon, lat, height: `str`, `float`, or `~astropy.units.Quantity`
@@ -334,11 +335,11 @@ def airmass_from_hdr(
         Earth radius divided by the atmospheric height (usually scale height)
         of the atmosphere.
 
-    XX_key: `str`, optional
-        The header key to find XX if ``XX`` is `None`.
+    ra_key, dec_key, ut_key, lon_key, lat_key, height_key, exptime_key, equinox_key, frame_key : `str`, optional
+        Header keys used when the corresponding explicit value is `None`.
 
-    XX_unit: `~astropy.units.Quantity`, optional
-        The unit of ``XX``
+    ra_unit, dec_unit, exptime_unit, lon_unit, lat_unit, height_unit : `~astropy.units.Unit`, optional
+        Units applied to values read from header keywords.
 
     ut_format, ut_scale: `str`, optional
         The `format` and `scale` for `~astropy.time.Time`.
