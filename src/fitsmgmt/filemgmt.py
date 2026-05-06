@@ -1,5 +1,5 @@
 """
-Contians convenience funcitons which are
+Contains convenience functions which are
 (1) more related to the file name or paths rather than the contents or
 (2) related to the non-FITS files.
 """

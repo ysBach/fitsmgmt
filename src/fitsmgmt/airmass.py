@@ -1,5 +1,5 @@
 """
-Airmass related funcitons.
+Airmass related functions.
 
 Don't you think these must be implemented to astropy...?
 """
@@ -84,7 +84,7 @@ def airmass_obs(
     Parameters
     ----------
     targetcoord: astropy.SkyCoord
-        The target's coorndinate.
+        The target's coordinate.
 
     obscoord : astropy.EarthLocation
         The observer's location.

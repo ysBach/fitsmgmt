@@ -1,6 +1,6 @@
 # fitsmgmt
 
-[FITS](https://en.wikipedia.org/wiki/FITS) file magagement and manipulation tool.
+[FITS](https://en.wikipedia.org/wiki/FITS) file management and manipulation tool.
 
 Recommended import:
 

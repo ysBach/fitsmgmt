@@ -290,7 +290,7 @@ def _parse_image(
         Default: `None`.
 
     force_ccddata: `bool`, optional.
-        To force the retun im as `~astropy.nddata.CCDData` object. This is
+        To force the return im as `~astropy.nddata.CCDData` object. This is
         useful when error calculation is turned on.
         Default is `False`.
 
@@ -1936,7 +1936,7 @@ def fixpix(
 #         _ccd.header["MASKFILL"] = (fill_value,
 #                                    "The fill value if interpol. fails in fixpix")
 #         _ccd.header["MASKNPIX"] = (np.count_nonzero(mask),
-#                                    "Total num of pixesl fixed by fixpix.")
+#                                    "Total num of pixels fixed by fixpix.")
 #         # add as history
 #         cmt2hdr(_ccd.header, 'h', t_ref=_t_start, s="Pixel values fixed by fixpix")
 #     update_tlm(_ccd.header)
@@ -1971,7 +1971,7 @@ def find_extpix(
         that ``small`` number of smallest and ``large`` number of largest pixel
         values will be found. If `None`, no extrema is found (`None` is
         returned for that extremum).
-        Deafult: ``(1, 1)`` (find minimum and maximum)
+        Default: ``(1, 1)`` (find minimum and maximum)
         Default: ``(1, 1)``.
 
     bezels : `list` of `list` of `int`, optional.
@@ -3378,7 +3378,7 @@ def give_stats(
     >>> ccd = CCDData.read("bias_bin11.fits", unit='adu')
     >>> _, hdr = (ccd, N_extrema=10, update_header=True)
     >>> ccd.header = hdr
-    # To read the stringfied `list` into python `list` (e.g., percentiles):
+    # To read the stringified `list` into python `list` (e.g., percentiles):
     # >>> import json
     # >>> percentiles = json.loads(ccd.header['percentiles'])
     """

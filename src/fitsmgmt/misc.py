@@ -539,7 +539,7 @@ def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
 
 
 def circular_mask(shape, center=None, radius=None, center_xyz=True):
-    """Creates an N-D circular (circular, sphereical, ...) mask.
+    """Creates an N-D circular (circular, spherical, ...) mask.
 
     Parameters
     ----------
@@ -783,7 +783,7 @@ def enclosing_circle_radius(segm, center, segm_id=None):
 def str_now(
     precision=3, fmt="{:.>72s}", t_ref=None, dt_fmt="(dt = {:.3f} s)", return_time=False
 ):
-    """Get stringfied time now in UT ISOT format.
+    """Get stringified time now in UT ISOT format.
 
     Parameters
     ----------
@@ -1113,11 +1113,11 @@ def quantile_sigma(
 
 # FIXME: I am not sure whether these gain conversions are universal or just
 # for ASI cameras...
-def dB2epadu(gain_dB):
+def dB2epadu(gain_dB: float) -> float:
     return 5 / 10 ** (gain_dB / 20)
 
 
-def epadu2dB(gain_epadu):
+def epadu2dB(gain_epadu: float) -> float:
     return 20 * np.log10(5 / gain_epadu)
 
 
