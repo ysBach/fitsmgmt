@@ -25,6 +25,9 @@ __all__ = [
     "quantile_sigma",
     "min_max_med_1d",
     "mean_std_1d",
+    "binning",
+    "dB2epadu",
+    "epadu2dB",
     "errormap",
     "give_stats",
 ]
@@ -167,6 +170,128 @@ def mean_std_1d(arr, ddof=0, std=True, var=False):
     if std:
         return mean, np.sqrt(var_value)
     raise ValueError("At least one of `std` or `var` must be True.")
+
+
+def binning(
+    arr,
+    factor_x=None,
+    factor_y=None,
+    factors=None,
+    order_xyz=True,
+    binfunc=np.mean,
+    trim_end=False,
+):
+    """Bins the given arr frame.
+
+    Parameters
+    ---------
+    arr: 2d array
+        The array to be binned
+
+    factor_x, factor_y: `int` or `None`, optional.
+        The binning factors in x, y direction. This is left as legacy and for
+        clarity, because mostly this function is used for 2-D CCD data. If any
+        of these is given, `order_xyz` is overridden as `True`.
+
+    factors : `list`-like of `int`, optional.
+        The factors in pythonic axis order (``order_xyz=False``) or in the xyz
+        order (``order_xyz=True``). If any of the `tuple` is `None`, that will be
+        replaced by the size of the array along that axis, i.e., collapse along
+        that axis.
+        Default: `None`.
+
+    binfunc : funciton object, optional.
+        The function to be applied for binning, such as ``np.sum``,
+        ``np.mean``, and ``np.median``.
+        Default: ``np.mean``.
+
+    trim_end : `bool`, optional.
+        Whether to trim the end of x, y axes such that binning is done without
+        error.
+        Default: `False`.
+
+    Notes
+    -----
+    This kind of binning is ~ 20-30 to upto 10^5 times faster than
+    astropy.nddata's block_reduce:
+
+
+    >>> from astropy.nddata.blocks import block_reduce
+    >>> import fitsmgmt as fm
+    >>> from astropy.nddata import CCDData
+    >>> import numpy as np
+    >>> ccd = CCDData(data=np.arange(1000).reshape(20, 50), unit='adu')
+    >>> kw = dict(factor_x=5, factor_y=5, binfunc=np.sum, trim_end=True)
+    >>> %timeit fm.binning(ccd.data, **kw)
+    >>> # 10.9 +- 0.216 us (7 runs, 100000 loops each)
+    >>> %timeit fm.bin_ccd(ccd, **kw, update_header=False)
+    >>> # 32.9 µs +- 878 ns per loop (7 runs, 10000 loops each)
+    >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
+    >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
+    >>> # 5.e+5   ...      ...     ...     ...     27  -- times slower
+    >>> # some strange chaching happens?
+    Tested on MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
+    GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
+    """
+    # def binning(arr, factor_x=1, factor_y=1, binfunc=np.mean, trim_end=False):
+    #     binned = arr.copy()
+    #     if trim_end:
+    #         ny_orig, nx_orig = binned.shape
+    #         iy_max = ny_orig - (ny_orig % factor_y)
+    #         ix_max = nx_orig - (nx_orig % factor_x)
+    #         binned = binned[:iy_max, :ix_max]
+    #     ny, nx = binned.shape
+    #     nby = ny // factor_y
+    #     nbx = nx // factor_x
+    #     binned = binned.reshape(nby, factor_y, nbx, factor_x)
+    #     binned = binfunc(binned, axis=(-1, 1))
+    #     return binned
+
+    binned = arr.copy()
+
+    if factor_x is not None or factor_y is not None:
+        factors = (factor_x, factor_y)
+        order_xyz = True
+
+    if factors is None:
+        factors = np.ones(arr.ndim)
+    else:
+        factors = np.array(factors).ravel()
+        for i, f in enumerate(factors):
+            if f is None:
+                factors[i] = arr.shape[i]
+
+    if order_xyz:
+        factors = factors[::-1]  # convert back to python order
+
+    if trim_end:
+        n_orig = binned.shape
+        i_max = n_orig - (n_orig % factors)
+        slices = tuple(slice(None, im, None) for im in i_max)
+        binned = binned[slices]
+
+    npix = binned.shape
+    nbin = npix // factors
+    nbin[nbin == 0] = 1
+    newshape = []
+    for nbin_i, factor_i in zip(nbin, factors):
+        newshape.append(nbin_i)
+        newshape.append(factor_i)
+
+    binned = binned.reshape(newshape)
+    funcaxis = np.arange(1, binned.ndim + 1, 2).astype(int)
+    binned = binfunc(binned, axis=tuple(funcaxis))
+    return binned
+
+
+# FIXME: I am not sure whether these gain conversions are universal or just
+# for ASI cameras...
+def dB2epadu(gain_dB: float) -> float:
+    return 5 / 10 ** (gain_dB / 20)
+
+
+def epadu2dB(gain_epadu: float) -> float:
+    return 20 * np.log10(5 / gain_epadu)
 
 
 def errormap(

@@ -1,0 +1,668 @@
+"""FITS header editing and accessor helpers."""
+
+from astropy import units as u
+from astropy.io import fits
+from astropy.time import Time
+from astro_ndslice import is_list_like, listify
+
+from . import io as _io
+from .logging import logger
+from .misc import change_to_quantity, str_now
+
+__all__ = [
+    "cmt2hdr",
+    "update_tlm",
+    "update_process",
+    "hedit",
+    "key_remover",
+    "key_mapper",
+    "chk_keyval",
+    "valinhdr",
+    "get_from_header",
+    "get_if_none",
+]
+
+
+def cmt2hdr(
+    header,
+    histcomm,
+    s,
+    precision=3,
+    time_fmt="{:.>72s}",
+    t_ref=None,
+    dt_fmt="(dt = {:.3f} s)",
+    set_kw=None,
+    verbose=False,
+):
+    """Automatically add timestamp as well as HISTORY or COMMENT string
+
+    Parameters
+    ----------
+    header : `~astropy.io.fits.Header`
+        The header.
+
+    histcomm : `str` in ['h', 'hist', 'history', 'c', 'comm', 'comment']
+        Whether to add history or comment.
+
+    s : `str` or `list` of `str`
+        The string to add as history or comment.
+
+    precision : `int`, optional.
+        The precision of the isot format time.
+        Default: ``3``.
+
+    time_fmt : `str`, `None`, optional.
+        The Python 3 format string to format the time in the header. If `None`,
+        the timestamp string will not be added.
+
+        Examples::
+          * ``"{:s}"``: plain time ``2020-01-01T01:01:01.23``
+          * ``"({:s})"``: plain time in ``()``. ``(2020-01-01T01:01:01.23)``
+          * ``"{:_^72s}"``: center align, filling with _.
+        Default: ``'{:.>72s}'``.
+
+    t_ref : `~astropy.time.Time`, optional.
+        The reference time. If not `None`, delta time is calculated.
+        Default: `None`.
+
+    dt_fmt : `str`, optional.
+        The Python 3 format string to format the delta time in the header.
+        Default: ``'(dt = {:.3f} s)'``.
+
+    verbose : `bool`, optional.
+        Whether to print the same information on the output terminal.
+        Default: `False`.
+
+    set_kw : `dict`, optional.
+        The keyword arguments added to `~astropy.io.fits.Header.set()`. Default is
+        ``{'after':-1}``, i.e., the history or comment will be appended to the
+        very last part of the header.
+
+    Notes
+    -----
+    The timing benchmark for a reasonably long header (len(ccd.header.cards) =
+    197) shows dt ~ 0.2-0.3 ms on MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz;
+    6-core), RAM 16 GB (2400MHz DDR4), Radeon Pro 560X (4GB)]:
+
+    %timeit ccd.header.copy()
+    1.67 ms +/- 33.3 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
+    %timeit fm.cmt2hdr(ccd.header.copy(), 'h', 'test')
+    1.89 ms +/- 141 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
+    %timeit fm.cmt2hdr(ccd.header.copy(), 'hist', 'test')
+    1.89 ms +/- 144 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
+    %timeit fm.cmt2hdr(ccd.header.copy(), 'histORy', 'test')
+    1.95 ms +/- 146 µs per loop (mean +/- std. dev. of 7 runs, 100 loops each)
+    """
+    if set_kw is None:
+        set_kw = {"after": -1}
+
+    # Normalize histcomm to canonical form
+    _hc = histcomm.lower()
+    if _hc in ["h", "hist", "history"]:
+        histcomm = "HISTORY"
+    elif _hc in ["c", "com", "comm", "comment"]:
+        histcomm = "COMMENT"
+    else:
+        raise ValueError(
+            f"histcomm must be one of 'h', 'hist', 'history', 'c', 'com', 'comm', 'comment'; "
+            f"got {histcomm!r}"
+        )
+
+    def _add_content(header, content):
+        try:
+            header.set(histcomm, content, **set_kw)
+        except AttributeError:
+            # For a CCDData that has just initialized, header is in OrderedDict, not Header
+            header[histcomm] = content
+
+    for _s in listify(s):
+        _add_content(header, _s)
+        if verbose:
+            logger.info("%-8s %s", histcomm, _s)
+
+    if time_fmt is not None:
+        timestr = str_now(precision=precision, fmt=time_fmt, t_ref=t_ref, dt_fmt=dt_fmt)
+        _add_content(header, timestr)
+        if verbose:
+            logger.info("%-8s %s", histcomm, timestr)
+    update_tlm(header)
+
+
+def update_tlm(header):
+    """Adds the IRAF-like ``FITS-TLM`` right after ``NAXISi``.
+
+     Timing on MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB
+    (2400MHz DDR4), Radeon Pro 560X (4GB)]:
+    %timeit fm.update_tlm(ccd.header)
+    # 443 µs +/- 19.5 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
+    """
+    now = Time(Time.now(), precision=0).isot
+    try:
+        del header["FITS-TLM"]
+    except KeyError:
+        pass
+    try:
+        header.set(
+            "FITS-TLM",
+            value=now,
+            comment="UT of last modification of this FITS file",
+            after=1,
+        )
+    except AttributeError:  # If header is OrderedDict
+        header["FITS-TLM"] = (now, "UT of last modification of this FITS file")
+
+
+def update_process(
+    header,
+    process=None,
+    key="PROCESS",
+    delimiter="",
+    add_comment=True,
+    additional_comment=None,
+):
+    """Update the process history keyword in the header.
+
+    Parameters
+    ----------
+    header : `~astropy.io.fits.Header`
+        The header to update the ``PROCESS`` (tunable by `key` parameter)
+        keyword.
+
+    process : `str` or `list`-like of `str`, optional.
+        The additional process keys to add to the header.
+        Default: `None`.
+
+    key : `str`, optional.
+        The key for the process-related header keyword.
+        Default: ``'PROCESS'``.
+
+    delimiter : `str`, optional.
+        The delimiter for each process. It can be null string (``''``). The
+        best is to match it with the pre-existing delimiter of the
+        ``header[key]``.
+        Default: ``''``.
+
+    add_comment : `bool`, optional.
+        Whether to add a comment to the header if there was no `key`
+        (``"PROCESS"`` by default) in the header.
+        Default: `True`.
+
+    additional_comment : `dict`, optional.
+        The additional comment to add. For instance, ``dict(v="vertical
+        pattern", f="fourier pattern")`` will add a new line of comment which
+        reads "User added items for `key`: v=vertical pattern, f=fourier
+        pattern."
+        Default: `None`.
+    """
+    if additional_comment is None:
+        additional_comment = {}
+    process = listify(process)
+
+    if key in header:
+        if delimiter:
+            process = header[key].split(delimiter) + process
+        else:
+            process = list(header[key]) + process
+        # do not additionally add comment.
+    elif add_comment:
+        # add comment.
+        cmt2hdr(
+            header,
+            "c",
+            time_fmt=None,
+            s=(
+                f"[fitsmgmt.update_process] Standard items for {key} includes B=bias, D=dark, "
+                + "F=flat, T=trim, W=WCS, O=Overscan, I=Illumination, C=CRrej, R=fringe, "
+                + "P=fixpix, X=crosstalk."
+            ),
+        )
+
+    header[key] = (delimiter.join(process), "Process (order: 1-2-3-...): see comment.")
+
+    if additional_comment:
+        addstr = ", ".join([f"{k}={v}" for k, v in additional_comment.items()])
+        cmt2hdr(header, "c", f"User added items to {key}: {addstr}.", time_fmt=None)
+    update_tlm(header)
+
+
+
+
+def hedit(
+    item,
+    keys,
+    values,
+    comments=None,
+    befores=None,
+    afters=None,
+    add=False,
+    output=None,
+    overwrite=False,
+    output_verify="fix",
+    verbose=True,
+):
+    """Edit the header key (usu. to update value of a keyword).
+
+    Parameters
+    ----------
+    item : `astropy` header, path-like, `~astropy.nddata.CCDData`-like
+        The FITS file or header to edit. If `~astropy.io.fits.Header`, it is updated
+        **inplace**.
+
+    keys : `str`, `list`-like of `str`
+        The key to edit.
+
+    values : `str`, numeric, or `list`-like of such
+        The new value. To pass one single iterable (e.g., `[1, 2, 3]`) for one
+        single `key`, use a `list` of it (e.g., `[[1, 2, 3]]`) to circumvent
+        problem.
+
+    comment : `str`, `list`-like of `str` optional.
+        The comment to add.
+
+    add : `bool`, optional.
+        Whether to add the key if it is not in the header.
+        Default: `False`.
+
+    befores : `str`, `int`, `list`-like of such, optional
+        Name of the keyword, or index of the `Card` before which this card
+        should be located in the header. The argument `before` takes
+        precedence over `after` if both specified.
+        Default: `None`.
+
+    after : `str`, `int`, `list`-like of such, optional
+        Name of the keyword, or index of the `Card` after which this card
+        should be located in the header.
+
+    output: path-like, optional
+        The output file.
+        Default: `None`.
+
+    Returns
+    -------
+    ccd : `~astropy.nddata.CCDData`
+        The header-updated `~astropy.nddata.CCDData.` `None` if `item` was pure `~astropy.io.fits.Header`.
+    """
+
+    def _add_key(header, key, val, infostr, cmt=None, before=None, after=None):
+        header.set(key, value=val, comment=cmt, before=before, after=after)
+        # infostr += " (comment: {})".format(comment) if comment is not None else ""
+        if before is not None:
+            infostr += f" (moved: {before=})"
+        elif after is not None:  # `after` is ignored if `before` is given
+            infostr += f" (moved: {after=})"
+        cmt2hdr(header, "h", infostr, verbose=verbose)
+        update_tlm(header)
+
+    if isinstance(item, fits.header.Header):
+        header = item
+        if verbose:
+            logger.info("item is astropy Header. (any `output` is ignored).")
+        output = None
+        ccd = None
+    elif isinstance(item, _io.ASTROPY_CCD_TYPES):
+        ccd, imname, _ = _io._parse_image(item, force_ccddata=True, copy=False)
+        #                                                   ^^^^^^^^^^
+        # Use copy=False to update header of the input CCD inplace.z
+        header = ccd.header
+    else:
+        ccd = _io.load_ccd(item)
+        imname = str(item)
+        header = ccd.header
+        if output is None and overwrite:
+            output = item
+
+    keys, values, comments, befores, afters = listify(
+        keys, values, comments, befores, afters
+    )
+
+    for key, val, cmt, bef, aft in zip(keys, values, comments, befores, afters):
+        if key in header:
+            oldv = header[key]
+            infostr = (
+                f"[fitsmgmt.HEDIT] {key}={oldv} ({type(oldv).__name__}) "
+                + f"--> {val} ({type(val).__name__})"
+            )
+            _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
+        else:
+            if add:  # add key only if `add` is True.
+                infostr = f"[fitsmgmt.HEDIT add] {key}= {val} ({type(val).__name__})"
+                _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
+            elif verbose:
+                logger.info(
+                    "%s does not exist in the header. Skipped. (add=True to proceed)", key
+                )
+
+    if output is not None:
+        ccd.write(output, overwrite=overwrite, output_verify=output_verify)
+        if verbose:
+            logger.info("%s --> %s", imname, output)
+
+    return ccd
+
+
+def key_remover(header, remove_keys, deepremove=True):
+    """Removes keywords from the header.
+
+    Parameters
+    ----------
+    header : `~astropy.io.fits.Header`
+        The header to be modified
+
+    remove_keys : `list` of `str`
+        The header keywords to be removed.
+
+    deepremove : `True`, optional
+        FITS standard does not have any specification of duplication of
+        keywords as discussed in the following issue:
+        https://github.com/astropy/ccdproc/issues/464
+        If it is set to `True`, ALL the keywords having the name specified in
+        `remove_keys` will be removed. If not, only the first occurence of each
+        key in `remove_keys` will be removed. It is more sensical to set it
+        `True` in most of the cases.
+        Default: `True`.
+    """
+    nhdr = header.copy()
+    if deepremove:
+        for key in remove_keys:
+            while True:
+                try:
+                    nhdr.remove(key)
+                except KeyError:
+                    break
+    else:
+        for key in remove_keys:
+            try:
+                nhdr.remove(key)
+            except KeyError:
+                continue
+
+    return nhdr
+
+
+def key_mapper(header, keymap=None, deprecation=False, remove=False):
+    """Update the header to meed the standard (keymap).
+
+    Parameters
+    ----------
+    header : `~astropy.io.fits.Header`
+        The header to be modified
+
+    keymap : `dict`, optional.
+        The dictionary contains ``{<standard_key>:<original_key>}``
+        information. If it is `None` (default), the copied version of the
+        header is returned without any change.
+        Default: `None`.
+
+    deprecation : `bool`, optional
+        Whether to change the original keywords' comments to contain
+        deprecation warning. If `True`, the original keywords' comments will
+        become ``DEPRECATED. See <standard_key>.``. It has no effect if
+        ``remove=True``.
+        Default is `False`.
+
+    remove : `bool`, optional.
+        Whether to remove the original keyword. `deprecation` is ignored if
+        ``remove=True``.
+        Default is `False`.
+
+    Returns
+    -------
+    newhdr: `~astropy.io.fits.Heade`r
+        The updated (key-mapped) header.
+
+    Notes
+    -----
+    If the new keyword already exist in the given header, virtually nothing
+    will happen. If ``deprecation=True``, the old one's comment will be
+    changed, and if ``remove=True``, the old one will be removed; the new
+    keyword will never be changed or overwritten.
+    """
+
+    def _rm_or_dep(hdr, old, new):
+        if remove:
+            hdr.remove(old)
+        elif deprecation:  # do not remove but deprecate
+            hdr.comments[old] = f"DEPRECATED. See {new}"
+
+    newhdr = header.copy()
+    if keymap is not None:
+        for k_new, k_old in keymap.items():
+            if k_new == k_old:
+                continue
+
+            if k_old is not None:
+                if (
+                    k_new in newhdr
+                ):  # if k_new already in the header, JUST deprecate k_old.
+                    _rm_or_dep(newhdr, k_old, k_new)
+                else:  # if not, copy k_old to k_new and deprecate k_old.
+                    try:
+                        comment_ori = newhdr.comments[k_old]
+                        newhdr[k_new] = (newhdr[k_old], comment_ori)
+                        _rm_or_dep(newhdr, k_old, k_new)
+                    except (KeyError, IndexError):
+                        # don't even warn
+                        pass
+
+    return newhdr
+
+
+def chk_keyval(type_key, type_val, group_key):
+    """Checks the validity of key and values used heavily in combutil.
+
+    Parameters
+    ----------
+    type_key : `None`, `str`, `list` of `str`, optional
+        The header keyword for the ccd type you want to use for match.
+
+    type_val : `None`, `int`, `str`, `float`, etc and `list` of such
+        The header keyword values for the ccd type you want to match.
+
+
+    group_key : `None`, `str`, `list` of `str`, optional
+        The header keyword which will be used to make groups for the CCDs that
+        have selected from `type_key` and `type_val`. If `None` (default), no
+        grouping will occur, but it will return the `~pandas.DataFrameGroupBy`
+        object will be returned for the sake of consistency.
+
+    Returns
+    -------
+    type_key, type_val, group_key
+    """
+    # Make type_key to list
+    if type_key is None:
+        type_key = []
+    elif is_list_like(type_key):
+        try:
+            type_key = list(type_key)
+            if not all(isinstance(x, str) for x in type_key):
+                raise TypeError("Some of type_key are not str.")
+        except TypeError:
+            raise TypeError("type_key should be str or convertible to list.")
+    elif isinstance(type_key, str):
+        type_key = [type_key]
+    else:
+        raise TypeError(
+            f"`type_key` not understood (type = {type(type_key)}): {type_key}"
+        )
+
+    # Make type_val to list
+    if type_val is None:
+        type_val = []
+    elif is_list_like(type_val):
+        try:
+            type_val = list(type_val)
+        except TypeError:
+            raise TypeError("type_val should be str or convertible to list.")
+    elif isinstance(type_val, str):
+        type_val = [type_val]
+    else:
+        raise TypeError(
+            f"`type_val` not understood (type = {type(type_val)}): {type_val}"
+        )
+
+    # Make group_key to list
+    if group_key is None:
+        group_key = []
+    elif is_list_like(group_key):
+        try:
+            group_key = list(group_key)
+            if not all(isinstance(x, str) for x in group_key):
+                raise TypeError("Some of group_key are not str.")
+        except TypeError:
+            raise TypeError("group_key should be str or convertible to list.")
+    elif isinstance(group_key, str):
+        group_key = [group_key]
+    else:
+        raise TypeError(
+            f"`group_key` not understood (type = {type(group_key)}): {group_key}"
+        )
+
+    if len(type_key) != len(type_val):
+        raise ValueError("`type_key` and `type_val` must have the same length!")
+
+    # If there is overlap
+    overlap = set(type_key).intersection(set(group_key))
+    if len(overlap) > 0:
+        logger.warning(
+            f"{overlap} appear in both `type_key` and `group_key`."
+            "It may not be harmful but better to avoid."
+        )
+
+    return type_key, type_val, group_key
+
+
+def valinhdr(val=None, header=None, key=None, default=None, unit=None):
+    """Get the value by priority: val > header[key] > default.
+
+    Parameters
+    ----------
+    val : object, optional.
+        If not `None`, `header`, `key`, and `default` will **not** be used.
+        This is different from `header.get(key, default)`. It is therefore
+        useful if the API wants to override the header value by the
+        user-provided one.
+        Default: `None`.
+
+    header : `~astropy.io.fits.Header`, optional.
+        The header to extract the value if `value` is `None`.
+        Default: `None`.
+
+    key : `str`, optional.
+        The header keyword to extract if `value` is `None`.
+        Default: `None`.
+
+    default : object, optional.
+        The default value. If `value` is `None`, then ``header.get(key,
+        default)``.
+        Default: `None`.
+
+    unit : `str`, optional.
+        `None` to ignore unit. ``''`` (empty string) means `Unit(dimensionless)`.
+        Better to leave it as `None` unless astropy unit is truely needed.
+        Default: `None`.
+
+    Notes
+    -----
+    It takes << 10 us (when unit=`None`) or for any case for a reasonably lengthy
+    header. See `Tests` below. Tested on MBP 15" [2018, macOS 11.6, i7-8850H
+    (2.6 GHz; 6-core), RAM 16 GB (2400MHz DDR4), Radeon Pro 560X (4GB)].
+
+    Tests
+    -----
+
+    .. code-block:: python
+
+        real_q = 20*u.s
+        real_v = 20
+        default_q = 0*u.s
+        default_v = 0
+        test_q = 3*u.s
+        test_v = 3
+
+        # w/o unit  Times are the %timeit result of the LHS
+        assert valinhdr(None,   hdr, "EXPTIME", default=0) == real_v  # ~ 6.5 us
+        assert valinhdr(None,   hdr, "EXPTIxx", default=0) == default_v # ~ 3.5 us
+        assert valinhdr(test_v, hdr, "EXPTIxx", default=0) == test_v  # ~ 0.3 us
+        assert valinhdr(test_q, hdr, "EXPTIxx", default=0) == test_v  # ~ 0.6 us
+        # w/ unit  Times are the %timeit result of the LHS
+        assert valinhdr(None,   hdr, "EXPTIME", default=0, unit='s') == real_q  # ~ 23 us
+        assert valinhdr(None,   hdr, "EXPTIxx", default=0, unit='s') == default_q # ~ 16 us
+        assert valinhdr(test_v, hdr, "EXPTIxx", default=0, unit='s') == test_q  # ~ 11 us
+        assert valinhdr(test_q, hdr, "EXPTIxx", default=0, unit='s') == test_q  # ~ 15 us
+
+        For a test astropy.nddata.CCDData, the following timing gave ~ 0.5 ms on MBP 15" [2018,
+        macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB (2400MHz DDR4), Radeon
+        Pro 560X (4GB)]
+        %timeit ((fm.valinhdr(None, ccd.header, "EXPTIME", unit=u.s)
+                 / fm.valinhdr(3*u.s, ccd.header, "EXPTIME", unit=u.s)).si.value)
+    """
+    uu = 1 if unit is None else u.Unit(unit)
+    #    ^ NOT 1.0 to preserve the original dtype (e.g., int)
+    val = header.get(key, default) if val is None else val
+
+    if isinstance(val, u.Quantity):
+        return val.value if unit is None else val.to(unit)
+    else:
+        try:
+            return val * uu
+        except TypeError:  # e.g., val is a str
+            return val
+
+
+def get_from_header(header, key, unit=None, verbose=True, default=0):
+    """Get a variable from the header object.
+
+    Parameters
+    ----------
+    header : astropy.Header
+        The header to extract the value.
+
+    key : `str`
+        The header keyword to extract.
+
+    unit : astropy unit, optional.
+        The unit of the value.
+        Default: `None`.
+
+    default : `str`, `int`, `float`, ..., or `~astropy.units.Quantity`, optional.
+        The default if not found from the header.
+        Default: ``0``.
+
+    Returns
+    -------
+    q: `~astropy.units.Quantity` or any object
+        The extracted quantity from the header. It's a `~astropy.units.Quantity` if the unit is
+        given. Otherwise, appropriate type will be assigned.
+    """
+    # If using q = header.get(key, default=default),
+    # we cannot give any meaningful verboses infostr.
+    # Anyway the `header.get` sourcecode contains only 4-line:
+    # ``try: return header[key] // except (KeyError, IndexError): return default.
+    key = key.upper()
+    try:
+        q = change_to_quantity(header[key], desired=unit)
+        if verbose:
+            logger.info("header: %-8s = %s", key, q)
+    except (KeyError, IndexError):
+        q = change_to_quantity(default, desired=unit)
+        logger.warning("The key %s not found in header: setting to %s.", key, default)
+
+    return q
+
+
+def get_if_none(value, header, key, unit=None, verbose=True, default=0, to_value=False):
+    """Similar to get_from_header, but a convenience wrapper."""
+    if value is None:
+        value_Q = get_from_header(
+            header, key, unit=unit, verbose=verbose, default=default
+        )
+        value_from = f"{key} in header"
+    else:
+        value_Q = change_to_quantity(value, unit, to_value=False)
+        value_from = "the user"
+
+    if to_value:
+        return value_Q.value, value_from
+    else:
+        return value_Q, value_from

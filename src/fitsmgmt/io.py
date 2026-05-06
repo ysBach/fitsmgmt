@@ -1,5 +1,6 @@
 """FITS image loading helpers."""
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -24,11 +25,44 @@ __all__ = [
     "_parse_image",
     "_has_header",
     "_parse_extension",
+    "get_size",
     "load_ccd",
     "load_ccds",
 ]
 
 ASTROPY_CCD_TYPES = (CCDData, fits.PrimaryHDU, fits.ImageHDU)  # fits.CompImageHDU ?
+
+
+def get_size(obj, seen=None):
+    """Recursively finds size of objects.
+    Directly from
+    https://goshippo.com/blog/measure-real-size-any-python-object/
+    Returns the size in bytes.
+    """
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    # Important mark as seen *before* entering recursion to gracefully handle
+    # self-referential objects
+    seen.add(obj_id)
+    if isinstance(obj, dict):
+        objv = obj.values()
+        objk = obj.keys()
+        for kv in [objk, objv]:
+            for v in kv:
+                if not (isinstance(v, np.ndarray) and v.ndim == 0):
+                    size += get_size(v, seen)
+        # size += sum([get_size(v, seen) for v in obj.values()])
+        # size += sum([get_size(k, seen) for k in obj.keys()])
+    elif hasattr(obj, "__dict__"):
+        size += get_size(obj.__dict__, seen)
+    elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum([get_size(i, seen) for i in obj])
+    return size
+
 
 # **************************************************************************************** #
 # *                                         PARSERS                                       * #

@@ -97,7 +97,7 @@ def center_radec(
         If `True`, only the values of RA/DEC in degrees will be returned.
         Default: `False`.
     """
-    from .hduutil import get_from_header
+    from .headers import get_from_header
 
     if isinstance(ccd_or_header, CCDData):
         header = ccd_or_header.header

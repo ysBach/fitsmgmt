@@ -4,21 +4,13 @@ Objects that are
 (2) completely INDEPENDENT of all other modules of this package.
 """
 
-import sys
-
 import numpy as np
 from astro_ndslice import is_list_like, listify
 from astropy import units as u
 from astropy.time import Time
 
+from . import mathutils
 from .logging import logger
-from .mathutils import (
-    mean_std_1d,
-    min_max_med_1d,
-    quantile_lh,
-    quantile_sigma,
-    weighted_avg,
-)
 
 try:
     import numba as nb
@@ -46,22 +38,12 @@ __all__ = [
     "LACOSMIC_KEYS",
     "LACOSMIC_CRREJ",
     "parse_crrej_psf",
-    "get_size",
-    "cmt2hdr",
-    "update_tlm",
-    "update_process",
-    "weighted_avg",
     "sigclip_dataerr",
     "circular_mask",
     "circular_mask_2d",
     "enclosing_circle_radius",
     "str_now",
     "change_to_quantity",
-    "binning",
-    "quantile_lh",
-    "quantile_sigma",
-    "min_max_med_1d",
-    "mean_std_1d",
 ]
 
 
@@ -124,239 +106,6 @@ LACOSMIC_CRREJ = {
     "psfsize": 7,
     "psfbeta": 4.765,
 }
-
-
-def get_size(obj, seen=None):
-    """Recursively finds size of objects.
-    Directly from
-    https://goshippo.com/blog/measure-real-size-any-python-object/
-    Returns the size in bytes.
-    """
-    size = sys.getsizeof(obj)
-    if seen is None:
-        seen = set()
-    obj_id = id(obj)
-    if obj_id in seen:
-        return 0
-    # Important mark as seen *before* entering recursion to gracefully handle
-    # self-referential objects
-    seen.add(obj_id)
-    if isinstance(obj, dict):
-        objv = obj.values()
-        objk = obj.keys()
-        for kv in [objk, objv]:
-            for v in kv:
-                if not (isinstance(v, np.ndarray) and v.ndim == 0):
-                    size += get_size(v, seen)
-        # size += sum([get_size(v, seen) for v in obj.values()])
-        # size += sum([get_size(k, seen) for k in obj.keys()])
-    elif hasattr(obj, "__dict__"):
-        size += get_size(obj.__dict__, seen)
-    elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes, bytearray)):
-        size += sum([get_size(i, seen) for i in obj])
-    return size
-
-
-def cmt2hdr(
-    header,
-    histcomm,
-    s,
-    precision=3,
-    time_fmt="{:.>72s}",
-    t_ref=None,
-    dt_fmt="(dt = {:.3f} s)",
-    set_kw=None,
-    verbose=False,
-):
-    """Automatically add timestamp as well as HISTORY or COMMENT string
-
-    Parameters
-    ----------
-    header : `~astropy.io.fits.Header`
-        The header.
-
-    histcomm : `str` in ['h', 'hist', 'history', 'c', 'comm', 'comment']
-        Whether to add history or comment.
-
-    s : `str` or `list` of `str`
-        The string to add as history or comment.
-
-    precision : `int`, optional.
-        The precision of the isot format time.
-        Default: ``3``.
-
-    time_fmt : `str`, `None`, optional.
-        The Python 3 format string to format the time in the header. If `None`,
-        the timestamp string will not be added.
-
-        Examples::
-          * ``"{:s}"``: plain time ``2020-01-01T01:01:01.23``
-          * ``"({:s})"``: plain time in ``()``. ``(2020-01-01T01:01:01.23)``
-          * ``"{:_^72s}"``: center align, filling with _.
-        Default: ``'{:.>72s}'``.
-
-    t_ref : `~astropy.time.Time`, optional.
-        The reference time. If not `None`, delta time is calculated.
-        Default: `None`.
-
-    dt_fmt : `str`, optional.
-        The Python 3 format string to format the delta time in the header.
-        Default: ``'(dt = {:.3f} s)'``.
-
-    verbose : `bool`, optional.
-        Whether to print the same information on the output terminal.
-        Default: `False`.
-
-    set_kw : `dict`, optional.
-        The keyword arguments added to `~astropy.io.fits.Header.set()`. Default is
-        ``{'after':-1}``, i.e., the history or comment will be appended to the
-        very last part of the header.
-
-    Notes
-    -----
-    The timing benchmark for a reasonably long header (len(ccd.header.cards) =
-    197) shows dt ~ 0.2-0.3 ms on MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz;
-    6-core), RAM 16 GB (2400MHz DDR4), Radeon Pro 560X (4GB)]:
-
-    %timeit ccd.header.copy()
-    1.67 ms +/- 33.3 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    %timeit fm.cmt2hdr(ccd.header.copy(), 'h', 'test')
-    1.89 ms +/- 141 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    %timeit fm.cmt2hdr(ccd.header.copy(), 'hist', 'test')
-    1.89 ms +/- 144 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    %timeit fm.cmt2hdr(ccd.header.copy(), 'histORy', 'test')
-    1.95 ms +/- 146 µs per loop (mean +/- std. dev. of 7 runs, 100 loops each)
-    """
-    if set_kw is None:
-        set_kw = {"after": -1}
-
-    # Normalize histcomm to canonical form
-    _hc = histcomm.lower()
-    if _hc in ["h", "hist", "history"]:
-        histcomm = "HISTORY"
-    elif _hc in ["c", "com", "comm", "comment"]:
-        histcomm = "COMMENT"
-    else:
-        raise ValueError(
-            f"histcomm must be one of 'h', 'hist', 'history', 'c', 'com', 'comm', 'comment'; "
-            f"got {histcomm!r}"
-        )
-
-    def _add_content(header, content):
-        try:
-            header.set(histcomm, content, **set_kw)
-        except AttributeError:
-            # For a CCDData that has just initialized, header is in OrderedDict, not Header
-            header[histcomm] = content
-
-    for _s in listify(s):
-        _add_content(header, _s)
-        if verbose:
-            logger.info("%-8s %s", histcomm, _s)
-
-    if time_fmt is not None:
-        timestr = str_now(precision=precision, fmt=time_fmt, t_ref=t_ref, dt_fmt=dt_fmt)
-        _add_content(header, timestr)
-        if verbose:
-            logger.info("%-8s %s", histcomm, timestr)
-    update_tlm(header)
-
-
-def update_tlm(header):
-    """Adds the IRAF-like ``FITS-TLM`` right after ``NAXISi``.
-
-     Timing on MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB
-    (2400MHz DDR4), Radeon Pro 560X (4GB)]:
-    %timeit fm.update_tlm(ccd.header)
-    # 443 µs +/- 19.5 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    """
-    now = Time(Time.now(), precision=0).isot
-    try:
-        del header["FITS-TLM"]
-    except KeyError:
-        pass
-    try:
-        header.set(
-            "FITS-TLM",
-            value=now,
-            comment="UT of last modification of this FITS file",
-            after=1,
-        )
-    except AttributeError:  # If header is OrderedDict
-        header["FITS-TLM"] = (now, "UT of last modification of this FITS file")
-
-
-def update_process(
-    header,
-    process=None,
-    key="PROCESS",
-    delimiter="",
-    add_comment=True,
-    additional_comment=None,
-):
-    """Update the process history keyword in the header.
-
-    Parameters
-    ----------
-    header : `~astropy.io.fits.Header`
-        The header to update the ``PROCESS`` (tunable by `key` parameter)
-        keyword.
-
-    process : `str` or `list`-like of `str`, optional.
-        The additional process keys to add to the header.
-        Default: `None`.
-
-    key : `str`, optional.
-        The key for the process-related header keyword.
-        Default: ``'PROCESS'``.
-
-    delimiter : `str`, optional.
-        The delimiter for each process. It can be null string (``''``). The
-        best is to match it with the pre-existing delimiter of the
-        ``header[key]``.
-        Default: ``''``.
-
-    add_comment : `bool`, optional.
-        Whether to add a comment to the header if there was no `key`
-        (``"PROCESS"`` by default) in the header.
-        Default: `True`.
-
-    additional_comment : `dict`, optional.
-        The additional comment to add. For instance, ``dict(v="vertical
-        pattern", f="fourier pattern")`` will add a new line of comment which
-        reads "User added items for `key`: v=vertical pattern, f=fourier
-        pattern."
-        Default: `None`.
-    """
-    if additional_comment is None:
-        additional_comment = {}
-    process = listify(process)
-
-    if key in header:
-        if delimiter:
-            process = header[key].split(delimiter) + process
-        else:
-            process = list(header[key]) + process
-        # do not additionally add comment.
-    elif add_comment:
-        # add comment.
-        cmt2hdr(
-            header,
-            "c",
-            time_fmt=None,
-            s=(
-                f"[fitsmgmt.update_process] Standard items for {key} includes B=bias, D=dark, "
-                + "F=flat, T=trim, W=WCS, O=Overscan, I=Illumination, C=CRrej, R=fringe, "
-                + "P=fixpix, X=crosstalk."
-            ),
-        )
-
-    header[key] = (delimiter.join(process), "Process (order: 1-2-3-...): see comment.")
-
-    if additional_comment:
-        addstr = ", ".join([f"{k}={v}" for k, v in additional_comment.items()])
-        cmt2hdr(header, "c", f"User added items to {key}: {addstr}.", time_fmt=None)
-    update_tlm(header)
 
 
 def parse_crrej_psf(
@@ -519,7 +268,7 @@ def parse_crrej_psf(
 # TODO: add err_lower, err_upper, sigma_lower, sigma_upper
 def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
     if cenfunc == "wvg":
-        cenfunc = lambda val, err: weighted_avg(val, err)[0]
+        cenfunc = lambda val, err: mathutils.weighted_avg(val, err)[0]
     elif cenfunc in ["avg", "average", "mean"]:
         cenfunc = lambda val, err: np.mean(val)[0]  # err is dummy
     else:
@@ -890,128 +639,3 @@ def change_to_quantity(x, desired="", to_value=False):
         )
 
     return ux
-
-
-def binning(
-    arr,
-    factor_x=None,
-    factor_y=None,
-    factors=None,
-    order_xyz=True,
-    binfunc=np.mean,
-    trim_end=False,
-):
-    """Bins the given arr frame.
-
-    Parameters
-    ---------
-    arr: 2d array
-        The array to be binned
-
-    factor_x, factor_y: `int` or `None`, optional.
-        The binning factors in x, y direction. This is left as legacy and for
-        clarity, because mostly this function is used for 2-D CCD data. If any
-        of these is given, `order_xyz` is overridden as `True`.
-
-    factors : `list`-like of `int`, optional.
-        The factors in pythonic axis order (``order_xyz=False``) or in the xyz
-        order (``order_xyz=True``). If any of the `tuple` is `None`, that will be
-        replaced by the size of the array along that axis, i.e., collapse along
-        that axis.
-        Default: `None`.
-
-    binfunc : funciton object, optional.
-        The function to be applied for binning, such as ``np.sum``,
-        ``np.mean``, and ``np.median``.
-        Default: ``np.mean``.
-
-    trim_end : `bool`, optional.
-        Whether to trim the end of x, y axes such that binning is done without
-        error.
-        Default: `False`.
-
-    Notes
-    -----
-    This kind of binning is ~ 20-30 to upto 10^5 times faster than
-    astropy.nddata's block_reduce:
-
-
-    >>> from astropy.nddata.blocks import block_reduce
-    >>> import fitsmgmt as fm
-    >>> from astropy.nddata import CCDData
-    >>> import numpy as np
-    >>> ccd = CCDData(data=np.arange(1000).reshape(20, 50), unit='adu')
-    >>> kw = dict(factor_x=5, factor_y=5, binfunc=np.sum, trim_end=True)
-    >>> %timeit fm.binning(ccd.data, **kw)
-    >>> # 10.9 +- 0.216 us (7 runs, 100000 loops each)
-    >>> %timeit fm.bin_ccd(ccd, **kw, update_header=False)
-    >>> # 32.9 µs +- 878 ns per loop (7 runs, 10000 loops each)
-    >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
-    >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
-    >>> # 5.e+5   ...      ...     ...     ...     27  -- times slower
-    >>> # some strange chaching happens?
-    Tested on MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
-    GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
-    """
-    # def binning(arr, factor_x=1, factor_y=1, binfunc=np.mean, trim_end=False):
-    #     binned = arr.copy()
-    #     if trim_end:
-    #         ny_orig, nx_orig = binned.shape
-    #         iy_max = ny_orig - (ny_orig % factor_y)
-    #         ix_max = nx_orig - (nx_orig % factor_x)
-    #         binned = binned[:iy_max, :ix_max]
-    #     ny, nx = binned.shape
-    #     nby = ny // factor_y
-    #     nbx = nx // factor_x
-    #     binned = binned.reshape(nby, factor_y, nbx, factor_x)
-    #     binned = binfunc(binned, axis=(-1, 1))
-    #     return binned
-
-    binned = arr.copy()
-
-    if factor_x is not None or factor_y is not None:
-        factors = (factor_x, factor_y)
-        order_xyz = True
-
-    if factors is None:
-        factors = np.ones(arr.ndim)
-    else:
-        factors = np.array(factors).ravel()
-        for i, f in enumerate(factors):
-            if f is None:
-                factors[i] = arr.shape[i]
-
-    if order_xyz:
-        factors = factors[::-1]  # convert back to python order
-
-    if trim_end:
-        n_orig = binned.shape
-        i_max = n_orig - (n_orig % factors)
-        slices = tuple(slice(None, im, None) for im in i_max)
-        binned = binned[slices]
-
-    npix = binned.shape
-    nbin = npix // factors
-    nbin[nbin == 0] = 1
-    newshape = []
-    for nbin_i, factor_i in zip(nbin, factors):
-        newshape.append(nbin_i)
-        newshape.append(factor_i)
-
-    binned = binned.reshape(newshape)
-    funcaxis = np.arange(1, binned.ndim + 1, 2).astype(int)
-    binned = binfunc(binned, axis=tuple(funcaxis))
-    return binned
-
-
-
-
-# FIXME: I am not sure whether these gain conversions are universal or just
-# for ASI cameras...
-def dB2epadu(gain_dB: float) -> float:
-    return 5 / 10 ** (gain_dB / 20)
-
-
-def epadu2dB(gain_epadu: float) -> float:
-    return 20 * np.log10(5 / gain_epadu)
-

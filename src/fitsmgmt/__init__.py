@@ -3,17 +3,29 @@
 from .logging import logger, set_log_level, enable_console_logging
 from .airmass import *
 from .filemgmt import *
+from .headers import *
 from .hduutil import *
 from .io import *
 from .mathutils import *
 from .misc import *
 from .wcstools import *
 
-from . import airmass, filemgmt, hduutil, io, logging, mathutils, misc, wcstools
+from . import (
+    airmass,
+    filemgmt,
+    headers,
+    hduutil,
+    io,
+    logging,
+    mathutils,
+    misc,
+    wcstools,
+)
 
 __all__ = [
     "airmass",
     "filemgmt",
+    "headers",
     "hduutil",
     "io",
     "logging",
@@ -24,5 +36,14 @@ __all__ = [
     "set_log_level",
     "enable_console_logging",
 ]
-for _module in (airmass, filemgmt, hduutil, io, mathutils, misc, wcstools):
+for _module in (
+    airmass,
+    filemgmt,
+    headers,
+    hduutil,
+    io,
+    mathutils,
+    misc,
+    wcstools,
+):
     __all__.extend(getattr(_module, "__all__", []))

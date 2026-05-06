@@ -12,7 +12,7 @@ from astropy.io.fits import Card
 from astropy.time import Time
 from typing import TypeAlias
 
-from .hduutil import cmt2hdr, get_if_none
+from .headers import cmt2hdr, get_if_none
 from .logging import logger
 from .misc import change_to_quantity
 
