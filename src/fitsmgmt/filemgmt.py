@@ -247,11 +247,10 @@ def make_summary(
                 raise ValueError(f"fname_option `{fname_option}`not understood.")
             fsize = Path(item).stat().st_size
             # Don't change to MB/GB, which will make it float...
-            hdul = fits.open(item, **kwargs)
-            if verify_fix:
-                hdul.verify("fix")
-            hdr = hdul[extension].header
-            hdul.close()
+            with fits.open(item, **kwargs) as hdul:
+                if verify_fix:
+                    hdul.verify("fix")
+                hdr = hdul[extension].header.copy()
 
         return fname, fsize, hdr
 
@@ -265,16 +264,20 @@ def make_summary(
 
     extension = _parse_extension(extension)
 
+    first_info = None
+    if example_header is not None or keywords is None or keywords == "*":
+        first_info = _get_fname_fsize_hdr(fitslist[0], 0, extension=extension)
+
     # Save example header
     if example_header is not None:
-        fname0, _, hdr0 = _get_fname_fsize_hdr(fitslist[0], 0, extension=extension)
+        fname0, _, hdr0 = first_info
         if verbose:
             logger.info("Header of 0-th: %s -> %s", fname0, example_header)
         hdr0.totextfile(example_header, overwrite=True)
 
     # load ALL keywords for special cases
     if (keywords is None) or (keywords is not None and keywords == "*"):
-        fname0, _, hdr0 = _get_fname_fsize_hdr(fitslist[0], 0, extension=extension)
+        fname0, _, hdr0 = first_info
         num_hkeys = len(hdr0.cards)
         keywords = []
 
@@ -306,7 +309,10 @@ def make_summary(
 
     # Run through all the fits files
     for i, item in enumerate(fitslist):
-        fname, fsize, hdr = _get_fname_fsize_hdr(item, i, extension=extension)
+        if i == 0 and first_info is not None:
+            fname, fsize, hdr = first_info
+        else:
+            fname, fsize, hdr = _get_fname_fsize_hdr(item, i, extension=extension)
         summarytab["file"].append(fname)
         summarytab["filesize"].append(fsize)
         for k in keywords:
