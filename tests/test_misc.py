@@ -1,8 +1,4 @@
-"""
-Tests for fitsmgmt.misc module (overwriting the minimal existing tests).
-
-These tests verify utility functions with pre-calculated expected values.
-"""
+"""Tests for standalone misc utilities."""
 
 import numpy as np
 import pytest
@@ -14,33 +10,29 @@ RTOL = 1e-6
 ATOL = 1e-8
 
 
-class TestGetSize:
-    """Tests for get_size function (memory size calculation)."""
+class TestMovedHelpers:
+    """Tests for helpers moved out of misc."""
 
-    def test_simple_int(self):
-        """Test size of simple integer."""
-        size = misc.get_size(42)
-        assert isinstance(size, int)
-        assert size > 0
+    def test_io_owns_helper(self):
+        """Moved I/O helpers are not re-exported from misc."""
+        assert not hasattr(misc, "get_size")
 
-    def test_list_larger_than_elements(self):
-        """Test that `list` size > sum of element sizes due to overhead."""
-        lst = [1, 2, 3]
-        size = misc.get_size(lst)
-        assert size > 0
+    def test_mathutils_owns_helpers(self):
+        """Moved math helpers are not re-exported from misc."""
+        assert not hasattr(misc, "weighted_avg")
+        assert not hasattr(misc, "min_max_med_1d")
+        assert not hasattr(misc, "mean_std_1d")
+        assert not hasattr(misc, "quantile_lh")
+        assert not hasattr(misc, "quantile_sigma")
+        assert not hasattr(misc, "binning")
+        assert not hasattr(misc, "dB2epadu")
+        assert not hasattr(misc, "epadu2dB")
 
-    def test_nested_dict(self):
-        """Test recursive size calculation for nested `dict`."""
-        d = {"a": {"b": {"c": 1}}}
-        size = misc.get_size(d)
-        assert size > 0
-
-    def test_numpy_array(self):
-        """Test size calculation for numpy array."""
-        arr = np.zeros((100, 100), dtype=np.float32)
-        size = misc.get_size(arr)
-        # Should be at least 100*100*4 = 40000 bytes
-        assert size >= 40000
+    def test_headers_own_helpers(self):
+        """Moved header helpers are not re-exported from misc."""
+        assert not hasattr(misc, "cmt2hdr")
+        assert not hasattr(misc, "update_tlm")
+        assert not hasattr(misc, "update_process")
 
 
 class TestCircularMask:
@@ -141,87 +133,3 @@ class TestChangeToQuantity:
         from astropy import units as u
         result = misc.change_to_quantity(5.0 * u.km, u.m, to_value=True)
         np.testing.assert_allclose(result, 5000.0, rtol=RTOL, atol=ATOL)
-
-
-class TestWeightedAvg:
-    """Tests for weighted_avg function."""
-
-    def test_known_values(self):
-        """Test weighted average with known values."""
-        val = np.array([1.0, 2.0, 3.0])
-        err = np.array([0.1, 0.2, 0.1])  # weights = 1/err^2
-
-        # Manual calculation:
-        # w = 1/err^2 = [100, 25, 100]
-        # weighted_avg = (1*100 + 2*25 + 3*100) / (100+25+100)
-        #              = (100 + 50 + 300) / 225 = 450/225 = 2.0
-        result = misc.weighted_avg(val, err)
-        # Result is (weighted_avg, weighted_std_err)
-        np.testing.assert_allclose(result[0], 2.0, rtol=RTOL, atol=ATOL)
-
-    def test_equal_weights(self):
-        """Test that equal weights give simple mean."""
-        val = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        err = np.array([1.0, 1.0, 1.0, 1.0, 1.0])
-        result = misc.weighted_avg(val, err)
-        np.testing.assert_allclose(result[0], 3.0, rtol=RTOL, atol=ATOL)
-
-
-class TestCmt2Hdr:
-    """Tests for cmt2hdr function (adding comments/history to header)."""
-
-    def test_add_history(self, sample_header):
-        """Test adding HISTORY to header."""
-        hdr = sample_header.copy()
-        misc.cmt2hdr(hdr, "h", "Test history entry", time_fmt=None)
-        # Check that HISTORY was added
-        assert "HISTORY" in hdr
-        assert "Test history entry" in str(hdr["HISTORY"])
-
-    def test_add_comment(self, sample_header):
-        """Test adding COMMENT to header."""
-        hdr = sample_header.copy()
-        misc.cmt2hdr(hdr, "c", "Test comment entry", time_fmt=None)
-        # Check that COMMENT was added
-        assert "COMMENT" in hdr
-        assert "Test comment entry" in str(hdr["COMMENT"])
-
-    @pytest.mark.parametrize("histcomm", ["h", "hist", "history", "HISTORY"])
-    def test_history_aliases(self, sample_header, histcomm):
-        """Test various aliases for HISTORY."""
-        hdr = sample_header.copy()
-        misc.cmt2hdr(hdr, histcomm, "Test", time_fmt=None)
-        assert "HISTORY" in hdr
-
-    @pytest.mark.parametrize("histcomm", ["c", "com", "comm", "comment", "COMMENT"])
-    def test_comment_aliases(self, sample_header, histcomm):
-        """Test various aliases for COMMENT."""
-        hdr = sample_header.copy()
-        misc.cmt2hdr(hdr, histcomm, "Test", time_fmt=None)
-        assert "COMMENT" in hdr
-
-    def test_invalid_histcomm_raises(self, sample_header):
-        """Test that invalid histcomm raises ValueError."""
-        hdr = sample_header.copy()
-        with pytest.raises(ValueError):
-            misc.cmt2hdr(hdr, "invalid", "Test", time_fmt=None)
-
-
-class TestUpdateProcess:
-    """Tests for update_process function."""
-
-    def test_add_process(self, sample_header):
-        """Test adding process key to header."""
-        hdr = sample_header.copy()
-        misc.update_process(hdr, process="B")
-        assert "PROCESS" in hdr
-        assert "B" in hdr["PROCESS"]
-
-    def test_append_process(self, sample_header):
-        """Test appending to existing process key."""
-        hdr = sample_header.copy()
-        hdr["PROCESS"] = "B"
-        misc.update_process(hdr, process="D")
-        # Should contain both B and D
-        assert "B" in hdr["PROCESS"]
-        assert "D" in hdr["PROCESS"]
