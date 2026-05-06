@@ -8,7 +8,15 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from fitsmgmt import filemgmt, hduutil, logging as fmlogging, misc
+from fitsmgmt import (
+    ccdutils,
+    headers,
+    io,
+    logging as fmlogging,
+    mathutils,
+    misc,
+    summary,
+)
 
 
 @pytest.fixture
@@ -64,7 +72,7 @@ def test_change_to_quantity():
 def test_binning():
     """Test array binning."""
     arr = np.arange(16).reshape(4, 4)
-    binned = misc.binning(arr, 2, 2)
+    binned = mathutils.binning(arr, 2, 2)
     expected_bin = np.array([[2.5, 4.5], [10.5, 12.5]])
     assert np.allclose(binned, expected_bin)
 
@@ -73,53 +81,53 @@ def test_header_utils(dummy_fits):
     hdr = fits.getheader(dummy_fits)
 
     # cmt2hdr
-    misc.cmt2hdr(hdr, 'h', "Test history")
+    headers.cmt2hdr(hdr, 'h', "Test history")
     assert "Test history" in str(hdr.get("HISTORY"))
 
     # update_process
-    misc.update_process(hdr, "BiasSub")
+    headers.update_process(hdr, "BiasSub")
     assert "BiasSub" in str(hdr.get("PROCESS"))
 
     # update_tlm
-    misc.update_tlm(hdr)
+    headers.update_tlm(hdr)
     assert "FITS-TLM" in hdr
 
 def test_images_io(dummy_fits):
     """Test image loading and saving."""
-    ccd = hduutil.load_ccd(dummy_fits)
+    ccd = io.load_ccd(dummy_fits)
     assert ccd.shape == (10, 10)
 
     # Test inputs2list
-    inputs = hduutil.inputs2list(str(dummy_fits.parent / "*.fits"))
+    inputs = io.inputs2list(str(dummy_fits.parent / "*.fits"))
     assert [Path(p).name for p in inputs] == ['test.fits']
 
     # Test write2fits
     outpath = dummy_fits.parent / "out.fits"
-    hduutil.write2fits(ccd.data, ccd.header, outpath)
+    io.write2fits(ccd.data, ccd.header, outpath)
     assert outpath.exists()
 
 def test_image_process(dummy_fits):
     """Test image processing."""
-    ccd = hduutil.load_ccd(dummy_fits)
+    ccd = io.load_ccd(dummy_fits)
 
     # imslice
-    sl_ccd = hduutil.imslice(ccd, "[2:5, 2:5]")
+    sl_ccd = ccdutils.imslice(ccd, "[2:5, 2:5]")
     assert sl_ccd.shape == (4, 4)
 
     # cut_ccd
-    cut, _ = hduutil.cut_ccd(ccd, (5, 5), (4, 4))
+    cut, _ = ccdutils.cut_ccd(ccd, (5, 5), (4, 4))
     assert cut.shape == (4, 4)
 
     # bin_ccd
-    binccd = hduutil.bin_ccd(ccd, 2, 2)
+    binccd = ccdutils.bin_ccd(ccd, 2, 2)
     assert binccd.shape == (5, 5)
     assert "XBINNING" in binccd.header
     assert "YBINNING" in binccd.header
 
 def test_header_edits(dummy_fits):
-    """Test header edits via hduutil module."""
+    """Test header edits via headers module."""
     # hedit
-    hduutil.hedit(
+    headers.hedit(
         dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
     )
     assert fits.getval(dummy_fits, "OBJECT") == "TestObj"
@@ -127,13 +135,13 @@ def test_header_edits(dummy_fits):
     # key_remover
     hdr = fits.getheader(dummy_fits)
     hdr['TEMP'] = 123
-    hdr = hduutil.key_remover(hdr, ['TEMP'])
+    hdr = headers.key_remover(hdr, ['TEMP'])
     assert "TEMP" not in hdr
 
 def test_ccd_attributes(dummy_fits):
     """Test CCDData attribute setting."""
-    ccd = hduutil.load_ccd(dummy_fits)
-    hduutil.set_ccd_attribute(ccd, 'gain', 2.0, unit='electron/adu')
+    ccd = io.load_ccd(dummy_fits)
+    ccdutils.set_ccd_attribute(ccd, 'gain', 2.0, unit='electron/adu')
     assert ccd.gain.value == 2.0
     assert ccd.gain.unit == u.electron / u.adu
 
@@ -141,12 +149,12 @@ def test_files_summary(dummy_fits):
     """Test summary generation."""
     # Create another file for variety
     outpath = dummy_fits.parent / "out.fits"
-    hduutil.hedit(
+    headers.hedit(
         dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
     )
-    hduutil.write2fits(np.zeros((10,10)), fits.Header(), outpath)
+    io.write2fits(np.zeros((10,10)), fits.Header(), outpath)
 
-    df = filemgmt.make_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
+    df = summary.make_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
     df = df.sort_values('file').reset_index(drop=True)
 
     # out.fits (no object)

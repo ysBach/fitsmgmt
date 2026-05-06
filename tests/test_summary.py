@@ -1,11 +1,11 @@
 import numpy as np
 from astropy.io import fits
 
-from fitsmgmt import filemgmt
+from fitsmgmt import summary
 
 
-class TestFileMgmt:
-    """Tests for filemgmt module."""
+class TestSummary:
+    """Tests for summary module."""
 
     def test_make_summary(self, tmp_path):
         """Test creating summary table from FITS files."""
@@ -28,7 +28,7 @@ class TestFileMgmt:
             paths.append(str(p))
 
         # Run make_summary
-        df = filemgmt.make_summary(
+        df = summary.make_summary(
             paths,
             keywords=keys,
             verbose=False
