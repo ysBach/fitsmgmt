@@ -154,7 +154,7 @@ def test_files_summary(dummy_fits):
     )
     io.write2fits(np.zeros((10,10)), fits.Header(), outpath)
 
-    df = summary.make_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
+    df = summary.fits_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
     df = df.sort_values('file').reset_index(drop=True)
 
     # out.fits (no object)

@@ -13,12 +13,25 @@ from .io import _parse_extension, inputs2list
 from .logging import logger
 
 __all__ = [
-    "make_summary",
+    "fits_summary",
     "df_selector",
 ]
 
 
-def make_summary(
+def _write_summary(output, summarytab, verbose=True):
+    """Write a summary table, choosing format from the file suffix."""
+    output = Path(output)
+    if verbose:
+        logger.info('Saving the summary to "%s"', output)
+
+    suffix = output.suffix.lower()
+    if suffix in {".parq", ".parquet"}:
+        summarytab.to_parquet(output, index=False)
+    else:
+        summarytab.to_csv(output, index=False)
+
+
+def fits_summary(
     inputs=None,
     extension=None,
     verify_fix=False,
@@ -36,7 +49,7 @@ def make_summary(
     verbose=True,
     **kwargs,
 ):
-    """Extracts summary from the headers of FITS files.
+    """Extract summary rows from FITS headers.
 
     Parameters
     ----------
@@ -67,7 +80,8 @@ def make_summary(
         Default: ``'relative'``.
 
     output : `str` or path-like, optional
-        The directory and file name of the output summary file.
+        Output summary file. ``.parq`` and ``.parquet`` use parquet; other
+        suffixes use CSV.
         Default: `None`.
 
     keywords : `list` or `str`(``"*"``), optional
@@ -130,7 +144,7 @@ def make_summary(
     Notes
     -----
     I want to use ccdproc.ImageFileCollection instead of this, but it is about
-    4 times slower than my `~fitsmgmt.summary.make_summary`, so I cannot use it yet.
+    4 times slower than my `~fitsmgmt.summary.fits_summary`, so I cannot use it yet.
 
     Examples
     -------
@@ -145,7 +159,7 @@ def make_summary(
     >>> # The toppath
     >>> savepath = TOPPATH / "summary_20180101.csv"
     >>> # list of all the fits files in TOPPATH/rawdata:
-    >>> summary = fm.make_summary(
+    >>> summary = fm.fits_summary(
     >>>     TOPPATH/"rawdata/*.fits",
     >>>     keywords=keys,
     >>>     fname_option='name',
@@ -166,7 +180,7 @@ def make_summary(
         return None
 
     if nonunique_keys:
-        summ = make_summary(
+        summ = fits_summary(
             inputs=inputs,
             extension=extension,
             verify_fix=verify_fix,
@@ -194,10 +208,7 @@ def make_summary(
                     logger.info(" * %-8s: %s", key, _uniq[0])
                 summ.pop(key)
         if output is not None:
-            output = Path(output)
-            if verbose:
-                logger.info('Saving the summary to "%s"', output)
-            summ.to_csv(output, index=False)
+            _write_summary(output, summ, verbose=verbose)
         return summ
 
     # Although there's no need to sort here because the real "sort" will be
@@ -330,10 +341,7 @@ def make_summary(
         summarytab[k] = summarytab[k].astype(object).where(pd.notna(summarytab[k]), None)
 
     if output is not None:
-        output = Path(output)
-        if verbose:
-            logger.info('Saving the summary to "%s"', output)
-        summarytab.to_csv(output, index=False)
+        _write_summary(output, summarytab, verbose=verbose)
 
     return summarytab
 
