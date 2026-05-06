@@ -9,37 +9,30 @@ from __future__ import annotations
 from warnings import warn
 
 from astropy.visualization import (
+    AsinhStretch,
+    AsymmetricPercentileInterval,
+    BaseStretch,
     ImageNormalize,
     LinearStretch,
-    ZScaleInterval,
-)
-from astropy.visualization import (
-    MinMaxInterval, 
-    PercentileInterval,
-     AsymmetricPercentileInterval
-)
-
-from astropy.visualization import (
-    AsinhStretch,
-    BaseStretch,
     LogStretch,
+    PercentileInterval,
     PowerStretch,
     SinhStretch,
     SqrtStretch,
     SquaredStretch,
+    ZScaleInterval,
 )
-from matplotlib.image import AxesImage
 from matplotlib.ticker import FixedLocator
 
 __all__ = ["znorm", "zimshow", "norm_imshow", "astropy_stretch", "imshow_norm"]
 
 _STRETCH_MAP: dict[str, BaseStretch] = {
     "linear": LinearStretch(),
-    "sqrt":   SqrtStretch(),
-    "asinh":  AsinhStretch(),
-    "log":    LogStretch(),
-    "power":  PowerStretch(1.0),
-    "sinh":   SinhStretch(),
+    "sqrt": SqrtStretch(),
+    "asinh": AsinhStretch(),
+    "log": LogStretch(),
+    "power": PowerStretch(1.0),
+    "sinh": SinhStretch(),
     "square": SquaredStretch(),
 }
 
@@ -265,8 +258,10 @@ def imshow_norm(
           min/max (equivalent to `~astropy.visualization.ManualInterval`).
         - ``"zscale"`` — `~astropy.visualization.ZScaleInterval`.
         - ``percent=<v>`` — `~astropy.visualization.PercentileInterval(v)`.
-        - ``min_percent``/``max_percent`` — `~astropy.visualization.AsymmetricPercentileInterval`.
-        - Any `~astropy.visualization.BaseInterval` instance — passed through unchanged.
+        - ``min_percent``/``max_percent`` —
+          `~astropy.visualization.AsymmetricPercentileInterval`.
+        - Any `~astropy.visualization.BaseInterval` instance — passed through
+          unchanged.
 
         Default is ``None``.
     origin : str, optional
@@ -355,7 +350,10 @@ def imshow_norm(
         if interval.lower() == "zscale":
             interval_obj = ZScaleInterval()
         else:
-            raise ValueError(f"Unknown interval string {interval!r}. Use 'zscale' or a BaseInterval instance.")
+            raise ValueError(
+                f"Unknown interval string {interval!r}. "
+                "Use 'zscale' or a BaseInterval instance."
+            )
     else:
         interval_obj = interval  # BaseInterval instance or None
 

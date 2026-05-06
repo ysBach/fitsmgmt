@@ -1,14 +1,15 @@
-import pytest
-import numpy as np
-from astropy.io import fits
-from astropy.nddata import CCDData
-import astropy.units as u
-from pathlib import Path
+import logging
 import shutil
 import tempfile
-import logging
+from pathlib import Path
 
-from fitsmgmt import utils, images, files, logging as fmlogging
+import astropy.units as u
+import numpy as np
+import pytest
+from astropy.io import fits
+
+from fitsmgmt import files, images, logging as fmlogging, utils
+
 
 @pytest.fixture
 def temp_env():
@@ -34,8 +35,8 @@ def test_logging():
     """Test logging configuration."""
     fmlogging.set_log_level("DEBUG")
     fmlogging.enable_console_logging(level=10)
-    # Since we can't easily capture logger output configured to stdout in pytest without caplog,
-    # we just verifying the function runs and level is set.
+    # Since we can't easily capture logger output configured to stdout in pytest
+    # without caplog, we just verify the function runs and level is set.
     assert fmlogging.logger.level == logging.DEBUG
     for handler in fmlogging.logger.handlers[:]:
         if isinstance(handler, logging.StreamHandler) and not isinstance(
@@ -118,7 +119,9 @@ def test_image_process(dummy_fits):
 def test_header_edits(dummy_fits):
     """Test header edits via images module."""
     # hedit
-    images.hedit(dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits)
+    images.hedit(
+        dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
+    )
     assert fits.getval(dummy_fits, "OBJECT") == "TestObj"
 
     # key_remover
@@ -138,7 +141,9 @@ def test_files_summary(dummy_fits):
     """Test summary generation."""
     # Create another file for variety
     outpath = dummy_fits.parent / "out.fits"
-    images.hedit(dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits)
+    images.hedit(
+        dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
+    )
     images.write2fits(np.zeros((10,10)), fits.Header(), outpath)
 
     df = files.make_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])

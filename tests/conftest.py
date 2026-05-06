@@ -7,14 +7,11 @@ This module provides common fixtures and utilities for testing, including:
 - Temporary directory management
 """
 
-import tempfile
-from pathlib import Path
-
 import numpy as np
 import pytest
+from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
-from astropy import units as u
 
 
 # Strict numerical tolerance for physics-based calculations

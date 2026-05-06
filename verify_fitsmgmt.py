@@ -1,21 +1,22 @@
 import os
 import shutil
 import tempfile
+from pathlib import Path
+
 import numpy as np
+import astropy.units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
-import astropy.units as u
-from pathlib import Path
 
 # Import fitsmgmt
 try:
-    import fitsmgmt as fm
     from fitsmgmt import utils, images, files, logging
 except ImportError:
     # Use direct path if package not installed in env yet
     import sys
+
     sys.path.insert(0, os.path.abspath("src"))
-    import fitsmgmt as fm
+
     from fitsmgmt import utils, images, files, logging
 
 def run_tests():
@@ -142,16 +143,21 @@ def run_tests():
         # make_summary
         df = files.make_summary([fpath, outpath], keywords=['OBJECT', 'NAXIS'])
         df = df.sort_values('file').reset_index(drop=True)
-        # out.fits is first (alphabetical o before t? No, fpath=test.fits, outpath=out.fits)
+        # out.fits is first (alphabetical o before t? No, fpath=test.fits,
+        # outpath=out.fits)
         # test.fits (fpath) and out.fits (outpath)
         # 'out.fits' < 'test.fits'.
-        # out.fits has OBJECT=TestObj? No, outpath was written from `hdr` which was created BEFORE hedit on fpath.
-        # But `hdr` object is updated inplace by `cmt2hdr` etc. But `hedit` updated `fpath` (file on disk).
-        # `hedit` was on `fpath`. `hdr` variable in memory might not reflect `fpath` updates unless reloaded.
+        # out.fits has OBJECT=TestObj? No, outpath was written from `hdr` which
+        # was created BEFORE hedit on fpath.
+        # But `hdr` object is updated inplace by `cmt2hdr` etc. But `hedit`
+        # updated `fpath` (file on disk).
+        # `hedit` was on `fpath`. `hdr` variable in memory might not reflect
+        # `fpath` updates unless reloaded.
         # `write2fits` used `hdr` and `data`.
         # `hdr` has `HISTORY` and `PROCESS` and `FITS-TLM`.
         # `fpath` has `OBJECT=TestObj` because of `hedit`.
-        # `outpath` was written using `data` and `hdr` (memory). It doesn't have `OBJECT=TestObj` unless `hdr` had it.
+        # `outpath` was written using `data` and `hdr` (memory). It doesn't
+        # have `OBJECT=TestObj` unless `hdr` had it.
         # `hdr` didn't have `OBJECT` set. `hedit` modified `fpath` on disk.
         # So `out.fits` (from `hdr`) has no `OBJECT`.
         # `test.fits` (on disk) has `OBJECT=TestObj`.

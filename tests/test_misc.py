@@ -6,8 +6,6 @@ These tests verify utility functions with pre-calculated expected values.
 
 import numpy as np
 import pytest
-from pathlib import Path
-from astropy.io import fits
 
 from fitsmgmt import misc
 

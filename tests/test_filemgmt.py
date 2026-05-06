@@ -1,10 +1,8 @@
-import pandas as pd
-import pytest
-from astropy.io import fits
-from astropy.nddata import CCDData
 import numpy as np
+from astropy.io import fits
 
 from fitsmgmt import filemgmt
+
 
 class TestFileMgmt:
     """Tests for filemgmt module."""
@@ -53,4 +51,4 @@ class TestFileMgmt:
         # Test existent
         fits.writeto(p, np.zeros((10,10)))
         res = filemgmt.load_if_exists(p, loader=fits.open)
-        assert isinstance(res, (fits.HDUList, list)) # load_if_exists returns HDUList by default from fits.open
+        assert isinstance(res, (fits.HDUList, list))

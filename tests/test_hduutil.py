@@ -5,11 +5,9 @@ These tests verify FITS I/O, parsing, and HDU manipulation functions.
 """
 
 import numpy as np
-import pytest
-from pathlib import Path
+from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
-from astropy import units as u
 
 from fitsmgmt import hduutil
 
@@ -214,4 +212,6 @@ class TestGiveStats:
         np.testing.assert_allclose(stats["med"], 3.0, rtol=RTOL, atol=ATOL)
         # std of [1,2,3,4,5] with ddof=0 is sqrt(2), implementation uses ddof=1 for std
         # std of sample [1,2,3,4,5] ddof=1 is sqrt(2.5) ~ 1.5811388
-        np.testing.assert_allclose(stats["std"], np.std(arr, ddof=1), rtol=RTOL, atol=ATOL)
+        np.testing.assert_allclose(
+            stats["std"], np.std(arr, ddof=1), rtol=RTOL, atol=ATOL
+        )

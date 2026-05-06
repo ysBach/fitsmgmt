@@ -23,7 +23,7 @@ from astropy.nddata import CCDData, Cutout2D
 from astropy.stats import mad_std
 from astropy.table import Table
 from astropy.time import Time
-from astropy.visualization import ImageNormalize, ZScaleInterval
+from astropy.visualization import ZScaleInterval
 from astropy.wcs import WCS, Wcsprm
 
 # from scipy.interpolate import griddata
