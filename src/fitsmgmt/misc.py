@@ -1125,54 +1125,57 @@ def min_max_med_1d(arr):
     """Return minimum, maximum and median of array.
     Tests
     -----
-    up to ~ 10 times faster than numpy's min, max, median done separately (MBP
-    14" [2021, macOS 13.1, M1Pro(6P+2E/G16c/N16c/32G)]) ONLY WHEN ARRAY SIZE <~
-    1000:
+    Several times faster than numpy's min, max, median done separately ONLY
+    WHEN ARRAY SIZE <~ 1000:
 
+
+    import numpy as np
+    import fitsmgmt as fm
+    rnd = np.random.RandomState(123)
     t1s, t2s = [], []
     for size in [10, 100, 200, 300, 500, 800, 1000, 2000, 3000]:
         a = rnd.normal(size=size)
-        t1 = %timeit -o min_max_med_1d(a)
-        t2 = %timeit -o a.min(), a.max(), np.median(a)
+        t1 = %timeit -n 500 -r 5 -o fm.min_max_med_1d(a)
+        t2 = %timeit -n 500 -r 5 -o a.min(), a.max(), np.median(a)
         t1s.append(t1.average)
         t2s.append(t2.average)
 
-    [this] 984 ns ± 4.41 ns per loop (mean ± std. dev. of 7 runs, 1,000,000 loops each)
-    [ np ] 9.79 µs ± 47 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 1.57 µs ± 2.2 ns per loop (mean ± std. dev. of 7 runs, 1,000,000 loops each)
-    [ np ] 10.2 µs ± 23.9 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 2.54 µs ± 8.23 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [ np ] 10.6 µs ± 20.1 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 3.45 µs ± 15.4 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [ np ] 11.2 µs ± 34.9 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 5.44 µs ± 34.5 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [ np ] 12 µs ± 46.8 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 8.8 µs ± 32.8 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [ np ] 13 µs ± 32.7 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 11.7 µs ± 17.1 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [ np ] 14.8 µs ± 37.3 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 33.4 µs ± 4.28 µs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
-    [ np ] 19.6 µs ± 27.4 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    [this] 86.3 µs ± 4.78 µs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
-    [ np ] 25.6 µs ± 143 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+    MBP 14" [2024, macOS 15.2, M4Pro(8P+4E/G20c/N16c/48G)]:
+    1.77 μs ± 635 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    9.31 μs ± 1.49 μs per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    1.96 μs ± 128 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    7.07 μs ± 219 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    3.05 μs ± 176 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    6.92 μs ± 391 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    4.08 μs ± 163 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    6.87 μs ± 172 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    6.88 μs ± 112 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    7.21 μs ± 130 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    11.3 μs ± 171 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    8.54 μs ± 163 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    9.58 μs ± 52.7 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    8.45 μs ± 295 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    11.1 μs ± 173 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    9.65 μs ± 98.2 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    12.9 μs ± 102 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
+    11.8 μs ± 124 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
 
-    fig, axs = plt.subplots(1, 1, figsize=(8, 5), sharex=`False`, sharey=`False`, gridspec_kw=`None`)
-
-    #axs[0].
-    axs.plot( [10, 100, 200, 300, 500, 800, 1000, 2000, 3000], t1s)
-    axs.plot( [10, 100, 200, 300, 500, 800, 1000, 2000, 3000], t2s)
-    axs.set(
-        yscale='log',
-        xscale='log',
-        )
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(1, 1, figsize=(8, 5))
+    axs.plot( [10, 100, 200, 300, 500, 800, 1000, 2000, 3000], np.array(t2s)/np.array(t1s))
+    axs.axhline(1, color='k', linestyle='--')
+    axs.set(ylabel='numpy time / this time', xlabel='array size')
     plt.tight_layout()
     plt.show();
-
-
     """
     if arr.size < 1000:
         _a = np.sort(arr)
-        return _a[0], _a[-1], 0.5 * (_a[_a.size // 2] + _a[_a.size // 2 - 1])
+        mid = _a.size // 2
+        if _a.size % 2:
+            med = _a[mid]
+        else:
+            med = 0.5 * (_a[mid] + _a[mid - 1])
+        return _a[0], _a[-1], med
     else:
         return np.min(arr), np.max(arr), np.median(arr)
 
