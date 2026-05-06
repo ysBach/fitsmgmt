@@ -12,6 +12,13 @@ from astropy import units as u
 from astropy.time import Time
 
 from .logging import logger
+from .mathutils import (
+    mean_std_1d,
+    min_max_med_1d,
+    quantile_lh,
+    quantile_sigma,
+    weighted_avg,
+)
 
 try:
     import numba as nb
@@ -506,13 +513,6 @@ def parse_crrej_psf(
         raise ValueError(f"fs ({fs}) not understood")
 
 
-def weighted_avg(val, err):
-    # Weighted mean and standard error
-    w = 1 / (err**2)
-    wsum = np.sum(w)
-    wvg = np.sum(w * val) / wsum
-    wse = 1 / np.sqrt(wsum)
-    return wvg, wse
 
 
 # !FIXME: not finished
@@ -1004,111 +1004,6 @@ def binning(
     return binned
 
 
-def quantile_lh(
-    a,
-    lq,
-    hq,
-    axis=None,
-    nanfunc=False,
-    interpolation="linear",
-    linterp=None,
-    hinterp=None,
-):
-    """Find quantiles for lower and higher values
-
-    Parameters
-    ----------
-    a : `~numpy.ndarray`
-
-    lq, hq : array_like of `float`
-        Quantile or sequence of quantiles to compute, which must be between 0
-        and 1 inclusive.
-
-    axis : {`int`, `tuple` of `int`, `None`}, optional
-        Axis or axes along which the quantiles are computed. The default is to
-        compute the quantile(s) along a flattened version of the array.
-
-    nanfunc : `bool`, optional.
-        Whether to use `~np.nanquantile` instead of `~np.qualtile`.
-        Default: `False`.
-
-    interpolation, linterp, hinterp : ``{'linear', 'lower', 'higher', 'midpoint', 'nearest'}``, optional.
-        This optional parameter specifies the interpolation method to use when
-        the desired quantile lies between two data points ``i < j``:
-        * 'linear': ``i + (j - i) * fraction``, where ``fraction`` is the
-          fractional part of the index surrounded by ``i`` and ``j``.
-        * 'lower': ``i``.
-        * 'higher': ``j``.
-        * 'nearest': ``i`` or ``j``, whichever is nearest.
-        * 'midpoint': ``(i + j) / 2``.
-        To tune the interpolation method for lower and higher quantiles
-        individually, set `linterp` and `hinterp` separately. An idea is to use
-        ``linterp='higher', hinterp='lower'`` to estimate the robust standard
-        deviation estimate.
-    """
-    linterp = interpolation if linterp is None else linterp
-    hinterp = interpolation if hinterp is None else hinterp
-
-    qfunc = np.nanquantile if nanfunc else np.quantile
-
-    try:
-        lq = float(lq)
-        hq = float(hq)
-    except TypeError:
-        raise TypeError("lq and hq must be floats, not array-like.")
-
-    if linterp == hinterp:
-        out = qfunc(a, (lq, hq), axis=axis, interpolation=linterp)
-    else:
-        out_l = qfunc(a, lq, axis=axis, interpolation=linterp)
-        out_h = qfunc(a, hq, axis=axis, interpolation=hinterp)
-        out = [out_l, out_h]
-
-    return out
-
-
-def quantile_sigma(
-    a, axis=None, nanfunc=False, interpolation="linear", linterp=None, hinterp=None
-):
-    """Extract "sigma" (std. dev.) from quantile to avoid bad values.
-
-    Parameters
-    ----------
-    a : `~numpy.ndarray`
-
-    axis : {`int`, `tuple` of `int`, `None`}, optional
-        Axis or axes along which the quantiles are computed. The default is to
-        compute the quantile(s) along a flattened version of the array.
-
-    nanfunc : `bool`, optional.
-        Whether to use `~np.nanquantile` instead of `~np.quantile`.
-        Default: `False`.
-
-    interpolation, linterp, hinterp : ``{'linear', 'lower', 'higher', 'midpoint', 'nearest'}``, optional.
-        This optional parameter specifies the interpolation method to use when
-        the desired quantile lies between two data points ``i < j``:
-        * 'linear': ``i + (j - i) * fraction``, where ``fraction`` is the
-          fractional part of the index surrounded by ``i`` and ``j``.
-        * 'lower': ``i``.
-        * 'higher': ``j``.
-        * 'nearest': ``i`` or ``j``, whichever is nearest.
-        * 'midpoint': ``(i + j) / 2``.
-        To tune the interpolation method for lower and higher quantiles
-        individually, set `linterp` and `hinterp` separately. An idea is to use
-        ``linterp='higher', hinterp='lower'`` to estimate the robust standard
-        deviation estimate.
-    """
-    low, upp = quantile_lh(
-        a,
-        0.1587,
-        0.8413,
-        axis=axis,
-        nanfunc=nanfunc,
-        interpolation=interpolation,
-        linterp=linterp,
-        hinterp=hinterp,
-    )
-    return np.abs(upp - low) / 2
 
 
 # FIXME: I am not sure whether these gain conversions are universal or just
@@ -1120,113 +1015,3 @@ def dB2epadu(gain_dB: float) -> float:
 def epadu2dB(gain_epadu: float) -> float:
     return 20 * np.log10(5 / gain_epadu)
 
-
-def min_max_med_1d(arr):
-    """Return minimum, maximum and median of array.
-    Tests
-    -----
-    Several times faster than numpy's min, max, median done separately ONLY
-    WHEN ARRAY SIZE <~ 1000:
-
-
-    import numpy as np
-    import fitsmgmt as fm
-    rnd = np.random.RandomState(123)
-    t1s, t2s = [], []
-    for size in [10, 100, 200, 300, 500, 800, 1000, 2000, 3000]:
-        a = rnd.normal(size=size)
-        t1 = %timeit -n 500 -r 5 -o fm.min_max_med_1d(a)
-        t2 = %timeit -n 500 -r 5 -o a.min(), a.max(), np.median(a)
-        t1s.append(t1.average)
-        t2s.append(t2.average)
-
-    MBP 14" [2024, macOS 15.2, M4Pro(8P+4E/G20c/N16c/48G)]:
-    1.77 μs ± 635 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    9.31 μs ± 1.49 μs per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    1.96 μs ± 128 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    7.07 μs ± 219 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    3.05 μs ± 176 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    6.92 μs ± 391 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    4.08 μs ± 163 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    6.87 μs ± 172 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    6.88 μs ± 112 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    7.21 μs ± 130 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    11.3 μs ± 171 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    8.54 μs ± 163 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    9.58 μs ± 52.7 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    8.45 μs ± 295 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    11.1 μs ± 173 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    9.65 μs ± 98.2 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    12.9 μs ± 102 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-    11.8 μs ± 124 ns per loop (mean ± std. dev. of 5 runs, 500 loops each)
-
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(1, 1, figsize=(8, 5))
-    axs.plot( [10, 100, 200, 300, 500, 800, 1000, 2000, 3000], np.array(t2s)/np.array(t1s))
-    axs.axhline(1, color='k', linestyle='--')
-    axs.set(ylabel='numpy time / this time', xlabel='array size')
-    plt.tight_layout()
-    plt.show();
-    """
-    if arr.size < 1000:
-        _a = np.sort(arr)
-        mid = _a.size // 2
-        if _a.size % 2:
-            med = _a[mid]
-        else:
-            med = 0.5 * (_a[mid] + _a[mid - 1])
-        return _a[0], _a[-1], med
-    else:
-        return np.min(arr), np.max(arr), np.median(arr)
-
-
-def mean_std_1d(arr, ddof=0, std=True, var=False):
-    """Return mean and standard deviation of array.
-    Tests
-    -----
-    About 2.5 times faster than numpy's mean and std done separately (MBP 14"
-    [2021, macOS 13.1, M1Pro(6P+2E/G16c/N16c/32G)]):
-
-    rnd = np.random.RandomState(123)
-    a = rnd.normal(size=(100))
-
-    %timeit mean_std_1d(a)
-    4.13 µs ± 15.1 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    %timeit np.mean(a), np.std(a)
-    9.15 µs ± 41.2 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    print(mean_std_1d(a), "\n", np.mean(a), np.std(a))
-    (0.027109073490359778, 1.1282404704779612)
-     0.027109073490359778  1.128240470477961
-
-    With ddof:
-    %timeit mean_std_1d(a, ddof=1)
-    4.22 µs ± 40.3 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    %timeit np.mean(a), np.std(a, ddof=1)
-    9.47 µs ± 74.2 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    print(mean_std_1d(a, ddof=1), "\n", np.mean(a), np.std(a, ddof=1))
-    (0.027109073490359778, 1.1339243375361956)
-     0.027109073490359778, 1.1339243375361954
-
-    Larger size:
-    a = rnd.normal(size=(10000))
-    %timeit mean_std_1d(a)
-    9.38 µs ± 34.8 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    %timeit np.mean(a), np.std(a)
-    19.2 µs ± 57.7 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
-    """
-    sum_a = np.sum(arr)
-    sqsum = np.sum(arr**2)
-    inv_n = 1.0 / arr.size
-    inv_d = 1.0 / (arr.size - ddof) if ddof > 0 else inv_n
-    mean = sum_a * inv_n
-    var = sqsum * inv_d - mean * sum_a * inv_d
-    if var:
-        if std:
-            return mean, np.sqrt(var), var
-        else:
-            return mean, var
-    else:
-        if std:
-            return mean, np.sqrt(var)
-        else:
-            raise ValueError("At least one of `std` or `var` must be True.")
