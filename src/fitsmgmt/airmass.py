@@ -12,7 +12,7 @@ from astropy.io.fits import Card
 from astropy.time import Time
 from typing import TypeAlias
 
-from .headers import cmt2hdr, get_if_none
+from .headers import cmt2hdr, hdrval
 from .logging import logger
 from .misc import change_to_quantity
 
@@ -348,7 +348,7 @@ def airmass_from_hdr(
     """
 
     # If there is no header keyword matches the ``key``, it should give
-    # KeyError. For such reason, I didn't use ``get_from_header`` here.
+    # KeyError. For such reason, I didn't use ``hdrval`` here.
     def _conversion(header, val, key, unit=None):
         if val is None:
             val = header[key]  # assume it is in the unit of ``unit``.
@@ -398,16 +398,16 @@ def airmass_from_hdr(
         ]
         return cs
 
-    ra = get_if_none(ra, header, ra_key, unit=ra_unit, verbose=verbose)[0]
-    dec = get_if_none(dec, header, dec_key, unit=dec_unit, verbose=verbose)[0]
-    exptime = get_if_none(
+    ra = hdrval(ra, header, ra_key, unit=ra_unit, verbose=verbose)
+    dec = hdrval(dec, header, dec_key, unit=dec_unit, verbose=verbose)
+    exptime = hdrval(
         exptime, header, exptime_key, unit=exptime_unit, verbose=verbose
-    )[0]
-    lon = get_if_none(lon, header, lon_key, lon_unit)[0]
-    lat = get_if_none(lat, header, lat_key, lat_unit)[0]
-    height = get_if_none(height, header, height_key, height_unit)[0]
-    equinox = get_if_none(equinox, header, equinox_key)[0]
-    frame = get_if_none(frame, header, frame_key)[0]
+    )
+    lon = hdrval(lon, header, lon_key, unit=lon_unit)
+    lat = hdrval(lat, header, lat_key, unit=lat_unit)
+    height = hdrval(height, header, height_key, unit=height_unit)
+    equinox = hdrval(equinox, header, equinox_key)
+    frame = hdrval(frame, header, frame_key)
 
     ra = _conversion(header, ra, ra_key, ra_unit)
     dec = _conversion(header, dec, dec_key, dec_unit)

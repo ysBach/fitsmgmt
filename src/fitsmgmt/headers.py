@@ -17,9 +17,7 @@ __all__ = [
     "key_remover",
     "key_mapper",
     "chk_keyval",
-    "valinhdr",
-    "get_from_header",
-    "get_if_none",
+    "hdrval",
     "midtime_obs",
 ]
 
@@ -533,12 +531,21 @@ def chk_keyval(type_key, type_val, group_key):
     return type_key, type_val, group_key
 
 
-def valinhdr(val=None, header=None, key=None, default=None, unit=None):
-    """Get the value by priority: val > header[key] > default.
+def hdrval(
+    value=None,
+    header=None,
+    key=None,
+    default=None,
+    unit=None,
+    verbose=False,
+    to_value=False,
+    return_source=False,
+):
+    """Get a value by priority: ``value`` > ``header[key]`` > ``default``.
 
     Parameters
     ----------
-    val : object, optional.
+    value : object, optional.
         If not `None`, `header`, `key`, and `default` will **not** be used.
         This is different from `header.get(key, default)`. It is therefore
         useful if the API wants to override the header value by the
@@ -554,14 +561,28 @@ def valinhdr(val=None, header=None, key=None, default=None, unit=None):
         Default: `None`.
 
     default : object, optional.
-        The default value. If `value` is `None`, then ``header.get(key,
-        default)``.
+        The default value. If `value` is `None` and ``header[key]`` is not
+        available, this value is used.
         Default: `None`.
 
     unit : `str`, optional.
         `None` to ignore unit. ``''`` (empty string) means `Unit(dimensionless)`.
         Better to leave it as `None` unless astropy unit is truely needed.
         Default: `None`.
+
+    verbose : `bool`, optional.
+        Whether to log the source and missing-key fallback.
+        Default: `False`.
+
+    to_value : `bool`, optional.
+        Whether to return only the scalar value when the result is an
+        `~astropy.units.Quantity`.
+        Default: `False`.
+
+    return_source : `bool`, optional.
+        Whether to return ``(value, source)``. ``source`` is one of
+        ``"the user"``, ``"{KEY} in header"``, or ``"default"``.
+        Default: `False`.
 
     Notes
     -----
@@ -582,91 +603,54 @@ def valinhdr(val=None, header=None, key=None, default=None, unit=None):
         test_v = 3
 
         # w/o unit  Times are the %timeit result of the LHS
-        assert valinhdr(None,   hdr, "EXPTIME", default=0) == real_v  # ~ 6.5 us
-        assert valinhdr(None,   hdr, "EXPTIxx", default=0) == default_v # ~ 3.5 us
-        assert valinhdr(test_v, hdr, "EXPTIxx", default=0) == test_v  # ~ 0.3 us
-        assert valinhdr(test_q, hdr, "EXPTIxx", default=0) == test_v  # ~ 0.6 us
+        assert hdrval(None,   hdr, "EXPTIME", default=0) == real_v  # ~ 6.5 us
+        assert hdrval(None,   hdr, "EXPTIxx", default=0) == default_v # ~ 3.5 us
+        assert hdrval(test_v, hdr, "EXPTIxx", default=0) == test_v  # ~ 0.3 us
+        assert hdrval(test_q, hdr, "EXPTIxx", default=0) == test_v  # ~ 0.6 us
         # w/ unit  Times are the %timeit result of the LHS
-        assert valinhdr(None,   hdr, "EXPTIME", default=0, unit='s') == real_q  # ~ 23 us
-        assert valinhdr(None,   hdr, "EXPTIxx", default=0, unit='s') == default_q # ~ 16 us
-        assert valinhdr(test_v, hdr, "EXPTIxx", default=0, unit='s') == test_q  # ~ 11 us
-        assert valinhdr(test_q, hdr, "EXPTIxx", default=0, unit='s') == test_q  # ~ 15 us
+        assert hdrval(None,   hdr, "EXPTIME", default=0, unit='s') == real_q  # ~ 23 us
+        assert hdrval(None,   hdr, "EXPTIxx", default=0, unit='s') == default_q # ~ 16 us
+        assert hdrval(test_v, hdr, "EXPTIxx", default=0, unit='s') == test_q  # ~ 11 us
+        assert hdrval(test_q, hdr, "EXPTIxx", default=0, unit='s') == test_q  # ~ 15 us
 
         For a test astropy.nddata.CCDData, the following timing gave ~ 0.5 ms on MBP 15" [2018,
         macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB (2400MHz DDR4), Radeon
         Pro 560X (4GB)]
-        %timeit ((fm.valinhdr(None, ccd.header, "EXPTIME", unit=u.s)
-                 / fm.valinhdr(3*u.s, ccd.header, "EXPTIME", unit=u.s)).si.value)
+        %timeit ((fm.hdrval(None, ccd.header, "EXPTIME", unit=u.s)
+                 / fm.hdrval(3*u.s, ccd.header, "EXPTIME", unit=u.s)).si.value)
     """
-    uu = 1 if unit is None else u.Unit(unit)
-    #    ^ NOT 1.0 to preserve the original dtype (e.g., int)
-    val = header.get(key, default) if val is None else val
-
-    if isinstance(val, u.Quantity):
-        return val.value if unit is None else val.to(unit)
-    else:
-        try:
-            return val * uu
-        except TypeError:  # e.g., val is a str
-            return val
-
-
-def get_from_header(header, key, unit=None, verbose=True, default=0):
-    """Get a variable from the header object.
-
-    Parameters
-    ----------
-    header : astropy.Header
-        The header to extract the value.
-
-    key : `str`
-        The header keyword to extract.
-
-    unit : astropy unit, optional.
-        The unit of the value.
-        Default: `None`.
-
-    default : `str`, `int`, `float`, ..., or `~astropy.units.Quantity`, optional.
-        The default if not found from the header.
-        Default: ``0``.
-
-    Returns
-    -------
-    q: `~astropy.units.Quantity` or any object
-        The extracted quantity from the header. It's a `~astropy.units.Quantity` if the unit is
-        given. Otherwise, appropriate type will be assigned.
-    """
-    # If using q = header.get(key, default=default),
-    # we cannot give any meaningful verboses infostr.
-    # Anyway the `header.get` sourcecode contains only 4-line:
-    # ``try: return header[key] // except (KeyError, IndexError): return default.
-    key = key.upper()
-    try:
-        q = change_to_quantity(header[key], desired=unit)
-        if verbose:
-            logger.info("header: %-8s = %s", key, q)
-    except (KeyError, IndexError):
-        q = change_to_quantity(default, desired=unit)
-        logger.warning("The key %s not found in header: setting to %s.", key, default)
-
-    return q
-
-
-def get_if_none(value, header, key, unit=None, verbose=True, default=0, to_value=False):
-    """Similar to get_from_header, but a convenience wrapper."""
     if value is None:
-        value_Q = get_from_header(
-            header, key, unit=unit, verbose=verbose, default=default
-        )
-        value_from = f"{key} in header"
+        if key is None:
+            raise ValueError("key must be given when value is None.")
+        key = key.upper()
+        try:
+            value = header[key]
+            source = f"{key} in header"
+            if verbose:
+                logger.info("header: %-8s = %s", key, value)
+        except (KeyError, IndexError):
+            value = default
+            source = "default"
+            if verbose:
+                logger.warning(
+                    "The key %s not found in header: setting to %s.", key, default
+                )
     else:
-        value_Q = change_to_quantity(value, unit, to_value=False)
-        value_from = "the user"
+        source = "the user"
+
+    if isinstance(value, u.Quantity):
+        value = value.value if unit is None else value.to(unit)
+    elif unit is not None:
+        value = change_to_quantity(value, unit, to_value=False)
 
     if to_value:
-        return value_Q.value, value_from
-    else:
-        return value_Q, value_from
+        try:
+            value = value.value
+        except AttributeError:
+            pass
+    if return_source:
+        return value, source
+    return value
 
 
 def midtime_obs(

@@ -143,13 +143,14 @@ def set_ccd_attribute(
         except AttributeError:
             unit = u.dimensionless_unscaled
 
-    value_Q, value_from = headers.get_if_none(
+    value_Q, value_from = headers.hdrval(
         value=value,
         header=ccd.header,
         key=key,
         unit=unit,
         verbose=verbose,
         default=default,
+        return_source=True,
     )
     if wrapper is not None:
         value_Q = wrapper(value_Q, **wrapper_kw)

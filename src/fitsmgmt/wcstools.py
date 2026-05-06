@@ -97,7 +97,7 @@ def center_radec(
         If `True`, only the values of RA/DEC in degrees will be returned.
         Default: `False`.
     """
-    from .headers import get_from_header
+    from .headers import hdrval
 
     if isinstance(ccd_or_header, CCDData):
         header = ccd_or_header.header
@@ -112,15 +112,15 @@ def center_radec(
         centy = ny / 2 - 0.5
         coo = SkyCoord.from_pixel(centx, centy, wcs=w, origin=0, mode=mode)
     else:
-        ra = get_from_header(header, ra_key, verbose=verbose)
-        dec = get_from_header(header, dec_key, verbose=verbose)
+        ra = hdrval(header=header, key=ra_key, verbose=verbose)
+        dec = hdrval(header=header, key=dec_key, verbose=verbose)
         if equinox is None:
-            equinox = get_from_header(
-                header, equinox_key, verbose=verbose, default=None
+            equinox = hdrval(
+                header=header, key=equinox_key, verbose=verbose, default=None
             )
         if frame is None:
-            frame = get_from_header(
-                header, frame_key, verbose=verbose, default=None
+            frame = hdrval(
+                header=header, key=frame_key, verbose=verbose, default=None
             ).lower()
         coo = SkyCoord(
             ra=ra, dec=dec, unit=(ra_unit, dec_unit), frame=frame, equinox=equinox
