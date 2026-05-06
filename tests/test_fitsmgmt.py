@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from fitsmgmt import files, images, logging as fmlogging, utils
+from fitsmgmt import filemgmt, hduutil, logging as fmlogging, misc
 
 
 @pytest.fixture
@@ -46,25 +46,25 @@ def test_logging():
 
 def test_listify():
     """Test listify utility."""
-    assert utils.listify(1) == [1]
-    assert utils.listify([1, 2]) == [1, 2]
-    assert utils.listify("abc") == ["abc"]
+    assert misc.listify(1) == [1]
+    assert misc.listify([1, 2]) == [1, 2]
+    assert misc.listify("abc") == ["abc"]
 
 def test_str_now():
     """Test str_now."""
-    assert len(utils.str_now()) > 0
+    assert len(misc.str_now()) > 0
 
 def test_change_to_quantity():
     """Test quantity conversion."""
-    q1 = utils.change_to_quantity(10, "km")
+    q1 = misc.change_to_quantity(10, "km")
     assert q1.value == 10.0 and q1.unit == u.km
-    q2 = utils.change_to_quantity(10*u.m, "km")
+    q2 = misc.change_to_quantity(10*u.m, "km")
     assert q2.value == 0.01 and q2.unit == u.km
 
 def test_binning():
     """Test array binning."""
     arr = np.arange(16).reshape(4, 4)
-    binned = utils.binning(arr, 2, 2)
+    binned = misc.binning(arr, 2, 2)
     expected_bin = np.array([[2.5, 4.5], [10.5, 12.5]])
     assert np.allclose(binned, expected_bin)
 
@@ -73,53 +73,53 @@ def test_header_utils(dummy_fits):
     hdr = fits.getheader(dummy_fits)
 
     # cmt2hdr
-    utils.cmt2hdr(hdr, 'h', "Test history")
+    misc.cmt2hdr(hdr, 'h', "Test history")
     assert "Test history" in str(hdr.get("HISTORY"))
 
     # update_process
-    utils.update_process(hdr, "BiasSub")
+    misc.update_process(hdr, "BiasSub")
     assert "BiasSub" in str(hdr.get("PROCESS"))
 
     # update_tlm
-    utils.update_tlm(hdr)
+    misc.update_tlm(hdr)
     assert "FITS-TLM" in hdr
 
 def test_images_io(dummy_fits):
     """Test image loading and saving."""
-    ccd = images.load_ccd(dummy_fits)
+    ccd = hduutil.load_ccd(dummy_fits)
     assert ccd.shape == (10, 10)
 
     # Test inputs2list
-    inputs = images.inputs2list(str(dummy_fits.parent / "*.fits"))
+    inputs = hduutil.inputs2list(str(dummy_fits.parent / "*.fits"))
     assert [Path(p).name for p in inputs] == ['test.fits']
 
     # Test write2fits
     outpath = dummy_fits.parent / "out.fits"
-    images.write2fits(ccd.data, ccd.header, outpath)
+    hduutil.write2fits(ccd.data, ccd.header, outpath)
     assert outpath.exists()
 
 def test_image_process(dummy_fits):
     """Test image processing."""
-    ccd = images.load_ccd(dummy_fits)
+    ccd = hduutil.load_ccd(dummy_fits)
 
     # imslice
-    sl_ccd = images.imslice(ccd, "[2:5, 2:5]")
+    sl_ccd = hduutil.imslice(ccd, "[2:5, 2:5]")
     assert sl_ccd.shape == (4, 4)
 
     # cut_ccd
-    cut, _ = images.cut_ccd(ccd, (5, 5), (4, 4))
+    cut, _ = hduutil.cut_ccd(ccd, (5, 5), (4, 4))
     assert cut.shape == (4, 4)
 
     # bin_ccd
-    binccd = images.bin_ccd(ccd, 2, 2)
+    binccd = hduutil.bin_ccd(ccd, 2, 2)
     assert binccd.shape == (5, 5)
     assert "XBINNING" in binccd.header
     assert "YBINNING" in binccd.header
 
 def test_header_edits(dummy_fits):
-    """Test header edits via images module."""
+    """Test header edits via hduutil module."""
     # hedit
-    images.hedit(
+    hduutil.hedit(
         dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
     )
     assert fits.getval(dummy_fits, "OBJECT") == "TestObj"
@@ -127,13 +127,13 @@ def test_header_edits(dummy_fits):
     # key_remover
     hdr = fits.getheader(dummy_fits)
     hdr['TEMP'] = 123
-    hdr = images.key_remover(hdr, ['TEMP'])
+    hdr = hduutil.key_remover(hdr, ['TEMP'])
     assert "TEMP" not in hdr
 
 def test_ccd_attributes(dummy_fits):
     """Test CCDData attribute setting."""
-    ccd = images.load_ccd(dummy_fits)
-    images.set_ccd_attribute(ccd, 'gain', 2.0, unit='electron/adu')
+    ccd = hduutil.load_ccd(dummy_fits)
+    hduutil.set_ccd_attribute(ccd, 'gain', 2.0, unit='electron/adu')
     assert ccd.gain.value == 2.0
     assert ccd.gain.unit == u.electron / u.adu
 
@@ -141,12 +141,12 @@ def test_files_summary(dummy_fits):
     """Test summary generation."""
     # Create another file for variety
     outpath = dummy_fits.parent / "out.fits"
-    images.hedit(
+    hduutil.hedit(
         dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
     )
-    images.write2fits(np.zeros((10,10)), fits.Header(), outpath)
+    hduutil.write2fits(np.zeros((10,10)), fits.Header(), outpath)
 
-    df = files.make_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
+    df = filemgmt.make_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
     df = df.sort_values('file').reset_index(drop=True)
 
     # out.fits (no object)

@@ -39,16 +39,3 @@ class TestFileMgmt:
         assert list(df["OBJECT"]) == ["M1", "M1", "M2"]
         assert list(df["FILTER"]) == ["V", "B", "V"]
         np.testing.assert_allclose(df["EXPTIME"], [10.0, 20.0, 10.0])
-
-    def test_load_if_exists(self, tmp_path):
-        """Test load_if_exists functionality."""
-        p = tmp_path / "test.fits"
-
-        # Test non-existent
-        res = filemgmt.load_if_exists(p, loader=fits.open)
-        assert res is None
-
-        # Test existent
-        fits.writeto(p, np.zeros((10,10)))
-        res = filemgmt.load_if_exists(p, loader=fits.open)
-        assert isinstance(res, (fits.HDUList, list))

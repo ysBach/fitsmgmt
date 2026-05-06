@@ -19,7 +19,6 @@ from .logging import logger
 
 __all__ = [
     "mkdir",
-    "load_if_exists",
     "make_summary",
     "df_selector",
     "make_reduc_planner",
@@ -33,55 +32,6 @@ def mkdir(fpath, mode=0o777, exist_ok=True):
     """Convenience function for `~pathlib.Path`.mkdir()"""
     fpath = Path(fpath)
     Path.mkdir(fpath, mode=mode, exist_ok=exist_ok)
-
-
-def load_if_exists(path, loader, if_not=None, verbose=True, **kwargs):
-    """Load a file if it exists.
-
-    Parameters
-    ----------
-    path : `~pathlib.Path` of `~pathlib.Path`-like `str`
-        The path to be searched.
-
-    loader : a function
-        The loader to load `path`. Can be ``~astropy.nddata.CCDData.read``, ``np.loadtxt``,
-        etc.
-
-    if_not : `str`, optional.
-        Give a python code as a `str` to be run if the loading failed.
-        Default: `None`.
-
-    Returns
-    -------
-    loaded:
-        The loaded file. If the file does not exist, `None` is returned.
-
-    Examples
-    -------
-
-    >>> from astropy.nddata import CCDData
-    >>> from pathlib import Path
-    >>> ccd = load_if_exists(
-    >>>     Path(".", "test.fits"),
-    >>>     loader=CCDData.read,
-    >>>     unit='adu',
-    >>>     if_not="print('File not found')"
-    >>> )
-    """
-    path = Path(path)
-
-    if path.exists():
-        if verbose:
-            logger.info("Loading the existing %s...", path)
-        loaded = loader(path, **kwargs)
-        if verbose:
-            logger.info("Done")
-    elif if_not is not None:
-        loaded = eval(if_not)
-    else:
-        loaded = None
-
-    return loaded
 
 
 def make_summary(
