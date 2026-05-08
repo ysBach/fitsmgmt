@@ -9,6 +9,10 @@ API Reference
    astroimred.imops.imstat
    astroimred.imops.mathutils
    astroimred.imops.pixels
+   astroimred.reduction
+   astroimred.reduction.combutil
+   astroimred.reduction.preproc
+   astroimred.reduction.imutil
    astroimred.mgmt
    astroimred.mgmt.airmass
    astroimred.mgmt.headers

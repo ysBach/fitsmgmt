@@ -17,11 +17,21 @@ dependencies = [
 
 [project.optional-dependencies]
 full = [
+    "astroscrappy>=1.1",
+    "ccdproc>=2.0",
+    "click>=8.0",
     "fitsio>=1.2",
     "matplotlib>=3.8.0",
     "numba>=0.59",
     "numexpr>=2.8",
     "pyarrow>=14",
+    "scipy>=1.9.2",
+]
+reduction = [
+    "astroscrappy>=1.1",
+    "ccdproc>=2.0",
+    "click>=8.0",
+    "numba>=0.59",
     "scipy>=1.9.2",
 ]
 
