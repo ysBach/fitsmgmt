@@ -399,9 +399,7 @@ def airmass_from_hdr(
 
     ra = hdrval(ra, header, ra_key, unit=ra_unit, verbose=verbose)
     dec = hdrval(dec, header, dec_key, unit=dec_unit, verbose=verbose)
-    exptime = hdrval(
-        exptime, header, exptime_key, unit=exptime_unit, verbose=verbose
-    )
+    exptime = hdrval(exptime, header, exptime_key, unit=exptime_unit, verbose=verbose)
     lon = hdrval(lon, header, lon_key, unit=lon_unit)
     lat = hdrval(lat, header, lat_key, unit=lat_unit)
     height = hdrval(height, header, height_key, unit=height_unit)

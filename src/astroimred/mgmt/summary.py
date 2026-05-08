@@ -293,7 +293,9 @@ def fits_summary(
 
         if verbose:
             logger.info(
-                "All %d keywords (guessed from %s) will be loaded.", len(keywords), fname0
+                "All %d keywords (guessed from %s) will be loaded.",
+                len(keywords),
+                fname0,
             )
 
     # Initialize
@@ -338,7 +340,9 @@ def fits_summary(
         summarytab.sort_values(sort_by, inplace=True, key=key)
     summarytab.reset_index(drop=True, inplace=True)
     for k in missing_keys:
-        summarytab[k] = summarytab[k].astype(object).where(pd.notna(summarytab[k]), None)
+        summarytab[k] = (
+            summarytab[k].astype(object).where(pd.notna(summarytab[k]), None)
+        )
 
     if output is not None:
         _write_summary(output, summarytab, verbose=verbose)

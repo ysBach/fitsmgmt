@@ -222,8 +222,6 @@ def update_process(
     update_tlm(header)
 
 
-
-
 def hedit(
     item,
     keys,
@@ -324,7 +322,8 @@ def hedit(
                 _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
             elif verbose:
                 logger.info(
-                    "%s does not exist in the header. Skipped. (add=True to proceed)", key
+                    "%s does not exist in the header. Skipped. (add=True to proceed)",
+                    key,
                 )
 
     if output is not None:

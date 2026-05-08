@@ -14,6 +14,7 @@ from .logging import logger
 try:
     import numba as nb
 except ImportError:
+
     class _NoNumba:
         def njit(self, *args, **kwargs):
             if args and callable(args[0]) and len(args) == 1 and not kwargs:
@@ -66,6 +67,7 @@ MEDCOMB_KEYS_FLT32 = dict(
     unit=u.adu,
     combine_uncertainty_function=None,
 )
+
 
 # !FIXME: not finished
 # TODO: add err_lower, err_upper, sigma_lower, sigma_upper

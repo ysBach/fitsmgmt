@@ -526,8 +526,6 @@ def _parse_extension(*args, ext=None, extname=None, extver=None):
     return ext
 
 
-
-
 def _parse_extension_or_none(ext):
     """Return `None` if ext is `None`, otherwise parse it."""
     if ext is None:

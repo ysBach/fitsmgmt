@@ -213,7 +213,9 @@ def set_ccd_attribute(
 
             try:
                 v = ccd.header[key]
-                s.append(f"[air.set_ccd_attribute] (Original {key} = {v} is overwritten.)")
+                s.append(
+                    f"[air.set_ccd_attribute] (Original {key} = {v} is overwritten.)"
+                )
 
             except (KeyError, ValueError):
                 pass
@@ -409,7 +411,9 @@ def imslice(
                     hdr.setdefault(f"LTM{i+1}_{j+1}", 0.0)
 
         if trimsec is not None:
-            infostr = [f"[air.imslice] Sliced using `{trimsec = }`: converted to {sl}. "]
+            infostr = [
+                f"[air.imslice] Sliced using `{trimsec = }`: converted to {sl}. "
+            ]
             if fill_value is not None:
                 infostr.append(f"Filled background with `{fill_value = }`.")
             headers.cmt2hdr(
@@ -470,9 +474,18 @@ def trim_overlap(inputs, extension=None, coordinate="image"):
     )
 
 
-def cut_ccd(ccd, position, size, wcs=None, mode="trim", fill_value=np.nan, warnings=True,
-            update_header=True, verbose=0):
-    """ Converts the Cutout2D object to proper CCDData.
+def cut_ccd(
+    ccd,
+    position,
+    size,
+    wcs=None,
+    mode="trim",
+    fill_value=np.nan,
+    warnings=True,
+    update_header=True,
+    verbose=0,
+):
+    """Converts the Cutout2D object to proper CCDData.
 
     Parameters
     ----------
@@ -539,10 +552,7 @@ def cut_ccd(ccd, position, size, wcs=None, mode="trim", fill_value=np.nan, warni
 
     # TODO: add mask/flags/uncertainty support
     nccd = CCDData(
-        data=cutout.data,
-        header=ccd.header.copy(),
-        wcs=cutout.wcs,
-        unit=ccd.unit
+        data=cutout.data, header=ccd.header.copy(), wcs=cutout.wcs, unit=ccd.unit
     )
     ny, nx = nccd.data.shape
     if update_header:

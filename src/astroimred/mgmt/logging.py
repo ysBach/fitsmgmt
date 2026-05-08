@@ -17,6 +17,7 @@ Examples
 >>> # Standard logging configuration also works
 >>> logging.getLogger("astroimred").setLevel(logging.WARNING)
 """
+
 import logging
 
 __all__ = ["logger", "set_log_level", "enable_console_logging"]

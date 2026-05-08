@@ -4,6 +4,7 @@ This module provides convenience functions for displaying astronomical
 images with appropriate normalization (ZScale, etc.) using astropy and
 matplotlib.
 """
+
 from collections.abc import Sequence
 from typing import Any, TypeAlias
 from warnings import warn
@@ -62,12 +63,10 @@ def astropy_stretch(name: str) -> BaseStretch:
     """
     key = name.strip().lower()
     if key.endswith("stretch"):
-        key = key[:-len("stretch")]
+        key = key[: -len("stretch")]
     if key not in _STRETCH_MAP:
         supported = ", ".join(sorted(_STRETCH_MAP))
-        raise ValueError(
-            f"Unknown stretch {name!r}. Supported names: {supported}"
-        )
+        raise ValueError(f"Unknown stretch {name!r}. Supported names: {supported}")
     return _STRETCH_MAP[key]
 
 
@@ -135,7 +134,7 @@ def zimshow(
         norm=znorm(image, stretch=stretch, **zscale_kw),
         origin=origin,
         cmap=cmap,
-        **kwargs
+        **kwargs,
     )
     return im
 
@@ -159,6 +158,7 @@ def _symmetric_ticks(half: int, n_ticks: int) -> list[int]:
         Symmetric offsets, e.g. ``[-10, -5, 0, 5, 10]``.
     """
     import math
+
     if half == 0:
         return [0]
     n_side = max(1, (n_ticks - 1) // 2)
@@ -338,13 +338,17 @@ def imshow_norm(
 
     # --- resolve stretch ---
     _stretch_tuning = {"asinh": asinh_a, "log": log_a, "power": power, "sinh": sinh_a}
-    _stretch_class = {"asinh": AsinhStretch, "log": LogStretch,
-                      "power": PowerStretch, "sinh": SinhStretch}
+    _stretch_class = {
+        "asinh": AsinhStretch,
+        "log": LogStretch,
+        "power": PowerStretch,
+        "sinh": SinhStretch,
+    }
 
     if isinstance(stretch, str):
         key = stretch.strip().lower()
         if key.endswith("stretch"):
-            key = key[:-len("stretch")]
+            key = key[: -len("stretch")]
         if key not in _STRETCH_MAP:
             supported = ", ".join(sorted(_STRETCH_MAP))
             raise ValueError(f"Unknown stretch {stretch!r}. Supported: {supported}")
@@ -390,6 +394,7 @@ def imshow_norm(
 
     if ax is None:
         import matplotlib.pyplot as plt
+
         ax = plt.gca()
 
     im = ax.imshow(np.asarray(data, dtype=float), origin=origin, norm=norm, **kwargs)
