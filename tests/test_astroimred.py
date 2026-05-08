@@ -19,6 +19,24 @@ from astroimred import (
 )
 
 
+def test_canonical_subpackages_match_compatibility_wrappers():
+    """Canonical subpackages and top-level wrappers expose the same objects."""
+    import astroimred as air
+    import astroimred.ccdutils as ccdutils_module
+    import astroimred.io as io_module
+
+    assert air.mgmt.io.load_ccd is io.load_ccd
+    assert io_module is air.mgmt.io
+    assert air.mgmt.headers.cmt2hdr is headers.cmt2hdr
+    assert air.mgmt.summary.fits_summary is summary.fits_summary
+    assert air.imops.ccdutils.bin_ccd is ccdutils.bin_ccd
+    assert ccdutils_module is air.imops.ccdutils
+    assert air.imops.mathutils.binning is mathutils.binning
+    assert air.imops.imstat.give_stats is air.imstat.give_stats
+    assert air.imops.pixels.fixpix is air.pixels.fixpix
+    assert air.logger is air.mgmt.logger
+
+
 @pytest.fixture
 def temp_env():
     """Fixture to provide a clean temp directory."""
