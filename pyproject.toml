@@ -15,6 +15,9 @@ dependencies = [
     "pandas>=2.0",
 ]
 
+[project.scripts]
+imred = "astroimred.reduction.cli:main"
+
 [project.optional-dependencies]
 full = [
     "astroscrappy>=1.1",
