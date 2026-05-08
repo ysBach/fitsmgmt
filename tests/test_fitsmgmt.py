@@ -72,7 +72,7 @@ def test_change_to_quantity():
 def test_binning():
     """Test array binning."""
     arr = np.arange(16).reshape(4, 4)
-    binned = mathutils.binning(arr, 2, 2)
+    binned = mathutils.binning(arr, factors=(2, 2))
     expected_bin = np.array([[2.5, 4.5], [10.5, 12.5]])
     assert np.allclose(binned, expected_bin)
 
@@ -119,7 +119,7 @@ def test_image_process(dummy_fits):
     assert cut.shape == (4, 4)
 
     # bin_ccd
-    binccd = ccdutils.bin_ccd(ccd, 2, 2)
+    binccd = ccdutils.bin_ccd(ccd, factors=(2, 2))
     assert binccd.shape == (5, 5)
     assert "XBINNING" in binccd.header
     assert "YBINNING" in binccd.header
