@@ -13,6 +13,14 @@ def test_bdf_process_removed():
     assert not hasattr(imred, "bdf_process")
 
 
+def test_unimplemented_helpers_raise():
+    """Placeholder helpers should fail explicitly."""
+    with pytest.raises(NotImplementedError):
+        imred.preproc.scancor(CCDData(np.ones((3, 3)), unit="adu"))
+    with pytest.raises(NotImplementedError):
+        imred.preproc.illumcor(CCDData(np.ones((3, 3)), unit="adu"))
+
+
 class TestBiasCor:
     """Tests for `~imred.preproc.biascor` function."""
 

@@ -6,11 +6,12 @@ generate_imcombine_regression_data.py. Re-run that script to refresh
 ground-truth after intentional logic changes.
 
 Usage:
-  pytest tests/test_imcombine_regression.py -v
-  pytest tests/test_imcombine_regression.py -v -k ndcombine
+  pytest tests/reduction/test_imcombine_regression.py -v
+  pytest tests/reduction/test_imcombine_regression.py -v -k ndcombine
 """
 
 import pickle
+import importlib.util
 from importlib import import_module
 from pathlib import Path
 
@@ -39,13 +40,14 @@ ccdclip_mask = imred_ur.ccdclip_mask
 minmax_mask = imred_ur.minmax_mask
 sigclip_mask = imred_ur.sigclip_mask
 
-# Reuse same stack generator as in data generator
-from tests.generate_imcombine_regression_data import (
-    DEFAULT_SEED,
-    make_stack,
-)
-
 REGRESSION_DATA_DIR = Path(__file__).resolve().parent / "data"
+_GENERATOR_PATH = Path(__file__).resolve().parent / "generate_imcombine_regression_data.py"
+_GENERATOR_SPEC = importlib.util.spec_from_file_location("generate_imcombine_regression_data", _GENERATOR_PATH)
+_GENERATOR_MODULE = importlib.util.module_from_spec(_GENERATOR_SPEC)
+_GENERATOR_SPEC.loader.exec_module(_GENERATOR_MODULE)
+DEFAULT_SEED = _GENERATOR_MODULE.DEFAULT_SEED
+make_stack = _GENERATOR_MODULE.make_stack
+
 RTOL = 1e-6
 ATOL = 1e-8
 # Slightly looser for combined array (Numba vs bottleneck float order can differ)
@@ -56,7 +58,7 @@ ATOL_COMB = 1e-6
 def _load_ndcombine_cases():
     p = REGRESSION_DATA_DIR / "ndcombine_regression.pkl"
     if not p.exists():
-        pytest.skip("Regression data not found. Run: python -m tests.generate_imcombine_regression_data")
+        pytest.skip("Regression data not found. Run: python -m tests.reduction.generate_imcombine_regression_data")
     with open(p, "rb") as f:
         return pickle.load(f)
 
@@ -64,7 +66,7 @@ def _load_ndcombine_cases():
 def _load_component_cases():
     p = REGRESSION_DATA_DIR / "component_regression.pkl"
     if not p.exists():
-        pytest.skip("Regression data not found. Run: python -m tests.generate_imcombine_regression_data")
+        pytest.skip("Regression data not found. Run: python -m tests.reduction.generate_imcombine_regression_data")
     with open(p, "rb") as f:
         return pickle.load(f)
 

@@ -28,6 +28,7 @@ from astroimred.phot.aperture import (
     pa2xytheta,
     pill_ap_an,
 )
+from astroimred.phot.pillbox import PillBoxAperture as DirectPillBoxAperture
 
 
 # =============================================================================
@@ -164,6 +165,10 @@ class TestPillBoxAperture:
     """Tests for PillBoxAperture geometry and mask."""
 
     # --- construction ---
+
+    def test_direct_pillbox_module_import_matches_aperture_reexport(self):
+        """pillbox.py is the implementation module and aperture.py re-exports it."""
+        assert DirectPillBoxAperture is PillBoxAperture
 
     def test_h_equals_2b(self):
         """h = 2*b always."""
