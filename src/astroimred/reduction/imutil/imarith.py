@@ -364,9 +364,9 @@ def imarith(
             # ``eval`` takes nearly identical time to many if-blocks of ``if op == '+'`` etc:
             res = fits.PrimaryHDU(data=eval(f"(im1 {op} im2)").astype(dtype))  # HDU
 
-        if hdr_ref is None:
-            hdr_ref = res.header
-        _replace_nan(res, hdr_ref)
+        if hdr_ref is not None:
+            res.header = hdr_ref
+        _replace_nan(res, res.header, replace=replace)
         _update_hdr(
             res.header,
             header_params,
@@ -378,7 +378,6 @@ def imarith(
             t_ref=_t,
             verbose=verbose,
         )
-        res.header = hdr_ref
 
         if output is not None:
             if isinstance(res, CCDData):
