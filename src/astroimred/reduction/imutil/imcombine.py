@@ -94,7 +94,7 @@ def group_combine(
         The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
         files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
         good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of `~fir.imutil.imcombine` function, the best use is to
+        acceptable. For the purpose of `~imred.imutil.imcombine` function, the best use is to
         use the `~glob` pattern or `list` of paths.
 
     type_key, type_val : `str`, `list` of `str`
@@ -112,7 +112,7 @@ def group_combine(
 
           * 0: print nothing
           * 1: Only very essential things from this function
-          * 2: + verbose from each fir.imutil.imcombine
+          * 2: + verbose from each imred.imutil.imcombine
         Default: ``1``.
 
     fmt : `str`, optinal, optional.
@@ -888,7 +888,7 @@ def imcombine(
         return comb
 
 
-imcombine.__doc__ = """A helper function for `~fir.imutil.ndcombine` to cope with FITS files.
+imcombine.__doc__ = """A helper function for `~imred.imutil.ndcombine` to cope with FITS files.
 
     {}
 
@@ -899,7 +899,7 @@ imcombine.__doc__ = """A helper function for `~fir.imutil.ndcombine` to cope wit
         The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
         files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
         good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of `~fir.imutil.imcombine` function, the best use is to
+        acceptable. For the purpose of `~imred.imutil.imcombine` function, the best use is to
         use the `~glob` pattern or `list` of paths.
 
     mask : `~numpy.ndarray`, optional.
@@ -1195,7 +1195,7 @@ def ndcombine(
 ndcombine.__doc__ = """ Combines the given arr assuming no additional offsets.
 
     {}
-    #. offsets is not implemented to `~fir.imutil.ndcombine` (only to fitscombine).
+    #. offsets is not implemented to `~imred.imutil.ndcombine` (only to fitscombine).
 
     Parameters
     ----------

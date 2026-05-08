@@ -9,9 +9,9 @@ def set_imutil_use_numba(value):
     """Set IMUTIL_USE_NUMBA flag.
 
     Usage:
-        import astroimred.reduction as fir
-        fir.set_imutil_use_numba(True)
-        # Or directly: fir.IMUTIL_USE_NUMBA = True
+        import astroimred.reduction as imred
+        imred.set_imutil_use_numba(True)
+        # Or directly: imred.IMUTIL_USE_NUMBA = True
     """
     imutil_config.IMUTIL_USE_NUMBA = bool(value)
 

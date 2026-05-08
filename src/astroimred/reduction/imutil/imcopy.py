@@ -27,7 +27,7 @@ def imcopy(
         The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
         files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
         good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of `~fir.imutil.imcombine` function, the best use is to
+        acceptable. For the purpose of `~imred.imutil.imcombine` function, the best use is to
         use the `~glob` pattern or `list` of paths.
 
     extension : `int`, `str`, (`str`, `int`), optional.
@@ -80,7 +80,7 @@ def imcopy(
     Examples
     -------
 
-    >>> import astroimred.reduction as fir
+    >>> import astroimred.reduction as imred
     >>> from pathlib import Path
     >>>
     >>> datapath = Path("./data")
@@ -89,16 +89,16 @@ def imcopy(
     >>> outputs = [datapath/"test1.fits", datapath/"test2.fits"]
     >>>
     >>> # single file, single section
-    >>> trim = fir.imcopy(pcrfits[0], sections[0])
+    >>> trim = imred.imcopy(pcrfits[0], sections[0])
     >>>
     >>> # single file, multi sections
-    >>> trims = fir.imcopy(pcrfits[0], sections)
+    >>> trims = imred.imcopy(pcrfits[0], sections)
     >>>
     >>> # Save with overwrite option
-    >>> fir.imcopy(pcrfits[0], sections, outputs=outputs, overwrite=True)
+    >>> imred.imcopy(pcrfits[0], sections, outputs=outputs, overwrite=True)
     >>>
     >>> # multi file multi section
-    >>> trims2d = fir.imcopy(pcrfits[:2], trimsecs=sections, outputs=None)
+    >>> trims2d = imred.imcopy(pcrfits[:2], trimsecs=sections, outputs=None)
     """
     to_trim = False
     to_save = False

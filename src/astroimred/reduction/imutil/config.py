@@ -1,5 +1,5 @@
 # Central configuration for imutil
-# Users can set via: fir.IMUTIL_USE_NUMBA = False
+# Users can set via: imred.IMUTIL_USE_NUMBA = False
 IMUTIL_USE_NUMBA = True
 
 def _get_use_numba():

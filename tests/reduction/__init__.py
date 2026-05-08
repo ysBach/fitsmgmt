@@ -1,1 +1,1 @@
-"""Tests for fir."""
+"""Tests for imred."""

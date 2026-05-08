@@ -181,7 +181,7 @@ def crrej(
         * `~numpy.ndarray`: PSF kernel array to use for the fine structure image. `None`
           of `psffwhm`, `psfsize`, and `psfbeta` are used.
 
-        Summary of `astroscrappy` VS `fir`:
+        Summary of `astroscrappy` VS `imred`:
 
         * ``fsmode="median"`` == ``fs="median"``
         * ``fsmode="convolve", psfmodel=*`` == ``fs=*``, where ``*`` can be
@@ -799,7 +799,7 @@ def scancor(
 
 
 def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
-    """Do bias correction (purpose: helper function of `~fir.preproc.ccdred`)
+    """Do bias correction (purpose: helper function of `~imred.preproc.ccdred`)
 
     Parameters
     ----------
@@ -835,7 +835,7 @@ def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
         "h",
         verbose=verbose >= 1,
         t_ref=_t,
-        s=f"[fir.biascor] Bias subtracted (BIASFRM = {mbiasname})",
+        s=f"[imred.biascor] Bias subtracted (BIASFRM = {mbiasname})",
     )
     update_process(nccd.header, "B")
     return nccd
@@ -852,7 +852,7 @@ def darkcor(
     copy=True,
     verbose=1,
 ):
-    """Do dark correction (purpose: helper function of `~fir.preproc.ccdred`)
+    """Do dark correction (purpose: helper function of `~imred.preproc.ccdred`)
 
     Parameters
     ----------
@@ -903,7 +903,7 @@ def darkcor(
         exptime_data = exptime_data or ccd.header.get(exptime_key, None)
         exptime_dark = exptime_dark or mdark.header.get(exptime_key, None)
 
-        msg = "[fir.darkcor] Dark scaled by exptime: "
+        msg = "[imred.darkcor] Dark scaled by exptime: "
         if exptime_data is None or exptime_dark is None:
             logger.warning(
                 "exptime_data=%s, exptime_dark=%s. Fix scale=1.",
@@ -931,7 +931,7 @@ def darkcor(
         "h",
         verbose=verbose >= 1,
         t_ref=_t,
-        s=f"[fir.darkcor] Dark subtracted (DARKFRM = {mdarkname})",
+        s=f"[imred.darkcor] Dark subtracted (DARKFRM = {mdarkname})",
     )
     update_process(nccd.header, "D")
     return nccd
@@ -948,7 +948,7 @@ def flatcor(
     flat_norm_value=1,
     verbose=1,
 ):
-    """Do flat correction (purpose: helper function of `~fir.preproc.ccdred`)
+    """Do flat correction (purpose: helper function of `~imred.preproc.ccdred`)
 
     Parameters
     ----------
@@ -1003,7 +1003,7 @@ def flatcor(
             nccd.header,
             "h",
             verbose=verbose >= 1,
-            s=(f"[fir.flatcor] {maskstr} are replaced by `{flat_fill = }`."),
+            s=(f"[imred.flatcor] {maskstr} are replaced by `{flat_fill = }`."),
         )
 
     if flat_norm_value is None:
@@ -1012,7 +1012,7 @@ def flatcor(
             nccd.header,
             "h",
             verbose=verbose >= 1,
-            s=("[fir.flatcor] Flat normalized by its mean."),
+            s=("[imred.flatcor] Flat normalized by its mean."),
         )
     elif float(flat_norm_value) != 1.0:
         mflat /= float(flat_norm_value)
@@ -1020,7 +1020,7 @@ def flatcor(
             nccd.header,
             "h",
             verbose=verbose >= 1,
-            s=(f"[fir.flatcor] Flat divided by {flat_norm_value = }."),
+            s=(f"[imred.flatcor] Flat divided by {flat_norm_value = }."),
         )
 
     nccd.data = nccd.data / mflat
@@ -1030,7 +1030,7 @@ def flatcor(
         "h",
         verbose=verbose >= 1,
         t_ref=_t,
-        s=f"[fir.flatcor] Flat corrected (FLATFRM = {mflatname})",
+        s=f"[imred.flatcor] Flat corrected (FLATFRM = {mflatname})",
     )
     update_process(nccd.header, "F")
 
@@ -1106,7 +1106,7 @@ def frincor(
         fringe_scale_kw = {}
 
     def _str(_ccd, frm, sec=None, fun=None, scal=None):
-        str1 = f"[fir.ccdred.frincor] Fringe subtracted (FRINFRM = {frm})"
+        str1 = f"[imred.ccdred.frincor] Fringe subtracted (FRINFRM = {frm})"
         _ccd.header["FRINFRM"] = (frm, "Fringe frame")
         noscal = scal is None
         nosec = sec is None
@@ -1114,7 +1114,7 @@ def frincor(
         if noscal and nofun and nosec:
             return str1
 
-        str2 = "[fir.ccdred.frincor] IMAGE - FRINSCAL*FRINFRM "
+        str2 = "[imred.ccdred.frincor] IMAGE - FRINSCAL*FRINFRM "
         elems = []
         if not noscal:  # scal is not None
             _ccd.header["FRINSCAL"] = (scal, "Scale FRINFUNC(FRINFRM[FRINSECT])")

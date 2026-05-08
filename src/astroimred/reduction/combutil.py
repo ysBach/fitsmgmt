@@ -180,7 +180,7 @@ def select_fits(
         Default: `None`.
 
     trimsec : `str`, [`list` of] `int`, [`list` of] slice, optional
-        Section of the data to be extracted by `~fir.hduutil.imslice`.
+        Section of the data to be extracted by `~imred.hduutil.imslice`.
         Default is `None`.
         Ignored if `inputs` is table-like.
 
@@ -468,7 +468,7 @@ def stack_FITS(
         Default: ``'file'``.
 
     trimsec : `str`, [`list` of] `int`, [`list` of] slice, optional
-        Section of the data to be extracted by `~fir.hduutil.imslice`.
+        Section of the data to be extracted by `~imred.hduutil.imslice`.
         Default is `None`.
 
     ccddata: `bool`, optional
@@ -720,7 +720,7 @@ def combine_ccd(
         FITS files.
 
     trimsec : `str`, [`list` of] `int`, [`list` of] slice, optional
-        Section of the data to be extracted by `~fir.hduutil.imslice`.
+        Section of the data to be extracted by `~imred.hduutil.imslice`.
         Default is `None`.
 
     output : path-like or `None`, optional.
