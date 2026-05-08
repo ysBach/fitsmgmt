@@ -230,7 +230,7 @@ def _ellip_bbox(x, y, rx, ry, theta):
         Number of pixels along x and y.
     """
     if rx <= 0 or ry <= 0:
-        raise ValueError(f"Semi-axes must be positive (got rx={rx}, ry={ry})")
+        raise ValueError(f"Semi-axes must be positive (got {rx = }, {ry = })")
     cos_t = math.cos(theta)
     sin_t = math.sin(theta)
     dx = math.sqrt((rx * cos_t) ** 2 + (ry * sin_t) ** 2)
@@ -335,7 +335,7 @@ def fast_ellip_anmask(
     """
     if rx_in < 0 or ry_in < 0:
         raise ValueError(
-            f"Inner semi-axes must be non-negative (got rx_in={rx_in}, ry_in={ry_in})"
+            f"Inner semi-axes must be non-negative (got {rx_in = }, {ry_in = })"
         )
     if rx_in >= rx_out:
         raise ValueError(f"rx_in must be less than rx_out (got {rx_in} >= {rx_out})")

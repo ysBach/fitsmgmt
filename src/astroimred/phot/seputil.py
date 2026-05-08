@@ -702,7 +702,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #         ccd, mask=None, err=None, var=None,
 #         thresh_tests=[30, 20, 10, 6, 5, 4, 3],
 #         bezel_x=None, bezel_y=None, box_size=(64, 64),
-#         filter_size=(12, 12), deblend_cont=1, minarea=100, verbose=True,
+#         filter_size=(12, 12), deblend_cont=1, minarea=100,
 #         update_header=True, **extract_kw
 # ):
 #     """
@@ -785,7 +785,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #     _t = Time.now()
 #     bkg = sep_back(_arr, **bkg_kw)
 #     if update_header:
-#         add2hdr(ccd.header, 'h', s_bkg, verbose=verbose, t_ref=_t)
+#         add2hdr(ccd.header, 'h', s_bkg, t_ref=_t)
 
 #     thresh_tests = np.sort(np.atleast_1d(thresh_tests))[::-1]
 #     for thresh in thresh_tests:
@@ -798,7 +798,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #         _t = Time.now()
 #         obj, seg = sep_extract(_arr, **ext_kw)
 #         if update_header:
-#             add2hdr(ccd.header, 'h', s_obj, verbose=verbose, t_ref=_t)
+#             add2hdr(ccd.header, 'h', s_obj, t_ref=_t)
 
 #         nobj = len(obj)
 #         ccd.header["NOBJ-SEP"] = (nobj, "Number of objects found from SEP.")
@@ -815,6 +815,6 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #             s = ("{} objects found; Only the one closest to the FOV center "
 #                  + "(segmentation map label = {}) will be used.")
 #             s = s.format(nobj, obj['segm_label'].values[0])
-#             add2hdr(ccd.header, 'h', s, verbose=verbose)
+#             add2hdr(ccd.header, 'h', s)
 
 #     return bkg, obj, seg

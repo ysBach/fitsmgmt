@@ -23,7 +23,7 @@ __all__ = [
 
 
 # def psfmeasure(img, pos, level=0.5, radius=5, maxiters=3, sky_buffer=5, sky_width=5,
-#                saturation=None, verbose=False, **kwargs):
+#                saturation=None, **kwargs):
 #     if isinstance(img, CCDData):
 #         img = img.data
 #     elif not isinstance(img, np.ndarray):

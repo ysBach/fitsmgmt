@@ -30,7 +30,6 @@ def apphot_annulus(
     sky_min=None,
     aparea_exact=False,
     npix_mask_ap=2,
-    verbose=False,
     pandas=True,
     **kwargs,
 ):
@@ -164,19 +163,17 @@ def apphot_annulus(
                 t_exposure = _ccd.header[exposure_key]
             except (KeyError, IndexError):
                 t_exposure = 1
-                if verbose:
-                    logger.warning(
-                        "The exposure time info not given and not found from the header"
-                        + f" ({exposure_key}). Setting it to 1 sec."
-                    )
+                logger.warning(
+                    "The exposure time info not given and not found from the header "
+                    f"({exposure_key}). Setting it to 1 sec."
+                )
     else:  # ndarray
         _ccd = CCDData(data=ccd, unit="adu")
         _arr = _ccd.data
         _mask = mask
         if t_exposure is None:
             t_exposure = 1
-            if verbose:
-                logger.warning("The exposure time info not given. Setting it to 1 sec.")
+            logger.warning("The exposure time info not given. Setting it to 1 sec.")
 
     # [multi-position, same radius] case results in ONE `~photutils.aperture.Aperture` object with
     # multiple positions.
@@ -207,11 +204,10 @@ def apphot_annulus(
         _mask |= mask
 
     if error is not None:
-        if verbose:
-            logger.info(
-                "Ignore any uncertainty extension in the original CCD, "
-                + "and use provided uncertainty map."
-            )
+        logger.info(
+            "Ignore any uncertainty extension in the original CCD, "
+            + "and use provided uncertainty map."
+        )
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
@@ -223,8 +219,7 @@ def apphot_annulus(
             rd = float(
                 _ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise
             )
-            if verbose:
-                logger.info(f"Making errormap from {gn} [e/ADU], {rd} [e]")
+            logger.info(f"Making errormap from {gn} [e/ADU], {rd} [e]")
             err = np.sqrt(_arr / gn + (rd / gn) ** 2)
 
     if aparea_exact:
@@ -364,7 +359,6 @@ def apphot_ellip_sep(
     sky_keys=None,
     aparea_exact=False,
     t_exposure_unit=u.s,
-    verbose=False,
     pandas=False,
     **kwargs,
 ):
@@ -387,7 +381,7 @@ def apphot_ellip_sep(
                 t_exposure = 1
                 logger.warning(
                     "The exposure time info not given and not found from the"
-                    + f"header({exposure_key}). Setting it to 1 sec."
+                    f"header({exposure_key}). Setting it to 1 sec."
                 )
     else:  # ndarray
         _arr = np.array(_ccd)
@@ -403,10 +397,9 @@ def apphot_ellip_sep(
         _mask |= mask
 
     if error is not None:
-        if verbose:
-            logger.info(
-                "Ignore any uncertainty extension in the original CCD and use provided error."
-            )
+        logger.info(
+            "Ignore any uncertainty extension in the original CCD and use provided error."
+        )
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
@@ -414,11 +407,10 @@ def apphot_ellip_sep(
         try:
             err = _ccd.uncertainty.array
         except AttributeError:
-            if verbose:
-                logger.warning(
-                    "Couldn't find Uncertainty extension in ccd. "
-                    + "Will not calculate errors."
-                )
+            logger.warning(
+                "Couldn't find Uncertainty extension in ccd. "
+                + "Will not calculate errors."
+            )
             err = np.zeros_like(_arr)
 
     x = np.atleast_1d(x)

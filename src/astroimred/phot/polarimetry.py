@@ -840,10 +840,6 @@ class LinPolOE4(PolObjMixin):
         self.dq1 = err_prop(self.dq0, np.abs(self.q1) * self.dp_eff) / self.p_eff
         self.du1 = err_prop(self.du0, np.abs(self.u1) * self.dp_eff) / self.p_eff
 
-        # self.messages = ("Polarization efficiency corrected by "
-        #                   + f"p_eff = {self.p_eff}, "
-        #                   + f"dp_eff = {self.dp_eff}.")
-
         rotq = (np.cos(2 * self.rot_instq), np.sin(2 * self.rot_instq))
         rotu = (np.cos(2 * self.rot_instu), np.sin(2 * self.rot_instu))
         self.q2 = self.q1 - (self.q_inst * rotq[0] - self.u_inst * rotq[1])
@@ -944,9 +940,11 @@ def proper_pol(pol, theta, psang, degree=True):
         sig_p = self.dp_eff/self.p_eff
         self.dq[idx] = self.q[idx] * np.sqrt(sig_q**2 + sig_p**2)
         self.du[idx] = self.u[idx] * np.sqrt(sig_u**2 + sig_p**2)
-        self.messages[idx] = ("Polarization efficiency corrected by "
-                              + f"p_eff = {self.p_eff}, "
-                              + f"dp_eff = {self.dp_eff}.")
+        self.messages[idx] = (
+            "Polarization efficiency corrected by "
+            + f"{self.p_eff = }, "
+            + f"{self.dp_eff = }."
+        )
 
 
         gain_corrected : bool, optional
