@@ -71,6 +71,22 @@ MEDCOMB_KEYS_FLT32 = dict(
 # !FIXME: not finished
 # TODO: add err_lower, err_upper, sigma_lower, sigma_upper
 def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
+    """Sigma-clip values using per-point error estimates.
+
+    Parameters
+    ----------
+    val, err : array-like
+        Values and corresponding 1-sigma errors.
+
+    cenfunc : {"wvg", "avg", "average", "mean"}, optional
+        Center estimator. ``"wvg"`` uses weighted average.
+
+    sigma : float, optional
+        Rejection threshold in units of `err`.
+
+    maxiters : int, optional
+        Maximum clipping iterations.
+    """
     if cenfunc == "wvg":
         cenfunc = lambda val, err: mathutils.weighted_avg(val, err)[0]
     elif cenfunc in ["avg", "average", "mean"]:
@@ -381,13 +397,13 @@ def str_now(
 
 
 def change_to_quantity(x, desired="", to_value=False):
-    """Change the non-`~astropy.units.Quantity` object to astropy `~astropy.units.Quantity` or vice versa.
+    """Convert an object to `~astropy.units.Quantity`, or to a scalar value.
 
     Parameters
     ----------
-    x : object changable to astropy `~astropy.units.Quantity`
-        The input to be changed to a `~astropy.units.Quantity`. If a `~astropy.units.Quantity` is given, `x` is
-        changed to the `desired`, i.e., ``x.to(desired)``.
+    x : object convertible to `~astropy.units.Quantity`
+        Input value. If a `~astropy.units.Quantity` is given, `x` is converted
+        to `desired`, i.e., ``x.to(desired)``.
 
     desired : `str` or astropy `~astropy.units.Unit`, optional.
         The desired unit for `x`. If `''` (default), it will be interpreted as
