@@ -2158,3 +2158,6 @@ def run_reduc_plan(
             ccd.write(outpath, overwrite=True, output_verify="fix")
         if return_ccd:
             ccds.append(ccd)
+
+    if return_ccd:
+        return ccds
