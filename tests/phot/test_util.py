@@ -5,6 +5,7 @@ All expected values are analytically derived.
 """
 
 import numpy as np
+import pytest
 from astropy.modeling.functional_models import Gaussian2D
 from numpy.testing import assert_allclose, assert_array_equal
 
@@ -311,6 +312,11 @@ class TestNormalize:
         """Bounce mode (b=True)"""
         assert normalize(100, -90, 90, b=True) == 80.0
         assert normalize(-100, -90, 90, b=True) == -80.0
+
+    def test_normalize_invalid_bounds(self):
+        """lower >= upper raises ValueError."""
+        with pytest.raises(ValueError, match="lower"):
+            normalize(0, lower=1, upper=1)
 
 
 class TestGaussianKernel:

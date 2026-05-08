@@ -363,7 +363,7 @@ def normalize(num, lower=0, upper=360, b=False):
     -89.0
     """
     if lower >= upper:
-        ValueError("lower must be lesser than upper")
+        raise ValueError("lower must be lesser than upper")
     if not b:
         if not ((lower + upper == 0) or (lower == 0)):
             raise ValueError("When b=False lower=0 or range must be symmetric about 0.")
