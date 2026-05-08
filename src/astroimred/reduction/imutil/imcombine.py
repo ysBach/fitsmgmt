@@ -24,10 +24,12 @@ from astroimred.mgmt.logging import logger
 from . import docstrings
 from ._imcombine_fits import (
     apply_output_offsets,
+    calculate_zsw,
     check_stack_memory,
     extract_stack_metadata,
     init_log_table,
     load_full_stack,
+    load_stack_chunk,
     log_zsw_table,
     update_hdr,
     write_imcombine_logfile,
@@ -387,6 +389,7 @@ def imcombine(
     hdr0 = metadata["hdr0"]
     ndim = metadata["ndim"]
     shapes = metadata["shapes"]
+    raw_shapes = metadata["raw_shapes"]
     offsets = metadata["offsets"]
     offset_mode = metadata["offset_mode"]
     use_wcs = metadata["use_wcs"]
@@ -403,7 +406,7 @@ def imcombine(
         shapes, offsets, method="outer", offset_order_xyz=False, intify_offsets=True
     )
 
-    mem_req, num_chunk = check_stack_memory(
+    mem_req, num_chunk, chunks = check_stack_memory(
         ncombine=ncombine,
         sh_comb=sh_comb,
         dtype=dtype,
@@ -415,33 +418,54 @@ def imcombine(
         if num_chunk > 1:
             logger.info("memlimit reached: Split combine by %d chunks.", num_chunk)
 
-    # == Setup offset-ed array =========================================================== #
-    # NOTE: Using NaN does not set array with dtype of int... Any solution?
     if verbose:
         logger.info("- Loading, calculating offsets with zero/scale...")
 
     _t = Time.now()
-    arr_full, mask_full, var_full, zeros, scales, weights = load_full_stack(
-        items=items,
-        offsets=offsets,
-        shapes=shapes,
-        sh_comb=sh_comb,
-        dtype=dtype,
-        mask=mask,
-        trimsec=trimsec,
-        extension=extension,
-        extension_mask=e_m,
-        extension_uncertainty=e_u,
-        extract_exptime=extract_exptime,
-        scale=scale,
-        zero=zero,
-        weight=weight,
-        zero_kw=zero_kw,
-        scale_kw=scale_kw,
-        zero_section=zero_section,
-        scale_section=scale_section,
-        scales=scales,
-    )
+
+    if num_chunk == 1:
+        # == Setup offset-ed array ======================================================= #
+        # NOTE: Using NaN does not set array with dtype of int... Any solution?
+        arr_full, mask_full, var_full, zeros, scales, weights = load_full_stack(
+            items=items,
+            offsets=offsets,
+            shapes=shapes,
+            sh_comb=sh_comb,
+            dtype=dtype,
+            mask=mask,
+            trimsec=trimsec,
+            extension=extension,
+            extension_mask=e_m,
+            extension_uncertainty=e_u,
+            extract_exptime=extract_exptime,
+            scale=scale,
+            zero=zero,
+            weight=weight,
+            zero_kw=zero_kw,
+            scale_kw=scale_kw,
+            zero_section=zero_section,
+            scale_section=scale_section,
+            scales=scales,
+        )
+    else:
+        zeros, scales, weights = calculate_zsw(
+            items=items,
+            dtype=dtype,
+            trimsec=trimsec,
+            extension=extension,
+            extension_mask=e_m,
+            extension_uncertainty=e_u,
+            extract_exptime=extract_exptime,
+            scale=scale,
+            zero=zero,
+            weight=weight,
+            zero_kw=zero_kw,
+            scale_kw=scale_kw,
+            zero_section=zero_section,
+            scale_section=scale_section,
+            scales=scales,
+        )
+
     log_zsw_table(items, zeros, scales, weights, verbose)
     # ------------------------------------------------------------------------------------ #
 
@@ -453,13 +477,7 @@ def imcombine(
         s=f"Loaded {ncombine} FITS, calculated zero, scale, weights",
     )
 
-    # == Combine with rejection! ========================================================= #
-    _t = Time.now()
-
-    comb = ndcombine(
-        arr=arr_full,
-        mask=mask_full,
-        copy=False,  # No need to retain arr_full.
+    ndcombine_kw = dict(
         combine=combine,
         reject=reject_fullname,
         scale=scales,  # it is scales , NOT scale , as it was updated above.
@@ -487,11 +505,101 @@ def imcombine(
         verbose=verbose,
     )
 
-    if full:  # unpack the output
-        comb, err, mask_rej, mask_thresh, low, upp, nit, rejcode = comb
-        mask_total = mask_full | mask_thresh | mask_rej
+    # == Combine with rejection! ========================================================= #
+    _t = Time.now()
+
+    if num_chunk == 1:
+        comb = ndcombine(
+            arr=arr_full,
+            mask=mask_full,
+            copy=False,  # No need to retain arr_full.
+            **ndcombine_kw,
+        )
+
+        if full:  # unpack the output
+            comb, err, mask_rej, mask_thresh, low, upp, nit, rejcode = comb
+            mask_total = mask_full | mask_thresh | mask_rej
+        else:
+            err = low = upp = mask_total = rejcode = None
     else:
-        err = low = upp = mask_total = rejcode = None
+        if verbose:
+            logger.info("- Combining by %d chunks", num_chunk)
+
+        comb = np.empty(sh_comb, dtype=dtype)
+        err = mask_total = mask_rej = mask_thresh = low = upp = nit = rejcode = None
+
+        for i_chunk, chunk_slices in enumerate(chunks, start=1):
+            if verbose:
+                logger.info("-- chunk %d/%d: %s", i_chunk, num_chunk, chunk_slices)
+
+            arr_chunk, mask_chunk, var_chunk = load_stack_chunk(
+                items=items,
+                offsets=offsets,
+                shapes=shapes,
+                raw_shapes=raw_shapes,
+                chunk_slices=chunk_slices,
+                dtype=dtype,
+                mask=mask,
+                trimsec=trimsec,
+                extension=extension,
+                extension_mask=e_m,
+                extension_uncertainty=e_u,
+            )
+
+            combined_chunk = ndcombine(
+                arr=arr_chunk,
+                mask=mask_chunk,
+                copy=False,
+                **ndcombine_kw,
+            )
+
+            if full:
+                (
+                    comb_chunk,
+                    err_chunk,
+                    mask_rej_chunk,
+                    mask_thresh_chunk,
+                    low_chunk,
+                    upp_chunk,
+                    nit_chunk,
+                    rejcode_chunk,
+                ) = combined_chunk
+                mask_total_chunk = mask_chunk | mask_thresh_chunk | mask_rej_chunk
+
+                if err is None:
+                    err = np.empty(sh_comb, dtype=err_chunk.dtype)
+                    mask_shape = (ncombine, *sh_comb)
+                    mask_total = np.empty(mask_shape, dtype=bool)
+                    mask_rej = np.empty(mask_shape, dtype=bool)
+                    mask_thresh = np.empty(mask_shape, dtype=bool)
+                    low = np.empty(sh_comb, dtype=low_chunk.dtype)
+                    upp = np.empty(sh_comb, dtype=upp_chunk.dtype)
+                    if nit_chunk is not None:
+                        nit = np.empty(sh_comb, dtype=np.asarray(nit_chunk).dtype)
+                    if rejcode_chunk is not None:
+                        rejcode = np.empty(
+                            sh_comb, dtype=np.asarray(rejcode_chunk).dtype
+                        )
+
+                comb[chunk_slices] = comb_chunk
+                err[chunk_slices] = err_chunk
+                mask_slices = (slice(None), *chunk_slices)
+                mask_total[mask_slices] = mask_total_chunk
+                mask_rej[mask_slices] = mask_rej_chunk
+                mask_thresh[mask_slices] = mask_thresh_chunk
+                low[chunk_slices] = low_chunk
+                upp[chunk_slices] = upp_chunk
+                if nit is not None:
+                    nit[chunk_slices] = nit_chunk
+                if rejcode is not None:
+                    rejcode[chunk_slices] = rejcode_chunk
+            else:
+                comb[chunk_slices] = combined_chunk
+
+            del arr_chunk, mask_chunk, var_chunk
+
+        if not full:
+            err = low = upp = mask_total = rejcode = None
 
     # == Update header properly ========================================================== #
     # Update WCS or PHYSICAL keywords so that "lock frame wcs", etc, on SAO
@@ -552,7 +660,9 @@ def imcombine(
         logger.info("Done.")
 
     # == Return memory... ================================================================ #
-    del hdr0, arr_full, mask_full
+    if num_chunk == 1:
+        del arr_full, mask_full
+    del hdr0
 
     # == Write logfile =================================================================== #
     write_imcombine_logfile(
@@ -660,6 +770,12 @@ imcombine.__doc__ = """A helper function for ``imred.ndcombine`` to cope with FI
 
     irafmode : `bool`, optional.
         Whether to use IRAF-like pixel restoration scheme.
+
+    memlimit : float, optional
+        Approximate memory limit in bytes for the temporary FITS stack. If the
+        planned stack is larger, FITS inputs are read in row/column sections
+        after offsets are applied, each section is combined, and the final
+        output is stitched from the chunk results.
 
     output : path-like, optional
         The path to the final combined FITS file. It has dtype of `dtype` and

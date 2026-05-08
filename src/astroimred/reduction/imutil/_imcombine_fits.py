@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 from astro_ndslice import calc_offset_physical, calc_offset_wcs, slicefy
+from astropy.io import fits
 from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
 from astropy.table import Table
@@ -12,6 +13,73 @@ from astroimred.mgmt.io import _parse_data_header, get_size, load_ccd, write2fit
 from astroimred.mgmt.logging import logger
 
 from .util_comb import _set_combfunc, _set_gain_rdns, get_zsw
+
+
+def _slice_shape(shape, slices):
+    return tuple(
+        len(range(*sl.indices(int(size)))) for size, sl in zip(shape, slices)
+    )
+
+
+def _trim_slices(trimsec, shape):
+    if trimsec is None:
+        return tuple(slice(None) for _ in shape)
+    return tuple(slicefy(trimsec, ndim=len(shape)))
+
+
+def _trimmed_shape(shape, trimsec):
+    return _slice_shape(shape, _trim_slices(trimsec, shape))
+
+
+def _compose_trim_data_slices(trimsec, data_slices, raw_shape):
+    trim_slices = _trim_slices(trimsec, raw_shape)
+    slices = []
+    for raw_size, trim_slice, data_slice in zip(raw_shape, trim_slices, data_slices):
+        t_start, _t_stop, t_step = trim_slice.indices(int(raw_size))
+        if t_step <= 0:
+            raise ValueError("Negative-step trimsec is not supported in chunked load.")
+
+        trimmed_size = len(range(*trim_slice.indices(int(raw_size))))
+        d_start, d_stop, d_step = data_slice.indices(trimmed_size)
+        if d_step != 1:
+            raise ValueError("Non-unit chunk slice steps are not supported.")
+        slices.append(
+            slice(t_start + d_start * t_step, t_start + d_stop * t_step, t_step)
+        )
+    return tuple(slices)
+
+
+def _hdu_has_data(hdu):
+    return hdu.header.get("NAXIS", 0) > 0 and all(
+        hdu.header.get(f"NAXIS{i}", 0) > 0
+        for i in range(1, hdu.header.get("NAXIS", 0) + 1)
+    )
+
+
+def _get_image_hdu(hdul, extension):
+    try:
+        hdu = hdul[extension]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+    if _hdu_has_data(hdu):
+        return hdu
+
+    if extension == 0:
+        for hdu in hdul:
+            if _hdu_has_data(hdu):
+                return hdu
+    return None
+
+
+def _read_hdul_section(hdul, extension, section):
+    if extension is None:
+        return None
+
+    hdu = _get_image_hdu(hdul, extension)
+    if hdu is None:
+        return None
+    return np.asarray(hdu.section[section])
 
 
 def update_hdr(
@@ -140,7 +208,7 @@ def extract_stack_metadata(
     ndim = hdr0["NAXIS"]
     # N x ndim. sizes[i, :] = images[i].shape
     shapes = np.ones((ncombine, ndim), dtype=int)
-    slice_load = None if trimsec is None else slicefy(trimsec)
+    raw_shapes = np.ones((ncombine, ndim), dtype=int)
     extract_hdr = imcmb_key not in [None, "", "$I"]
 
     extract_exptime = False
@@ -222,7 +290,9 @@ def extract_stack_metadata(
                 )
 
             # NOTE: the indexing in python is [z, y, x] order!!
-            shapes[i,] = [int(hdr[f"NAXIS{i}"]) for i in range(ndim, 0, -1)]
+            raw_shape = tuple(int(hdr[f"NAXIS{i}"]) for i in range(ndim, 0, -1))
+            raw_shapes[i,] = raw_shape
+            shapes[i,] = _trimmed_shape(raw_shape, trimsec)
         else:
             if imcmb_key == "$I":
                 try:
@@ -230,8 +300,9 @@ def extract_stack_metadata(
                 except TypeError:
                     imcmb_val.append(f"User-provided {type(item)}")
             data = _parse_data_header(item, extension=extension, parse_header=False)[0]
+            raw_shapes[i,] = data.shape
             if trimsec is not None:
-                shapes[i,] = data[slice_load].shape
+                shapes[i,] = _trimmed_shape(data.shape, trimsec)
             else:
                 shapes[i,] = data.shape
 
@@ -239,6 +310,7 @@ def extract_stack_metadata(
         hdr0=hdr0,
         ndim=ndim,
         shapes=shapes,
+        raw_shapes=raw_shapes,
         offsets=offsets,
         offset_mode=offset_mode,
         use_wcs=use_wcs,
@@ -267,16 +339,119 @@ def check_stack_memory(ncombine, sh_comb, dtype, combine, memlimit):
     memory_factor = 3 if combmeth == "median" else 2
     memory_factor *= 1.5
     mem_req = memory_factor * stacksize
-    num_chunk = int(mem_req / memlimit) + 1
+    if memlimit is None or memlimit <= 0 or mem_req <= memlimit:
+        return mem_req, 1, [tuple(slice(0, size) for size in sh_comb)]
 
-    # TODO: make chunking
-    if num_chunk > 1:
-        raise ValueError(
-            "Currently chunked combine is not supported yet. "
-            + f"Please try increasing memlimit to > {mem_req:.1e}, "
-            + "or use combine='avg' than 'median'."
+    # FITS stores the last Python axis contiguously.  Prefer chunking the first
+    # image axis so each read keeps the full fast axis and stays row-slab-like
+    # for normal 2-D images.  If one row slab is still too large, move toward
+    # the fast axis until at least one section fits.
+    chunk_axis = None
+    chunk_size = None
+    min_required = np.inf
+    for axis in range(len(sh_comb)):
+        fast_shape = sh_comb[:axis] + sh_comb[axis + 1 :]
+        bytes_per_axis_pixel = (
+            memory_factor * ncombine * np.prod(fast_shape) * np.dtype(dtype).itemsize
         )
-    return mem_req, num_chunk
+        min_required = min(min_required, bytes_per_axis_pixel)
+        size = int(memlimit // bytes_per_axis_pixel)
+        if size >= 1:
+            chunk_axis = axis
+            chunk_size = size
+            break
+
+    if chunk_axis is None:
+        raise ValueError(
+            "memlimit is too small to hold even one FITS chunk. "
+            + f"Try memlimit > {min_required:.1e}."
+        )
+
+    chunks = []
+    for start in range(0, sh_comb[chunk_axis], chunk_size):
+        stop = min(start + chunk_size, sh_comb[chunk_axis])
+        slices = [slice(0, size) for size in sh_comb]
+        slices[chunk_axis] = slice(start, stop)
+        chunks.append(tuple(slices))
+
+    return mem_req, len(chunks), chunks
+
+
+def calculate_zsw(
+    items,
+    dtype,
+    trimsec,
+    extension,
+    extension_mask,
+    extension_uncertainty,
+    extract_exptime,
+    scale,
+    zero,
+    weight,
+    zero_kw,
+    scale_kw,
+    zero_section,
+    scale_section,
+    scales,
+):
+    ncombine = len(items)
+    zeros = np.zeros(shape=ncombine)
+    weights = np.ones(shape=ncombine)
+
+    calc_zero = isinstance(zero, str)
+    calc_scale = isinstance(scale, str) and not extract_exptime
+    calc_weight = isinstance(weight, str)
+
+    if zero is not None and not calc_zero:
+        zeros = np.asarray(zero, dtype=float).ravel()
+        if zeros.size != ncombine:
+            raise ValueError("zero must have size equal to the number of images.")
+
+    if scale is not None and not isinstance(scale, str):
+        scales = np.asarray(scale, dtype=float).ravel()
+        if scales.size != ncombine:
+            raise ValueError("scale must have size equal to the number of images.")
+
+    if weight is not None and not calc_weight:
+        weights = np.asarray(weight, dtype=float).ravel()
+        if weights.size != ncombine:
+            raise ValueError("weight must have size equal to the number of images.")
+
+    for i, item in enumerate(items):
+        needs_data = calc_zero or calc_scale or calc_weight
+        if needs_data:
+            # Preserve the legacy global zero/scale/weight semantics.  These
+            # statistics must not be recalculated per chunk.
+            data, _var, _mask = load_imcombine_item(
+                item,
+                trimsec=trimsec,
+                extension=extension,
+                extension_mask=extension_mask,
+                extension_uncertainty=extension_uncertainty,
+            )
+        else:
+            continue
+
+        z_i, s_i, w_i = get_zsw(
+            arr=np.array(data[None, :]),  # make a fake (N+1)-D array
+            zero=zero if calc_zero else None,
+            scale=scale if calc_scale else None,
+            weight=weight if calc_weight else None,
+            zero_kw=zero_kw,
+            scale_kw=scale_kw,
+            zero_to_0th=False,  # to retain original zero
+            scale_to_0th=False,  # to retain original scale
+            zero_section=zero_section,
+            scale_section=scale_section,
+        )
+        if calc_zero:
+            zeros[i] = z_i[0]
+        if calc_scale:
+            scales[i] = s_i[0]
+        if calc_weight:
+            weights[i] = w_i[0]
+
+    return zeros, scales, weights
 
 
 def load_imcombine_item(
@@ -298,15 +473,60 @@ def load_imcombine_item(
         )
     except TypeError:
         if isinstance(item, CCDData):
-            data = item.data.copy()
+            slices = _trim_slices(trimsec, item.data.shape)
+            data = item.data[slices].copy()
             if item.mask is None:
                 mask = np.zeros(data.shape, dtype=bool)
             else:
-                mask = item.mask.copy()
-            var = None if item.uncertainty is None else item.uncertainty.copy()
+                mask = item.mask[slices].copy()
+            var = (
+                None
+                if item.uncertainty is None
+                else np.asarray(item.uncertainty.array)[slices].copy()
+            )
         else:
             raise ValueError("Each item is not path-like or CCDData.")
 
+    return data, var, mask
+
+
+def load_imcombine_item_region(
+    item,
+    data_slices,
+    raw_shape,
+    trimsec,
+    extension,
+    extension_mask,
+    extension_uncertainty,
+):
+    section = _compose_trim_data_slices(trimsec, data_slices, raw_shape)
+    try:
+        path = Path(item)
+    except TypeError:
+        if not isinstance(item, CCDData):
+            raise ValueError("Each item is not path-like or CCDData.")
+        data = item.data[section].copy()
+        if item.mask is None:
+            mask = np.zeros(data.shape, dtype=bool)
+        else:
+            mask = item.mask[section].copy()
+        var = (
+            None
+            if item.uncertainty is None
+            else np.asarray(item.uncertainty.array)[section].copy()
+        )
+        return data, var, mask
+
+    with fits.open(path, memmap=True) as hdul:
+        data = _read_hdul_section(hdul, extension, section)
+        if data is None:
+            raise ValueError(f"No image data found in {path}.")
+        var = _read_hdul_section(hdul, extension_uncertainty, section)
+        mask = _read_hdul_section(hdul, extension_mask, section)
+    if mask is None:
+        mask = np.zeros(data.shape, dtype=bool)
+    else:
+        mask = mask.astype(bool, copy=False)
     return data, var, mask
 
 
@@ -392,6 +612,72 @@ def load_full_stack(
             var_full[slices] = var
 
     return arr_full, mask_full, var_full, zeros, scales, weights
+
+
+def load_stack_chunk(
+    items,
+    offsets,
+    shapes,
+    raw_shapes,
+    chunk_slices,
+    dtype,
+    mask,
+    trimsec,
+    extension,
+    extension_mask,
+    extension_uncertainty,
+):
+    ncombine = len(items)
+    chunk_shape = tuple(sl.stop - sl.start for sl in chunk_slices)
+    var_chunk = None
+    if extension_uncertainty is not None:
+        var_chunk = np.nan * np.zeros(shape=(ncombine, *chunk_shape), dtype=dtype)
+
+    arr_chunk = np.nan * np.zeros(shape=(ncombine, *chunk_shape), dtype=dtype)
+    mask_chunk = np.zeros(shape=(ncombine, *chunk_shape), dtype=bool)
+
+    chunk_starts = np.array([sl.start for sl in chunk_slices])
+    chunk_stops = np.array([sl.stop for sl in chunk_slices])
+
+    for i, (item, offset, shape, raw_shape) in enumerate(
+        zip(items, offsets, shapes, raw_shapes)
+    ):
+        image_starts = offset
+        image_stops = offset + shape
+        starts = np.maximum(chunk_starts, image_starts)
+        stops = np.minimum(chunk_stops, image_stops)
+        if np.any(stops <= starts):
+            continue
+
+        data_slices = tuple(
+            slice(int(start - image_start), int(stop - image_start))
+            for start, stop, image_start in zip(starts, stops, image_starts)
+        )
+        insert_slices = tuple(
+            slice(int(start - chunk_start), int(stop - chunk_start))
+            for start, stop, chunk_start in zip(starts, stops, chunk_starts)
+        )
+
+        data, var, item_mask = load_imcombine_item_region(
+            item=item,
+            data_slices=data_slices,
+            raw_shape=raw_shape,
+            trimsec=trimsec,
+            extension=extension,
+            extension_mask=extension_mask,
+            extension_uncertainty=extension_uncertainty,
+        )
+
+        if mask is not None:
+            item_mask |= mask[i,][data_slices]
+
+        full_insert_slices = (i, *insert_slices)
+        arr_chunk[full_insert_slices] = data
+        mask_chunk[full_insert_slices] = item_mask
+        if var is not None and var_chunk is not None:
+            var_chunk[full_insert_slices] = var
+
+    return arr_chunk, mask_chunk, var_chunk
 
 
 def log_zsw_table(items, zeros, scales, weights, verbose):
