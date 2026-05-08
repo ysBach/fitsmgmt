@@ -226,6 +226,49 @@ class TestSkyFit:
         assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
         assert result['nsky'][0] == 100 * 100  # whole image
 
+    def test_sky_fit_no_annulus_with_mask(self, uniform_100x100):
+        """Test sky_fit with annulus=None excludes externally masked pixels."""
+        data = uniform_100x100.copy()
+        data[0, 0] = 1000.0
+        data[0, 1] = 1000.0
+        mask = np.zeros_like(data, dtype=bool)
+        mask[0, 0] = True
+        mask[0, 1] = True
+
+        result = sky_fit(data, annulus=None, mask=mask, method='mean')
+
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+        assert result['nsky'][0] == data.size - 2
+
+    def test_sky_fit_no_annulus_with_ccddata_mask(self, uniform_100x100):
+        """Test sky_fit with annulus=None excludes CCDData.mask pixels."""
+        data = uniform_100x100.copy()
+        data[0, 0] = 1000.0
+        internal_mask = np.zeros_like(data, dtype=bool)
+        internal_mask[0, 0] = True
+        ccd = CCDData(data, unit='adu', mask=internal_mask)
+
+        result = sky_fit(ccd, annulus=None, method='mean')
+
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+        assert result['nsky'][0] == data.size - 1
+
+    def test_sky_fit_no_annulus_combines_masks(self, uniform_100x100):
+        """Test sky_fit with annulus=None combines CCDData and external masks."""
+        data = uniform_100x100.copy()
+        data[0, 0] = 1000.0
+        data[0, 1] = 1000.0
+        internal_mask = np.zeros_like(data, dtype=bool)
+        internal_mask[0, 0] = True
+        external_mask = np.zeros_like(data, dtype=bool)
+        external_mask[0, 1] = True
+        ccd = CCDData(data, unit='adu', mask=internal_mask)
+
+        result = sky_fit(ccd, annulus=None, mask=external_mask, method='mean')
+
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+        assert result['nsky'][0] == data.size - 2
+
     def test_sky_fit_iraf_method(self, uniform_with_noise):
         """
         Test sky_fit with method='iraf'.

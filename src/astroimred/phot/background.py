@@ -130,9 +130,20 @@ def sky_fit(
     skydicts = []
     if annulus is None:
         try:  # CCDData or HDU
-            skys = [ccd.data.ravel()]
+            arr = np.asarray(ccd.data)
+            ccd_mask = getattr(ccd, "mask", None)
         except AttributeError:  # ndarray
-            skys = [ccd.ravel()]
+            arr = np.asarray(ccd)
+            ccd_mask = None
+
+        base_mask = None
+        if ccd_mask is not None:
+            base_mask = np.asarray(ccd_mask, dtype=bool)
+        if mask is not None:
+            mask = np.asarray(mask, dtype=bool)
+            base_mask = mask if base_mask is None else (base_mask | mask)
+
+        skys = [arr[~base_mask].ravel() if base_mask is not None else arr.ravel()]
     else:
         skys = annul2values(ccd, annulus, mask=mask)
 
