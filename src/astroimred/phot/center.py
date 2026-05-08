@@ -729,7 +729,6 @@ def _fit_2dgaussian(data, error=None, mask=None):
         filter_kernel=None,  # No convolution
         deblend_cont=1.0,  # No deblending
         clean=False,  # No cleaning
-        segmentation_map=False,  # No segmentation map
     )[0]
 
     init_const = 0.0  # subtracted data minimum above
@@ -946,7 +945,7 @@ def find_center_2dg(
 
         if ANNULUS is not None:
             ANNULUS.positions = position_xy
-            _sky = sky_fit(ccd=ccd, annulus=ANNULUS, **sky_kw, to_table=False)
+            _sky = sky_fit(ccd=ccd, annulus=ANNULUS, **sky_kw, to_table=False)[0]
             ssky = _sky["ssky"]
             msky = _sky["msky"]
         elif msky is None:
@@ -999,7 +998,7 @@ def find_center_2dg(
             error.copy() if isinstance(error, CCDData) else CCDData(error, unit="adu")
         )
     else:
-        _error = np.ones_like(_ccd.data)
+        _error = CCDData(np.ones_like(_ccd.data), unit=_ccd.unit)
 
     positions = [position_init]
 
