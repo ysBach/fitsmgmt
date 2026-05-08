@@ -812,7 +812,7 @@ def imcombine(
         write2fits(low, hdr0, output_low, return_ccd=False, **write_kw)
 
     if output_upp is not None:
-        upp = low.astype(dtype) if dtype_upp is None else upp.astype(dtype_upp)
+        upp = upp.astype(dtype) if dtype_upp is None else upp.astype(dtype_upp)
         write2fits(upp, hdr0, output_upp, return_ccd=False, **write_kw)
 
     if output_nrej is not None:  # Do this BEFORE output_mask!!
