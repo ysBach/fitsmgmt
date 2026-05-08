@@ -199,10 +199,10 @@ def imarith(
         (``float(im)``) will be interpreted as numbers; if not, it will be
         interpreted as a path to the FITS file.
 
-    op : `str` in ['**', '%', '//', '+', '-', '*', '/']
+    op : {"**", "%", "//", "+", "-", "*", "/"}
         The operation to be done. Unlike IRAF, 'min' and 'max' are not
         implemented (easy to implement in the future but I don't know the
-        necessity). ``['**', '%', '//']`` are not supported when
+        necessity). ``"**"``, ``"%"``, and ``"//"`` are not supported when
         ``error_calc=True``.
 
     output : path-like, optional.
@@ -235,10 +235,9 @@ def imarith(
         pairs (care is needed since it overwrites the pre-existing keys). If
         `dict`, it can be ``{key:value}`` or ``{key:(value, comment)}``.
 
-        .. note::
-            The behavior is different from IRAF. In IRAF, hparams is used
-            to propagate the header keyword. This is used mainly for
-            ``"EXPTIME"`` to sum the exposure time if two images are combined.
+        Note: this differs from IRAF. In IRAF, hparams is used to propagate a
+        header keyword, mainly ``"EXPTIME"``, when two images are combined.
+
         Default: `None`.
 
     dtype : `str`, dtype, optional.

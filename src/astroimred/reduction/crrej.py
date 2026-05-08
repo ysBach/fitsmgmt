@@ -328,7 +328,7 @@ def crrej(
         * `~numpy.ndarray`: PSF kernel array to use for the fine structure image. `None`
           of `psffwhm`, `psfsize`, and `psfbeta` are used.
 
-        Summary of `astroscrappy` VS `imred`:
+        Mapping between `astroscrappy` and ``imred`` options:
 
         * ``fsmode="median"`` == ``fs="median"``
         * ``fsmode="convolve", psfmodel=*`` == ``fs=*``, where ``*`` can be
@@ -376,17 +376,10 @@ def crrej(
 
     Notes
     -----
-    Detection related (important ones): `sigclip`, `sigfrac`, `objlim`
-    Kernel (fine structure) related: `fsmode`
-      * If "median": median filter of `psfsize` x `psfsize`
-      * If "convolve":
-        * If `psfk` is given, use it as the kernel.
-        * If `psfk` is `None`, use `psfmodel` to generate the kernel.
-          * `psffwhm`: The FWHM for `psfmodel` of "gauss" or "moffat".
-
-      * `psfk` is  `psfsize`, `psfk`, `psfbeta`
-    Detector specific parameters: `gain`, `rdnoise`
-    Rarely tuned parameters: `pssl`, `satlevel`, `niter`
+    Important detection parameters are `sigclip`, `sigfrac`, and `objlim`.
+    Fine-structure parameters are mapped through `fs`, `psffwhm`, `psfsize`,
+    `psfk`, and `psfbeta`. Detector-specific parameters are `gain` and
+    `rdnoise`.
 
     (Note from `astroscrappy`)
     For best results on spectra, we recommend that you include an estimate of
@@ -400,17 +393,9 @@ def crrej(
     underestimate the noise (and therefore run the risk of flagging false
     positives) near narrow, bright sky lines.
 
-    All defaults are based on IRAF version of L.A. Cosmic (Note the default
-    parameters of L.A. Cosmic differ from version to version, so I took the
-    IRAF version written by van Dokkum.)
-    See the docstring of astroscrappy by
-
-
-    >>> import astroscrappy
-    >>> astroscrappy.detect_cosmics?
-
-    Examples
-    -------
+    All defaults are based on the IRAF version of L.A. Cosmic. The default
+    parameters differ between L.A. Cosmic versions, so these follow the IRAF
+    version written by van Dokkum.
     """
     if fs is None:
         return ccd.copy(), None
@@ -448,7 +433,7 @@ def crrej(
     inbkg = None if inbkg is None else _parse_image(inbkg)[0]
     invar = None if invar is None else _parse_image(invar)[0]
 
-    # remove the fucxing cosmic rays
+    # remove the cosmic cosmic rays
     crrej_kwargs = dict(
         gain=gain,
         readnoise=rdnoise,
@@ -632,15 +617,11 @@ def medfilt_bpm(
 
     Notes
     -----
-    `med_sub_clips` is usually not necessary but useful to detect hot pixels in
-    dark frames (no light) for some special circumstances. ::
-
-    1. Median additive difference (data-medfilt) generated,
-    2. Median ratio ``(data/|medfilt|)`` generated,
-    3. Stddev ratio ((data-medfilt)/std) generated,
-    4. posmask and negmask calculated by clips MB_[ADD/RAT/STD]_[U/L] and
-      logic MB_[N/P]LOG (see keywords),
-    5. Pixels of (posmask | negmask) are replaced with median filtered frame.
+    ``med_sub_clip`` is usually unnecessary, but can be useful for detecting
+    hot pixels in dark frames. The method generates median-subtracted,
+    median-ratio, and stddev-ratio maps, combines the positive and negative
+    masks with the requested logic, and replaces masked pixels with the median
+    filtered frame.
 
     """
     from scipy.ndimage import median_filter
@@ -744,7 +725,7 @@ def medfilt_bpm(
                 verbose=verbose,
                 t_ref=_t,
                 s=(
-                    "Stdev map is generated from median filtered frame by "
+                    "Stddev map is generated from median filtered frame by "
                     + "sqrt{(1 + snoise)*med_filt/gain + (rdnoise/gain)**2}"
                 ),
             )

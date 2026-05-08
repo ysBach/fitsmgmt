@@ -28,6 +28,22 @@ def _default_zsw_kw():
 
 
 def do_zs(arr, zeros, scales, copy=False):
+    """Apply per-image zero subtraction and scale division.
+
+    Parameters
+    ----------
+    arr : ndarray
+        Image stack with image index on axis 0.
+    zeros, scales : scalar or array-like
+        Per-image zero and scale values. `None` is treated as no correction.
+    copy : bool, optional
+        If `True`, operate on a copy.
+
+    Returns
+    -------
+    ndarray
+        Corrected image stack.
+    """
     if copy:
         arr = arr.copy()
     # below two took less than 10 us for 100 images
@@ -68,7 +84,7 @@ def get_zsw(
 ):
     """
     Originally this was designed to get zero/scale values for (N+1)-D stacked
-    array for N-D images. However, `~imred.imutil.imcombine` uses it only for one image at a
+    array for N-D images. However, ``imred.imcombine`` uses it only for one image at a
     time.
     """
 

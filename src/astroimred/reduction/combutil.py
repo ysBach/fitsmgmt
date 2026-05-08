@@ -9,7 +9,7 @@ from astropy.table import Table
 from astropy.time import Time
 from ccdproc import combine
 
-from astroimred.filemgmt import make_summary
+from astroimred.mgmt.summary import fits_summary
 from astroimred.imops.ccdutils import (
     CCDData_astype,
     imslice,
@@ -32,7 +32,7 @@ __all__ = [
 
 
 def sstd(a, **kwargs):
-    """Sample standard deviation function"""
+    """Return the sample standard deviation."""
     return np.std(a, ddof=1, **kwargs)
 
 
@@ -40,6 +40,20 @@ def sstd(a, **kwargs):
 
 
 def weighted_mean(ccds, unit="adu"):
+    """Combine CCDs with inverse-variance weights.
+
+    Parameters
+    ----------
+    ccds : sequence of `~astropy.nddata.CCDData`
+        Input CCDs with ``uncertainty`` arrays.
+    unit : str or `~astropy.units.Unit`, optional
+        Unit for the returned CCD.
+
+    Returns
+    -------
+    `~astropy.nddata.CCDData`
+        Weighted mean image with propagated standard-deviation uncertainty.
+    """
     datas = []
     ws = []  # weights = 1 / sigma**2
     for ccd in ccds:
@@ -93,7 +107,8 @@ def group_fits(
     --------
 
     >>> allfits = list(Path('.').glob("*.fits"))
-    >>> summary_table = make_summary(allfits)
+    >>> import astroimred as air
+    >>> summary_table = fm.fits_summary(allfits)
     >>> type_key = ["OBJECT"]
     >>> type_val = ["dark"]
     >>> group_key = ["EXPTIME"]
@@ -178,7 +193,7 @@ def select_fits(
         Default: `None`.
 
     trimsec : `str`, [`list` of] `int`, [`list` of] slice, optional
-        Section of the data to be extracted by `~imred.hduutil.imslice`.
+        Section of the data to be extracted by `~astroimred.imops.ccdutils.imslice`.
         Default is `None`.
         Ignored if `inputs` is table-like.
 
@@ -269,7 +284,7 @@ def select_fits(
         summary_table = inputs
         fitslist = summary_table[table_filecol].to_list()
     else:
-        # No need to sort here because the real "sort" will be done later in make_summary
+        # No need to sort here because the real "sort" will be done later in fits_summary
         fitslist = inputs2list(
             inputs,
             sort=False,
@@ -278,10 +293,10 @@ def select_fits(
             path_to_text=path_to_text,
         )
         if selecting:
-            summary_table = make_summary(
+            summary_table = fits_summary(
                 fitslist,
                 extension=extension,
-                # extension will be parsed within make_summary (no need to care here)
+                # extension will be parsed within fits_summary (no need to care here)
                 verbose=verbose,
                 fname_option="relative",
                 keywords=type_key,
@@ -453,7 +468,7 @@ def combine_ccd(
     summary_table: `~pandas.DataFrame` or `~astropy.table.Table`
         The table which contains the metadata of files. If there are many FITS
         files and you want to use stacking many times, it is better to make a
-        summary table by `filemgmt.make_summary` and use that instead of
+        summary table by `~astroimred.fits_summary` and use that instead of
         opening FITS files' headers every time you call this function. If you
         want to use `summary_table` instead of `fitslist` and have set
         ``ccddata=True``, you must not have `None` or ``NaN`` value in the
@@ -464,7 +479,7 @@ def combine_ccd(
         FITS files.
 
     trimsec : `str`, [`list` of] `int`, [`list` of] slice, optional
-        Section of the data to be extracted by `~imred.hduutil.imslice`.
+        Section of the data to be extracted by `~astroimred.imops.ccdutils.imslice`.
         Default is `None`.
 
     output : path-like or `None`, optional.
@@ -698,7 +713,7 @@ def combine_ccd(
         inputs=fitslist if fitslist is not None else summary_table,
         table_filecol=table_filecol,
         extension=extension,
-        # extension will be parsed within make_summary/load_ccd (no need to care here)
+        # extension will be parsed within fits_summary/load_ccd (no need to care here)
         unit=unit,
         type_key=type_key,
         type_val=type_val,
@@ -725,7 +740,7 @@ def combine_ccd(
     # Normalize by exposure
     # TODO: Let it accept summary table as well as fitslist
     if normalize_exposure:
-        tmp = make_summary(
+        tmp = fits_summary(
             fitslist=fitslist, keywords=[exposure_key], verbose=False, sort_by=None
         )
         exptimes = tmp[exposure_key].tolist()

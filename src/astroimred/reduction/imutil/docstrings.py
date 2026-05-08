@@ -104,15 +104,10 @@ def NDCOMB_NOT_IMPLEMENTED(indent=0):
     return _fix(
         '''
 .. warning::
-    Few functionalities are not implemented yet:
 
-        #. blank option
-        #. logfile
-        #. statsec with input, output, overlap
-        #. weight
-        #. scale_sample, zero_sample
-        #. ``"mode"`` for scale, zero, weight
-        #. memlimit behaviour''', indent)
+    A few options are not implemented yet: blank, logfile, statsec with
+    input/output/overlap, weight, scale_sample, zero_sample, ``"mode"`` for
+    scale/zero/weight, and memlimit chunking.''', indent)
 
 
 def NDCOMB_PARAMETERS_COMMON(indent=0):

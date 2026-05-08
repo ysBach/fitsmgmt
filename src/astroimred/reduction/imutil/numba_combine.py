@@ -5,7 +5,8 @@ Designed so that chunking can later pass slices arr[:, y0:y1, x0:x1]
 without changing the kernel signature (same 3D array, possibly a view).
 
 When has_nan is False, fast-path kernels (no isfinite checks) are used for speed.
-IMUTIL_USE_NUMBA is imported from astroimred.reduction.imutil (can be set via imred.IMUTIL_USE_NUMBA).
+IMUTIL_USE_NUMBA is imported from ``imred.imutil`` (can be set via
+``imred.IMUTIL_USE_NUMBA``).
 """
 
 import numpy as np

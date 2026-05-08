@@ -94,27 +94,31 @@ def scancor(
 
 
 def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
-    """Do bias correction (purpose: helper function of `~imred.preproc.ccdred`)
+    """Do bias correction (purpose: helper function of `~astroimred.reduction.preproc.ccdred`)
 
     Parameters
     ----------
     ccd : `~astropy.nddata.CCDData`
         The `~astropy.nddata.CCDData` to be corrected.
-
-    mbias : `~astropy.nddata.CCDData`, `~numpy.ndarray`, optional.
+    mbias : `~astropy.nddata.CCDData`, `~numpy.ndarray`, optional
         The master calibration (bias) frame.
         Default: `None`.
-
-    mbiaspath : path-like, optional.
+    mbiaspath : path-like, optional
         The path to the master calibration (bias) frame.
         Default: `None`.
-
     copy : `bool`, optional
         Whether to return a copy of the data (`True`) or a reference to the
         original data (`False`). Using `False` will be slightly faster (few ms
         order) and memory efficient, but the original data may be modified
         unintentionally.
         Default is `True`.
+    verbose : `int`, optional
+        Verbosity level for header logging.
+
+    Returns
+    -------
+    `~astropy.nddata.CCDData`
+        Bias-corrected CCD.
     """
     if mbias is None and mbiaspath is None:
         return ccd.copy() if copy else ccd
@@ -130,7 +134,7 @@ def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
         "h",
         verbose=verbose >= 1,
         t_ref=_t,
-        s=f"[imred.biascor] Bias subtracted (BIASFRM = {mbiasname})",
+        s=f"[biascor] Bias subtracted (BIASFRM = {mbiasname})",
     )
     update_process(nccd.header, "B")
     return nccd
@@ -147,43 +151,43 @@ def darkcor(
     copy=True,
     verbose=1,
 ):
-    """Do dark correction (purpose: helper function of `~imred.preproc.ccdred`)
+    """Do dark correction (purpose: helper function of `~astroimred.reduction.preproc.ccdred`)
 
     Parameters
     ----------
     ccd : `~astropy.nddata.CCDData`
         The `~astropy.nddata.CCDData` to be corrected.
-
-    mdark : `~astropy.nddata.CCDData`, `~numpy.ndarray`, optional.
+    mdark : `~astropy.nddata.CCDData`, `~numpy.ndarray`, optional
         The master calibration (dark) frame.
         Default: `None`.
-
-    mdarkpath : path-like, optional.
+    mdarkpath : path-like, optional
         The path to the master calibration (dark) frame.
         Default: `None`.
-
-    exptime_key : `str`, optional.
-        The keyword of the exposure time in the header. Used only if
-        `dark_scale` is `True`.
-
-    exptime_data, exptime_dark : numeric, optional.
+    exptime_key : `str`, optional
+        Header keyword for exposure time. Used only if `dark_scale` is `True`.
+    exptime_data, exptime_dark : numeric, optional
         The exposure time of the data and the dark frame in the same unit. If
         `None`, ``exptime = header.get(exptime_key, 1)`` is used for data and
         dark, respectively. Otherwise, header information is ignored.
         Ignored if `dark_scale` is `False`.
         Default: `None`
-
-    dark_scale : `bool`, optional.
-        Whether to scale dark frame. If `True`, ``scale = exptime_data/exptime_dark`` is
-        multiplied to dark frame.
+    dark_scale : `bool`, optional
+        Whether to scale dark frame. If `True`,
+        ``scale = exptime_data/exptime_dark`` is multiplied to dark frame.
         Default: `False`
-
     copy : `bool`, optional
         Whether to return a copy of the data (`True`) or a reference to the
         original data (`False`). Using `False` will be slightly faster (few ms
         order) and memory efficient, but the original data may be modified
         unintentionally.
         Default is `True`.
+    verbose : `int`, optional
+        Verbosity level for header logging.
+
+    Returns
+    -------
+    `~astropy.nddata.CCDData`
+        Dark-corrected CCD.
     """
 
     if mdark is None and mdarkpath is None:
@@ -198,7 +202,7 @@ def darkcor(
         exptime_data = exptime_data or ccd.header.get(exptime_key, None)
         exptime_dark = exptime_dark or mdark.header.get(exptime_key, None)
 
-        msg = "[imred.darkcor] Dark scaled by exptime: "
+        msg = "[darkcor] Dark scaled by exptime: "
         if exptime_data is None or exptime_dark is None:
             logger.warning(
                 "exptime_data=%s, exptime_dark=%s. Fix scale=1.",
@@ -226,7 +230,7 @@ def darkcor(
         "h",
         verbose=verbose >= 1,
         t_ref=_t,
-        s=f"[imred.darkcor] Dark subtracted (DARKFRM = {mdarkname})",
+        s=f"[darkcor] Dark subtracted (DARKFRM = {mdarkname})",
     )
     update_process(nccd.header, "D")
     return nccd
@@ -243,42 +247,42 @@ def flatcor(
     flat_norm_value=1,
     verbose=1,
 ):
-    """Do flat correction (purpose: helper function of `~imred.preproc.ccdred`)
+    """Do flat correction (purpose: helper function of `~astroimred.reduction.preproc.ccdred`)
 
     Parameters
     ----------
     ccd : `~astropy.nddata.CCDData`
         The `~astropy.nddata.CCDData` to be corrected.
-
-    mflat : `~astropy.nddata.CCDData`, `~numpy.ndarray`, optional.
+    mflat : `~astropy.nddata.CCDData`, `~numpy.ndarray`, optional
         The master calibration (flat) frame.
         Default: `None`.
-
-    mflatpath : path-like, optional.
-        The path to the master calibration (dark) frame.
+    mflatpath : path-like, optional
+        The path to the master calibration (flat) frame.
         Default: `None`.
-
-    flat_mask : numeric, `~numpy.ndarray`, `None`, optional.
+    flat_mask : numeric, `~numpy.ndarray`, `None`, optional
         Mask to replace bad flat pixels by ``mflat[flat_mask] = flat_fill``. If
         numeric, ``mflat[mflat < flat_mask] = flat_fill``. Skipped if `None`.
         Default: ``0``
-
-    flat_fill : numeric, optional.
+    flat_fill : numeric, optional
         The value to fill the masked pixels.
         Default: ``1``.
-
     copy : `bool`, optional
         Whether to return a copy of the data (`True`) or a reference to the
         original data (`False`). Using `False` will be slightly faster (few ms
         order) and memory efficient, but the original data may be modified
         unintentionally.
         Default is `True`.
-
-    flat_norm_value : numeric, optional.
-        The value to normalize the flat frame. If `None`, the flat frame will
-        be normalized by its mean. If numeric, the flat frame will be
-        divided by this value.
+    flat_norm_value : numeric, optional
+        If `None`, normalize the flat by its mean. Otherwise divide the flat by
+        this value before correction.
         Default: ``1``.
+    verbose : `int`, optional
+        Verbosity level for header logging.
+
+    Returns
+    -------
+    `~astropy.nddata.CCDData`
+        Flat-corrected CCD.
     """
     if mflat is None and mflatpath is None:
         return ccd.copy() if copy else ccd
@@ -298,7 +302,7 @@ def flatcor(
             nccd.header,
             "h",
             verbose=verbose >= 1,
-            s=(f"[imred.flatcor] {maskstr} are replaced by `{flat_fill = }`."),
+            s=(f"[flatcor] {maskstr} are replaced by `{flat_fill = }`."),
         )
 
     if flat_norm_value is None:
@@ -307,7 +311,7 @@ def flatcor(
             nccd.header,
             "h",
             verbose=verbose >= 1,
-            s=("[imred.flatcor] Flat normalized by its mean."),
+            s=("[flatcor] Flat normalized by its mean."),
         )
     elif float(flat_norm_value) != 1.0:
         mflat /= float(flat_norm_value)
@@ -315,7 +319,7 @@ def flatcor(
             nccd.header,
             "h",
             verbose=verbose >= 1,
-            s=(f"[imred.flatcor] Flat divided by {flat_norm_value = }."),
+            s=(f"[flatcor] Flat divided by {flat_norm_value = }."),
         )
 
     nccd.data = nccd.data / mflat
@@ -325,7 +329,7 @@ def flatcor(
         "h",
         verbose=verbose >= 1,
         t_ref=_t,
-        s=f"[imred.flatcor] Flat corrected (FLATFRM = {mflatname})",
+        s=f"[flatcor] Flat corrected (FLATFRM = {mflatname})",
     )
     update_process(nccd.header, "F")
 
@@ -401,7 +405,7 @@ def frincor(
         fringe_scale_kw = {}
 
     def _str(_ccd, frm, sec=None, fun=None, scal=None):
-        str1 = f"[imred.ccdred.frincor] Fringe subtracted (FRINFRM = {frm})"
+        str1 = f"[frincor] Fringe subtracted (FRINFRM = {frm})"
         _ccd.header["FRINFRM"] = (frm, "Fringe frame")
         noscal = scal is None
         nosec = sec is None
@@ -409,7 +413,7 @@ def frincor(
         if noscal and nofun and nosec:
             return str1
 
-        str2 = "[imred.ccdred.frincor] IMAGE - FRINSCAL*FRINFRM "
+        str2 = "[frincor] IMAGE - FRINSCAL*FRINFRM "
         elems = []
         if not noscal:  # scal is not None
             _ccd.header["FRINSCAL"] = (scal, "Scale FRINFUNC(FRINFRM[FRINSECT])")
@@ -483,6 +487,10 @@ def frincor(
 def illumcor(
     ccd,
 ):
+    """Apply illumination correction.
+
+    This placeholder is reserved for a future implementation.
+    """
     raise NotImplementedError("illumcor is not implemented yet.")
 
 
@@ -700,7 +708,7 @@ def ccdred(
         if path is not None and master is None:
             master = load_ccd(
                 path, ccddata=False
-            )  # beacuse it will be forced to CCDData
+            )  # because it will be forced to CCDData
 
         do = True
         master, imname, _ = _parse_image(master, name=path, force_ccddata=True)
@@ -851,28 +859,30 @@ def run_reduc_plan(
     return_ccd=False,
     verbose=False,
 ):
-    """Run reduction(preprocessing) based on the planner.
+    """Run `ccdred` for each row in a reduction plan.
 
     Parameters
     ----------
     plan : `~pandas.DataFrame`
-
-    col_bias, col_dark, col_flat, col_mask, col_fringe : `str`, optional
+        Table containing input files and calibration-frame columns.
+    output : path-like or sequence of path-like, optional
+        Output path for each row. Required unless ``return_ccd=True``.
+    extension : int, str, or tuple, optional
+        FITS extension to load.
+    col_file, col_bias, col_dark, col_flat, col_mask, col_fringe : str, optional
         The column names for bias, dark, flat, mask, and fringe frames in
-        `plan`. Default values are set following IRAF convention.
+        `plan`. Default values follow IRAF convention.
+    fixpix_kw, do_crrej : optional
+        Options for bad-pixel fixing and cosmic-ray rejection.
+    preload_cals, return_ccd, verbose : bool, optional
+        Whether to preload calibration frames, return reduced CCDs, and log
+        progress.
 
-    preload_cals : `bool`, optional
-        Whether to pre-load all the calibration frames. This reduces file I/O
-        time if same file have to be loaded for multiple times. Turn it off
-        when too many calibration frames are there (so that memery cannot hold
-        them).
-        Default: `False`.
-
-    verbose : `bool`, optional
-        [description], by default `False`
-        Default: `False`.
-    verbose_bdf : `bool`, optional
-        [description], by default `True`
+    Returns
+    -------
+    list of `~astropy.nddata.CCDData` or None
+        Reduced CCDs if ``return_ccd=True``; otherwise writes outputs and
+        returns `None`.
     """
 
     def _get_frms(df, col):

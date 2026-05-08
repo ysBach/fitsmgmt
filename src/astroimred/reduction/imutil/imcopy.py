@@ -20,16 +20,20 @@ def imcopy(
     update_header=True,
     **kwargs,
 ):
-    """Similar to IRAF IMCOPY
+    """Copy FITS images or sections, similar to IRAF IMCOPY.
 
     Parameters
     ----------
-    inputs : glob pattern, `list`-like of path-like, `list`-like of `~astropy.nddata.CCDData`
-        The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
-        files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
-        good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of `~imred.imutil.imcombine` function, the best use is to
-        use the `~glob` pattern or `list` of paths.
+    inputs : glob pattern, path-like, CCD-like, or list-like
+        Input files or CCD-like objects.
+
+    trimsecs : str or list-like of str, optional
+        FITS sections to extract. Bracket embraced, comma separated, XY order,
+        1-indexing, and including the end index. If given as array-like format
+        of length ``N``, all such sections in all FITS files will be extracted.
+
+    outputs : path-like or list-like, optional
+        Output paths. If list-like, shape must match ``(n_inputs, n_sections)``.
 
     extension : `int`, `str`, (`str`, `int`), optional.
         The extension of FITS to be used. It can be given as integer
@@ -38,37 +42,19 @@ def imcopy(
         extension with data* will be used.
         Default: `None`.
 
-    trimsecs : `str` or array-like of such, optional.
-        The section specified by FITS convention, i.e., bracket embraced, comma
-        separated, XY order, 1-indexing, and including the end index. If given
-        as array-like format of length ``N``, all such sections in all FITS
-        files will be extracted.
-        Default: `None`.
+    return_ccd, update_header : bool, optional
+        Whether to return CCDData objects and update ``NAXIS*`` metadata.
 
-    outputs : path-like or array-like of such, optional.
-        The output paths of each FITS file to be copied. If array-like, it must
-        have the shape of ``(M, N)`` where ``M`` and ``N`` are the sizes of
-        `fpaths` and `trimsecs`, respectively.
-        Default: `None`.
+    dtype : dtype-like, optional
+        Output/return data dtype. If `None`, preserve input dtype.
 
-    return_ccd : `bool`, optional.
-        Whether to load the FITS files as `~astropy.nddata.CCDData` and return it.
-        Default: `True`.
-
-    dtype : dtype, optional.
-        The dtype for the `outputs` or returning ccds. If `None` (default),
-        don't change anything.
-        Default: `None`.
-
-    kwargs : optional
-        The keyword arguments for ``~astropy.nddata.CCDData.write``.
+    **kwargs
+        Keyword arguments passed to ``CCDData.write``.
 
     Returns
     -------
-    results: `~astropy.nddata.CCDData` or `list` of `~astropy.nddata.CCDData`
-        Only if `return_ccd` is set `True`. A single `~astropy.nddata.CCDData
-        will be returned if only one was input. Otherwise, the same number of
-        `~astropy.nddata.CCDData will be gathered as a `list` and returned.
+    `~astropy.nddata.CCDData` or list of `~astropy.nddata.CCDData`
+        Returned only when ``return_ccd=True``.
 
     Notes
     -----
@@ -90,16 +76,16 @@ def imcopy(
     >>> outputs = [datapath/"test1.fits", datapath/"test2.fits"]
     >>>
     >>> # single file, single section
-    >>> trim = imred.imcopy(pcrfits[0], sections[0])
+    >>> trim = imred.imcopy(files[0], sections[0])
     >>>
     >>> # single file, multi sections
-    >>> trims = imred.imcopy(pcrfits[0], sections)
+    >>> trims = imred.imcopy(files[0], sections)
     >>>
     >>> # Save with overwrite option
-    >>> imred.imcopy(pcrfits[0], sections, outputs=outputs, overwrite=True)
+    >>> imred.imcopy(files[0], sections, outputs=outputs, overwrite=True)
     >>>
     >>> # multi file multi section
-    >>> trims2d = imred.imcopy(pcrfits[:2], trimsecs=sections, outputs=None)
+    >>> trims2d = imred.imcopy(files[:2], trimsecs=sections, outputs=None)
     """
     to_trim = False
     to_save = False
