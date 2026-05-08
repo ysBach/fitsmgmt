@@ -1,10 +1,8 @@
 from pathlib import Path
-from warnings import warn
 
 import ccdproc
 import numpy as np
 import pandas as pd
-from astro_ndslice import listify
 from astropy.io import fits
 from astropy.nddata import CCDData, StdDevUncertainty
 from astropy.table import Table
@@ -28,7 +26,6 @@ __all__ = [
     "weighted_mean",
     "group_fits",
     "select_fits",
-    "stack_FITS",
     "combine_ccd",
 ]
 
@@ -62,7 +59,7 @@ def group_fits(
     table_filecol="file",
     verbose=False,
 ):
-    """Organize the group_by and type_key for stack_FITS
+    """Organize the group_by and type_key for select_fits
 
     Parameters
     ----------
@@ -87,7 +84,7 @@ def group_fits(
         The table after the grouping process.
 
     group_type_key : `list` of `str`
-        The `type_key` that can directly be used for `stack_FITS` for each
+        The `type_key` that can directly be used for `select_fits` for each
         element of `grouped.groups`. Basically this is ``type_key +
         group_key``.
 
@@ -412,260 +409,6 @@ def select_fits(
     return matched
 
 
-# !FIXME: Remove in the future
-def stack_FITS(
-    fitslist=None,
-    summary_table=None,
-    extension=None,
-    unit=None,
-    table_filecol="file",
-    trimsec=None,
-    ccddata=True,
-    asccd=True,
-    type_key=None,
-    type_val=None,
-    verbose=True,
-):
-    """Stacks the FITS files specified in fitslist
-
-    Parameters
-    ----------
-    fitslist : `None`, [`list` of] path-like, or [`list` of] `~astropy.nddata.CCDData`, optional.
-        The `list` of path to FITS files or the `list` of `~astropy.nddata.CCDData` to be stacked. It
-        is useful to give `list` of `~astropy.nddata.CCDData` if you have already stacked/loaded
-        FITS file into a `list` by your own criteria. If `None` (default), you
-        must give `fitslist` or `summary_table`. If it is not `None`, this
-        function will do very similar job to that of `ccdproc.combine`.
-        Although it is not a good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to
-        the files is also acceptable.
-        Default: `None`.
-
-    summary_table : `None`, `~pandas.DataFrame` or `~astropy.table.Table`, optional.
-        The table which contains the metadata of files. If there are many FITS
-        files and you want to use stacking many times, it is better to make a
-        summary table by `filemgmt.make_summary` and use that instead of
-        opening FITS files' headers every time you call this function. If you
-        want to use `summary_table` instead of `fitslist` and have set
-        ``ccddata=True``, you must not have `None` or ``NaN`` value in the
-        ``summary_table[table_filecol]``.
-        Default: `None`.
-
-    extension : `int`, `str`, (`str`, `int`), optional.
-        The extension of FITS to be used. It can be given as integer
-        (0-indexing) of the extension, ``EXTNAME`` (single `str`), or a `tuple` of
-        `str` and `int`: ``(EXTNAME, EXTVER)``. If `None` (default), the *first
-        extension with data* will be used.
-        Default: `None`.
-
-    unit: `~astropy.units.Unit` or `str`, optional
-        The unit of the CCDs to be loaded.
-        Used only when `fitslist` is not a `list` of `~astropy.nddata.CCDData`
-        and `ccddata` is `True`.
-        Default: `None`.
-
-    table_filecol : `str`, optional.
-        The column name of the `summary_table` which contains the path to the FITS files.
-        Default: ``'file'``.
-
-    trimsec : `str`, [`list` of] `int`, [`list` of] slice, optional
-        Section of the data to be extracted by `~imred.hduutil.imslice`.
-        Default is `None`.
-
-    ccddata: `bool`, optional
-        Whether to return file paths or loaded `~astropy.nddata.CCDData.` If `False`, it is a
-        function to select FITS files using `type_key` and `type_val` without
-        using much memory.
-        This is ignored if `fitslist` is given and composed of
-        `~astropy.nddata.CCDData` objects.
-
-    type_key, type_val: `str`, `list` of `str`
-        The header keyword for the ccd type, and the value you want to match.
-        Default: `True`.
-
-    asccd : `bool`, optional.
-        Whether to load as `~astropy.nddata.CCDData`. If `False`, numpy `~numpy.ndarray`
-        will be used. Works only if ``ccddata = True``.
-        Default: `True`.
-
-    Returns
-    -------
-    matched: `list` of `~pathlib.Path` or `list` of `~astropy.nddata.CCDData`
-        `list` containing `~pathlib.Path` to files if `ccddata` is `False`. Otherwise it is
-        a `list` containing loaded `~astropy.nddata.CCDData` after loading the files. If `ccdlist`
-        is given a priori, `list` of `~astropy.nddata.CCDData` will be returned regardless of
-        `ccddata`.
-    """
-    warn("stack_FITS is deprecated; use select_fits.", DeprecationWarning)
-
-    def _parse_val(value):
-        val = str(value)
-        if val.lstrip("+-").isdigit():  # if int
-            result = int(val)
-        else:
-            try:
-                result = float(val)
-            except ValueError:
-                result = str(val)
-        return result
-
-    def _check_mismatch(row):
-        mismatch = False
-        for k, v in zip(type_key, type_val):
-            hdr_val = _parse_val(row[k])
-            parse_v = _parse_val(v)
-            if hdr_val != parse_v:
-                mismatch = True
-                break
-        return mismatch
-
-    if (fitslist is not None) + (summary_table is not None) != 1:
-        raise ValueError(
-            "One and only one of fitslist or summary_table must be not None."
-        )
-
-    # Check for type_key and type_val
-    type_key, type_val, _ = chk_keyval(
-        type_key=type_key, type_val=type_val, group_key=None
-    )
-
-    # Setting whether we have to select a subset from the list
-    selecting = True if len(type_key) > 0 else False
-
-    if verbose:
-        logger.info("Analyzing FITS...")
-
-    # ************************************************************************************ #
-    # *                            MAKE FITSLIST AND SUMMARY_TABLE                       * #
-    # ************************************************************************************ #
-    # == If fitslist ===================================================================== #
-    if fitslist is not None:
-        fitslist = listify(fitslist)
-
-        if selecting:
-            summary_table = make_summary(
-                fitslist,
-                extension=extension,
-                # extension will be parsed within make_summary (no need to care here)
-                verbose=verbose,
-                fname_option="relative",
-                keywords=type_key,
-                sort_by=None,
-            )
-        # else:
-        #   no need to make summary_table.
-    # == If summary_table ================================================================ #
-    elif summary_table is not None:
-        if isinstance(summary_table, Table):
-            summary_table = summary_table.to_pandas()
-        elif not isinstance(summary_table, pd.DataFrame):
-            raise TypeError(
-                "summary_table must be an astropy Table or Pandas DataFrame. "
-                + f"It's now {type(summary_table)}."
-            )
-        else:
-            try:
-                summary_table.reset_index(inplace=True)
-            except ValueError:
-                pass
-        fitslist = summary_table[table_filecol].tolist()
-
-    if verbose:
-        if ccddata:
-            logger.info("Done and loading FITS...")
-        else:
-            logger.info("Done.")
-
-    # ************************************************************************************ #
-    # *                             SELECT AND LOAD TO MATCHED                           * #
-    # ************************************************************************************ #
-    matched = []
-    if selecting:
-        # == Select FITS based on type_key and type_val ================================== #
-        for i, row in summary_table.iterrows():
-            # I intentionally used iterrows instead of making mask, because for some cases
-            # the keyword (e.g., an angle) can contain both str and float among CCDs.
-            #    For example, if we want to select ``angle == 0.0``, masking cannot work
-            # because the column has dtype of object (``summary_table[column].dtype`` is
-            # ``object```).
-            #    Instead, _check_mismatch tries to convert the value found in the header to
-            # int, and if it fails, tries float, and finally uses str. This is the most
-            # natural way I could think of.
-            # ysBach, 2020-05-15 09:44:13 (KST: GMT+09:00)
-            mismatch = _check_mismatch(row)
-            if mismatch:  # skip this row (file)
-                continue
-
-            # if not skipped:
-            # TODO: Is it better to remove Path here?
-            if isinstance(fitslist[i], CCDData):
-                if asccd:
-                    matched.append(fitslist[i])
-                else:
-                    matched.append(fitslist[i].data)
-            else:  # it must be a path to a file
-                fpath = Path(fitslist[i])
-                if ccddata:
-                    # extension will be parsed within load_ccd (no need to care here)
-                    ccd_i = load_ccd(fpath, extension=extension, unit=unit)
-                    if trimsec is not None:
-                        ccd_i = imslice(ccd_i, trimsec=trimsec)
-                    if asccd:
-                        matched.append(ccd_i)
-                    else:
-                        matched.append(ccd_i.data)
-                else:
-                    matched.append(fpath)
-    else:
-        # == Use all item in fitslist ==================================================== #
-        # summary_table is not used.
-        for item in fitslist:
-            if isinstance(item, CCDData):
-                if asccd:
-                    matched.append(item)
-                else:
-                    matched.append(item.data)
-            else:  # it must be a path to a file
-                if ccddata:
-                    # extension will be parsed within load_ccd (no need to care here)
-                    ccd_i = load_ccd(item, extension=extension, unit=unit)
-                    if trimsec is not None:
-                        ccd_i = imslice(ccd_i, trimsec=trimsec)
-                    if asccd:
-                        matched.append(ccd_i)
-                    else:
-                        matched.append(ccd_i.data)
-                else:  # TODO: Is it better to remove Path here?
-                    matched.append(Path(item))
-
-    # ************************************************************************************ #
-    # *                           PRINT INFO MESSAGE OR WARNING                          * #
-    # ************************************************************************************ #
-    if len(matched) == 0:
-        if selecting:
-            logger.warning(
-                'No FITS file had "%s = %s". Maybe int/float/str confusing?',
-                type_key,
-                type_val,
-            )
-        else:
-            logger.warning("No FITS file found")
-    else:
-        if selecting:
-            N = len(matched)
-            ks = str(type_key)
-            vs = str(type_val)
-            if verbose:
-                if ccddata:
-                    logger.info('%d FITS files with "%s = %s" are loaded.', N, ks, vs)
-                else:
-                    logger.info('%d FITS files with "%s = %s" are selected.', N, ks, vs)
-        else:
-            if verbose and ccddata:
-                logger.info("%d FITS files are loaded.", len(matched))
-
-    return matched
-
-
 # TODO: accept the input like ``sigma_clip_func='median'``, etc.
 def combine_ccd(
     fitslist=None,
@@ -950,20 +693,18 @@ def combine_ccd(
     extension = _parse_extension(extension)
 
     # Select CCDs by
-    ccdlist = stack_FITS(
-        fitslist=fitslist,
-        summary_table=summary_table,
+    ccdlist = select_fits(
+        inputs=fitslist if fitslist is not None else summary_table,
         table_filecol=table_filecol,
         extension=extension,
         # extension will be parsed within make_summary/load_ccd (no need to care here)
         unit=unit,
         type_key=type_key,
         type_val=type_val,
-        ccddata=False,
+        prefer_ccddata=False,
         verbose=verbose,
     )
-    #  trimsec=trimsec,
-    # ccddata=False: Loading CCD here may cause memory blast...
+    # prefer_ccddata=False: Loading CCD here may cause memory blast...
 
     try:
         header = ccdlist[0].header
@@ -1026,7 +767,7 @@ def combine_ccd(
             sigma_clip=sigma_clip,
             mem_limit=mem_limit,
             combine_uncertainty_function=combine_uncertainty_function,
-            unit=unit,  # user-given unit is already applied by stack_FITS
+            unit=unit,  # user-given unit is already applied by select_fits
             hdu=extension,
             scale=scale,
             dtype=dtype,
