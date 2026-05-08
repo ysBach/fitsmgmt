@@ -397,6 +397,8 @@ def imarith(
             t_ref=_t,
             verbose=verbose,
         )
+        if not isinstance(res, CCDData):
+            res.verify("silentfix")
 
         if output is not None:
             if isinstance(res, CCDData):
