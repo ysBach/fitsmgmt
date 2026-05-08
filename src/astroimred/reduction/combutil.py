@@ -11,7 +11,7 @@ from astropy.table import Table
 from astropy.time import Time
 from ccdproc import combine
 
-from astroimred.filemgmt import load_if_exists, make_summary
+from astroimred.filemgmt import make_summary
 from astroimred.hduutil import (
     CCDData_astype,
     _parse_extension,
@@ -919,7 +919,11 @@ def combine_ccd(
         else:
             if verbose:
                 logger.info("%s already exists", output)
-            return load_if_exists(output, loader=CCDData.read, if_not=None)
+                logger.info("Loading the existing %s...", output)
+            master = CCDData.read(output)
+            if verbose:
+                logger.info("Done")
+            return master
 
     # Do we really need to accept all three of normalize & scale?
     # if scale is None:
