@@ -7,7 +7,6 @@ from astro_ndslice import slice_from_string
 from astropy.io import fits
 from astropy.nddata import CCDData
 
-from .ccdutils import cut_ccd
 from .headers import key_mapper, key_remover
 from .logging import logger
 
@@ -219,6 +218,8 @@ def fitsrenamer(
     # TODO: Maybe I can put some LTV-like keys to the header, rather
     #   than this crazy code...? (ysBach 2019-05-09)
     if trimsec is not None:
+        from ..imops.ccdutils import cut_ccd
+
         slices = slice_from_string(trimsec, fits_convention=True)
         # initially guess start and stop indices as 0's and from shape in (ny, nx) order
         ny, nx = data[slices].shape

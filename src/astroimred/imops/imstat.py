@@ -10,7 +10,7 @@ from astropy.io import fits
 from astropy.stats import mad_std
 from astropy.visualization import ZScaleInterval
 
-from .logging import logger
+from ..mgmt.logging import logger
 
 try:
     import numexpr as ne

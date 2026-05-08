@@ -9,9 +9,9 @@ from astropy.nddata import CCDData, Cutout2D
 from astropy.time import Time
 from astropy.wcs import WCS
 
-from . import headers, io as _io
-from .io import inputs2list
-from .logging import logger
+from ..mgmt import headers, io as _io
+from ..mgmt.io import inputs2list
+from ..mgmt.logging import logger
 from .mathutils import binning
 
 __all__ = [

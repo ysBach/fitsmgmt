@@ -9,7 +9,6 @@ from astro_ndslice import listify
 from astropy import units as u
 from astropy.time import Time
 
-from . import mathutils
 from .logging import logger
 
 try:
@@ -88,7 +87,9 @@ def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
         Maximum clipping iterations.
     """
     if cenfunc == "wvg":
-        cenfunc = lambda val, err: mathutils.weighted_avg(val, err)[0]
+        from ..imops.mathutils import weighted_avg
+
+        cenfunc = lambda val, err: weighted_avg(val, err)[0]
     elif cenfunc in ["avg", "average", "mean"]:
         cenfunc = lambda val, err: np.mean(val)[0]  # err is dummy
     else:

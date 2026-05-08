@@ -23,7 +23,6 @@ from astropy.visualization import (
     SquaredStretch,
     ZScaleInterval,
 )
-from matplotlib.ticker import FixedLocator
 
 __all__ = ["znorm", "zimshow", "norm_imshow", "astropy_stretch", "imshow_norm"]
 
@@ -204,6 +203,8 @@ def _apply_center_origin_ticks(
     else:
         x_offsets = list(xticks)
     x_pixel = [o + center_col for o in x_offsets]
+    from matplotlib.ticker import FixedLocator
+
     ax.xaxis.set_major_locator(FixedLocator(x_pixel))
     ax.set_xticklabels([str(o) for o in x_offsets])
 

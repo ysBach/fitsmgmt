@@ -599,7 +599,7 @@ def _load_ccd_astropy(
 
     if trimsec is not None:
         # Do imslice AFTER loading the data to easily add LTV/LTM...
-        from .ccdutils import imslice
+        from ..imops.ccdutils import imslice
 
         ccd = imslice(ccd, trimsec=trimsec)
 

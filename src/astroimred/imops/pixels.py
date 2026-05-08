@@ -5,7 +5,7 @@ from astro_ndslice import bezel2slice
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from . import headers, io as _io
+from ..mgmt import headers, io as _io
 
 __all__ = [
     "fixpix",
