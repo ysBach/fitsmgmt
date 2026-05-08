@@ -793,9 +793,10 @@ def scancor(
         Keyword arguments passed to the fitting function.
         Default is ``dict(sigma=(3, 3), maxiters=1, grow=0)``.
     """
-    if fit_kw is None:
-        fit_kw = dict(sigma=(3, 3), maxiters=1, grow=0)
-    pass
+    raise NotImplementedError("scancor is not implemented yet.")
+    # if fit_kw is None:
+    #     fit_kw = dict(sigma=(3, 3), maxiters=1, grow=0)
+    # pass
 
 
 def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
@@ -1188,7 +1189,7 @@ def frincor(
 def illumcor(
     ccd,
 ):
-    pass
+    raise NotImplementedError("illumcor is not implemented yet.")
 
 
 # TODO: add overscan
