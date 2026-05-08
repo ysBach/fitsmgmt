@@ -4,35 +4,38 @@ import bottleneck as bn
 import numpy as np
 import pandas as pd
 from astro_ndslice import (
-    calc_offset_physical,
-    calc_offset_wcs,
     is_list_like,
     listify,
     offseted_shape,
-    slicefy,
 )
-from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
-from astropy.table import Table
 from astropy.time import Time
-from astropy.wcs import WCS
 
 from ..combutil import group_fits
-from astroimred.filemgmt import make_summary
-from astroimred.hduutil import (
-    _parse_data_header,
-    _parse_extension,
+from astroimred.mgmt.summary import fits_summary
+from astroimred.mgmt.io import (
     inputs2list,
     load_ccd,
-    write2fits,
 )
-from astroimred.mgmt.misc import cmt2hdr, get_size, str_now, update_tlm
+from astroimred.mgmt.headers import cmt2hdr
+from astroimred.mgmt.io import _parse_extension
+from astroimred.mgmt.misc import str_now
 from astroimred.mgmt.logging import logger
 from . import docstrings
+from ._imcombine_fits import (
+    apply_output_offsets,
+    check_stack_memory,
+    extract_stack_metadata,
+    init_log_table,
+    load_full_stack,
+    log_zsw_table,
+    update_hdr,
+    write_imcombine_logfile,
+    write_imcombine_outputs,
+)
 from .util_comb import (
     _set_cenfunc,
     _set_combfunc,
-    _set_gain_rdns,
     _set_int_dtype,
     _set_keeprej,
     _set_mask,
@@ -91,11 +94,11 @@ def group_combine(
     Parameters
     ----------
     inputs : `~pandas.DataFrame`, glob pattern, `list`-like of path-like
-        If `DataFrame`, it must be the summary table made by `make_summary`.
+        If `DataFrame`, it must be the summary table made by ``fm.fits_summary``.
         The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
         files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
         good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of `~imred.imutil.imcombine` function, the best use is to
+        acceptable. For the purpose of ``imred.imcombine``, the best use is to
         use the `~glob` pattern or `list` of paths.
 
     type_key, type_val : `str`, `list` of `str`
@@ -109,31 +112,33 @@ def group_combine(
         Default: `None`.
 
     verbose : `int`, optional.
-        Larger number means it becomes more verbose::
+        Larger number means it becomes more verbose:
 
-          * 0: print nothing
-          * 1: Only very essential things from this function
-          * 2: + verbose from each imred.imutil.imcombine
+        * 0: print nothing
+        * 1: only essential messages from this function
+        * 2: also pass verbose mode to ``imred.imcombine``
+
         Default: ``1``.
 
-    fmt : `str`, optinal, optional.
+    fmt : `str`, optional
         The f-string for the output file names.
 
-        ..example:: If `group_key="EXPTIME"` and we had two groups of
+        Example: if `group_key="EXPTIME"` and there are two groups where
           ``EXPTIME`` is 1.0 and 2.0,
 
-          * ``"dark_{:.1f}s"`` --> ``dark_1.0s.fits`` and ``dark_2.0s.fits``
-          * For `float`, non-specification such as ``"d{}"`` is not recommended
-            (filename can be ``0.3000...``).
+        * ``"dark_{:.1f}s"`` gives ``dark_1.0s.fits`` and ``dark_2.0s.fits``.
+        * For `float`, non-specification such as ``"d{}"`` is not recommended
+          because filenames can contain long floating-point representations.
 
-        ..example:: If two `group_key`'s are used, resulting in ``("B", 2.0)``,
-          ``("V", 12.0)``, ...:
+        If two `group_key` values are used, resulting in ``("B", 2.0)``,
+        ``("V", 12.0)``, ...:
 
-          * ``"flat_{2:04.1f}_{1:s}"`` --> ``"flat_02.0_B.fits"`` and
-            ``"flat_12.0_V.fits"``
+        * ``"flat_{2:04.1f}_{1:s}"`` gives ``"flat_02.0_B.fits"`` and
+          ``"flat_12.0_V.fits"``.
+
         Default: `None`.
 
-    outdir : path-like, optinal, optional.
+    outdir : path-like, optional
         The directory where the output fits files will be saved.
 
     **kwargs :
@@ -188,12 +193,12 @@ def group_combine(
         summary = inputs.copy()
     elif isinstance(inputs, str):  # glob pattern
         load_fits = True
-        summary = make_summary(inputs, verbose=verbose >= 2)
+        summary = fits_summary(inputs, verbose=verbose >= 2)
     else:
         inputs = listify(inputs)
         load_fits = False if isinstance(inputs[0], CCDData) else True
         # Assume all are CCDData if the first element is CCDData
-        summary = make_summary(inputs, verbose=verbose >= 2)
+        summary = fits_summary(inputs, verbose=verbose >= 2)
 
     gs, gt_key = group_fits(
         summary, type_key=type_key, type_val=type_val, group_key=group_key
@@ -268,63 +273,6 @@ def group_save(combined, fmt="", verbose=1, outdir=None):
         ccd.write(fpath, overwrite=True)
 
 
-def _update_hdr(
-    header,
-    ncombine,
-    imcmb_key,
-    imcmb_val,
-    offset_mode=None,
-    offsets=None,
-    zeros=None,
-    scales=None,
-    weights=None,
-):
-    """**Inplace** update of the given header"""
-
-    def __rm_and_add(hdr, keybase, values):
-        for i in range(999):
-            if f"{keybase}{i+1:03d}" in hdr:
-                del hdr[f"{keybase}{i+1:03d}"]
-            else:
-                break
-
-        for i in range(min(999, len(values))):
-            hdr[f"{keybase}{i+1:03d}"] = values[i]
-
-        return
-
-    header["NCOMBINE"] = (ncombine, "Number of combined images")
-    if imcmb_key != "":
-        header["IMCMBKEY"] = (imcmb_key, "Key used in IMCMBiii ('$I': filepath)")
-        __rm_and_add(header, "IMCMB", imcmb_val)
-        # remove header keyword IMCMBiii if it exists:
-        for i in range(999):
-            if f"IMCMB{i+1:03d}" in header:
-                del header[f"IMCMB{i+1:03d}"]
-            else:
-                break
-
-        for i in range(min(999, len(imcmb_val))):
-            header[f"IMCMB{i+1:03d}"] = imcmb_val[i]
-
-    if offset_mode is not None:
-        header["OFFSTMOD"] = (offset_mode, "Offset method used for combine.")
-        for i in range(min(999, len(imcmb_val))):
-            header[f"OFFST{i:03d}"] = str(offsets[i,][::-1].tolist())
-
-    if not np.all(zeros == 0):
-        __rm_and_add(header, "ZERO", zeros)
-
-    if not np.all(scales == 1):
-        __rm_and_add(header, "SCALE", scales)
-
-    if not np.all(weights == 1):
-        __rm_and_add(header, "WEIGH", weights)
-
-    # Add "IRAF-TLM" like header key for continuity with IRAF.
-    update_tlm(header)
-
-
 def imcombine(
     inputs,
     mask=None,
@@ -382,6 +330,7 @@ def imcombine(
     overwrite=False,
     checksum=False,
 ):
+    # === 1. Normalize defaults that must not use mutable signature values ===
     thresholds = [-np.inf, np.inf] if thresholds is None else list(thresholds)
     zero_kw = _default_zsw_kw() if zero_kw is None else dict(zero_kw)
     scale_kw = _default_zsw_kw() if scale_kw is None else dict(scale_kw)
@@ -393,6 +342,7 @@ def imcombine(
         logger.info(_t1.iso)
         logger.info("- Organizing...")
 
+    # === 2. Organize inputs and output mode ===
     full = (
         full
         or output_mask is not None
@@ -415,195 +365,51 @@ def imcombine(
         else _parse_extension(extension_uncertainty)
     )
     e_m = None if extension_mask is None else _parse_extension(extension_mask)
-    extract_hdr = imcmb_key not in [None, "", "$I"]
-    slice_load = None if trimsec is None else slicefy(trimsec)
 
-    # These must be initialized at the early stage.
-    zeros = np.zeros(shape=ncombine)
-    scales = np.ones(shape=ncombine)
-    weights = np.ones(shape=ncombine)
+    logfile, table_dict = init_log_table(items, logfile)
 
-    if logfile is not None:
-        logfile = Path(logfile)
-        table_dict = dict(file=[], filesize=[])
-
-    # == check if we should care about memory ============================================ #
-    # It usually takes < 1ms for hundreds of files
-    # What we get here is the lower bound of the total memory used.
-    # Even if chop_load is False, we later may have to use chopping when
-    # combine. See below.
-    # chop_load = False
-    item_size_tot = 0
-    for item in items:
-        try:
-            fpath = Path(item)
-            _item_size = fpath.stat().st_size
-        except (TypeError, ValueError, FileNotFoundError):
-            fpath = f"User-provided {item.__class__.__name__}"
-            _item_size = get_size(item)
-        item_size_tot += _item_size
-        if logfile is not None:
-            table_dict["file"].append(fpath)
-            table_dict["filesize"].append(_item_size)
-    # if fsize_tot > memlimit:
-    #     chop_load = True
-    # ------------------------------------------------------------------------------------ #
-
-    _, hdr0 = _parse_data_header(items[0], extension=extension, parse_data=False)
-    ndim = hdr0["NAXIS"]
-    # N x ndim. sizes[i, :] = images[i].shape
-    shapes = np.ones((ncombine, ndim), dtype=int)
-
-    extract_exptime = False
-    if isinstance(scale, str):
-        if scale.lower() in ["exp", "expos", "exposure", "exptime"]:
-            extract_exptime = True
-
-    if reject_fullname == "ccdclip":
-        extract_gain, gns = _set_gain_rdns(gain, ncombine, dtype=dtype)
-        extract_rdnoise, rds = _set_gain_rdns(rdnoise, ncombine, dtype=dtype)
-        extract_snoise, sns = _set_gain_rdns(snoise, ncombine, dtype=dtype)
-    else:
-        extract_gain, gns = False, 1
-        extract_rdnoise, rds = False, 0
-        extract_snoise, sns = False, 0
-
-    # == Extract header info ============================================================= #
-    # TODO: if offsets is None and `fsize_tot` << memlimit, why not
-    # just load all data here?
-    # initialize
-    use_wcs, use_phy = False, False
-
-    if isinstance(offsets, str):
-        if offsets.lower() in ["world", "wcs"]:
-            w_ref = WCS(hdr0)
-            use_wcs = True
-            offset_mode = "WCS"
-            offsets = np.zeros((ncombine, ndim))
-        elif offsets.lower() in ["physical", "phys", "phy"]:
-            use_phy = True
-            offset_mode = "Physical"
-            offsets = np.zeros((ncombine, ndim))
-        else:
-            raise ValueError("offsets not understood.")
-    elif offsets is None:
-        offset_mode = None
-        offsets = np.zeros((ncombine, ndim))
-    else:
-        if offsets.shape[0] != ncombine:
-            raise ValueError("offset.shape[0] must be num(images)")
-        offset_mode = "User"
-        offsets = np.array(offsets)
-
-    imcmb_val = []
-    # iterate over files
-    extract_hdr = (
-        extract_hdr
-        or extract_exptime
-        or extract_gain
-        or extract_rdnoise
-        or extract_snoise
-        or use_wcs
-        or use_phy
+    # === 3. Read only the metadata needed to plan the full output stack ===
+    metadata = extract_stack_metadata(
+        items=items,
+        ncombine=ncombine,
+        extension=extension,
+        trimsec=trimsec,
+        imcmb_key=imcmb_key,
+        scale=scale,
+        exposure_key=exposure_key,
+        reject_fullname=reject_fullname,
+        gain=gain,
+        rdnoise=rdnoise,
+        snoise=snoise,
+        dtype=dtype,
+        offsets=offsets,
     )
-    for i, item in enumerate(items):
-        if extract_hdr:
-            _, hdr = _parse_data_header(item, extension=extension, copy=False)
-            if imcmb_key not in [None, ""]:
-                if imcmb_key == "$I":
-                    try:
-                        imcmb_val.append(Path(item).name)
-                    except TypeError:
-                        imcmb_val.append(f"User-provided {type(item)}")
-                else:
-                    try:
-                        imcmb_val.append(hdr[imcmb_key])
-                    except KeyError:
-                        imcmb_val.append("")
-
-            if extract_exptime:
-                scales[i] = float(hdr[exposure_key])
-
-            if extract_gain:
-                gns[i] = float(hdr[gain])  # gain is given as header key
-
-            if extract_rdnoise:
-                rds[i] = float(hdr[rdnoise])  # rdnoise is given as header key
-
-            if extract_snoise:
-                sns[i] = float(hdr[snoise])  # snoise is given as header key
-
-            if hdr["NAXIS"] != ndim:
-                raise ValueError(
-                    "All FITS files must have the identical ndim, "
-                    + "though they can have different sizes."
-                )
-
-            # Update offsets if WCS or Physical should be used
-            if use_wcs:
-                # Code if using WCS, which may be much slower (but accurate?)
-                # Find the center's pixel position in w_ref, in nearest integer value.
-                offsets[i,] = calc_offset_wcs(
-                    WCS(hdr),
-                    w_ref,
-                    intify_offset=True,
-                    loc_target="center",
-                    loc_reference="center",
-                    order_xyz=False,
-                )
-                # For IRAF-like calculation, use
-                #   offsets[i, ] = [hdr[f'CRPIX{i}'] for i in range(ndim, 0, -1)]
-            elif use_phy:
-                offsets[i,] = calc_offset_physical(
-                    hdr, None, intify_offset=True, order_xyz=False, ignore_ltm=True
-                )
-
-            # NOTE: the indexing in python is [z, y, x] order!!
-            shapes[i,] = [int(hdr[f"NAXIS{i}"]) for i in range(ndim, 0, -1)]
-
-            del hdr
-
-        else:
-            if imcmb_key == "$I":
-                try:
-                    imcmb_val.append(Path(item).name)
-                except TypeError:
-                    imcmb_val.append(f"User-provided {type(item)}")
-            data = _parse_data_header(item, extension=extension, parse_header=False)[0]
-            if trimsec is not None:
-                shapes[i,] = data[slice_load].shape
-            else:
-                shapes[i,] = data.shape
-    # ------------------------------------------------------------------------------------ #
+    hdr0 = metadata["hdr0"]
+    ndim = metadata["ndim"]
+    shapes = metadata["shapes"]
+    offsets = metadata["offsets"]
+    offset_mode = metadata["offset_mode"]
+    use_wcs = metadata["use_wcs"]
+    use_phy = metadata["use_phy"]
+    imcmb_val = metadata["imcmb_val"]
+    extract_exptime = metadata["extract_exptime"]
+    scales = metadata["scales"]
+    gns = metadata["gns"]
+    rds = metadata["rds"]
+    sns = metadata["sns"]
 
     # == Check the size of the temporary array for combination =========================== #
     offsets, sh_comb = offseted_shape(
         shapes, offsets, method="outer", offset_order_xyz=False, intify_offsets=True
     )
 
-    # Size of (N+1)-D array before combining along axis=0
-    stacksize = np.prod((ncombine, *sh_comb)) * (np.dtype(dtype).itemsize)
-    # size estimated by full-stacked array (1st term) plus combined image
-    # (1/ncombine), low and upp bounds (each 1/ncombine), mask (bool8),
-    # niteration (int8), and code(int8). temp_arr_size = stacksize*(1 +
-    # 1/ncombine*4)
-
-    # Copied from ccdproc v 2.0.1
-    # https://github.com/astropy/ccdproc/blob/b9ec64dfb59aac1d9ca500ad172c4eb31ec305f8/ccdproc/combiner.py#L710
-    # Set a memory use factor based on profiling
-    combmeth = _set_combfunc(combine)
-    memory_factor = 3 if combmeth == "median" else 2
-    memory_factor *= 1.5
-    mem_req = memory_factor * stacksize
-    num_chunk = int(mem_req / memlimit) + 1
-
-    # TODO: make chunking
-    if num_chunk > 1:
-        raise ValueError(
-            "Currently chunked combine is not supporte T__T. "
-            + f"Please try increasing memlimit to > {mem_req:.1e}, "
-            + "or use combine='avg' than 'median'."
-        )
+    mem_req, num_chunk = check_stack_memory(
+        ncombine=ncombine,
+        sh_comb=sh_comb,
+        dtype=dtype,
+        combine=combine,
+        memlimit=memlimit,
+    )
     if verbose:
         logger.info("Done.")
         if num_chunk > 1:
@@ -614,111 +420,29 @@ def imcombine(
     if verbose:
         logger.info("- Loading, calculating offsets with zero/scale...")
 
-    if extension_uncertainty is not None:
-        var_full = np.nan * np.zeros(shape=(ncombine, *sh_comb), dtype=dtype)
-
-    arr_full = np.nan * np.zeros(shape=(ncombine, *sh_comb), dtype=dtype)
-    mask_full = np.zeros(shape=(ncombine, *sh_comb), dtype=bool)
-
     _t = Time.now()
-    for i, (_item, _offset, _shape) in enumerate(zip(items, offsets, shapes)):
-        # import os
-        # import psutil
-        # import sys
-        # import gc
-
-        # process = psutil.Process(os.getpid())
-        # print("0: ", process.memory_info().rss/1.e+9)  # in bytes
-
-        # -- Set slice ------------------------------------------------------------------- #
-        # offsets2slice is introduced much later than the code below was written,
-        # so not used here..
-        slices = [i]
-        # offset & size at each j-th dimension axis
-        for offset_j, shape_j in zip(_offset, _shape):
-            slices.append(slice(offset_j, offset_j + shape_j, None))
-
-        # -- Load data ------------------------------------------------------------------- #
-        # process = psutil.Process(os.getpid())
-        # print("1: ", process.memory_info().rss/1.e+9)  # in bytes
-        try:
-            _data, _var, _mask, _ = load_ccd(
-                _item,
-                trimsec=trimsec,
-                ccddata=False,
-                extension=extension,
-                extension_mask=e_m,
-                extension_uncertainty=e_u,
-                full=True,
-            )
-        except TypeError:
-            if isinstance(_item, CCDData):
-                _data = _item.data.copy()
-                if _item.mask is None:
-                    _mask = np.zeros(_data.shape, dtype=bool)
-                else:
-                    _mask = _item.mask.copy()
-                _var = None if _item.uncertainty is None else _item.uncertainty.copy()
-            else:
-                raise ValueError("Each item is not path-like or CCDData.")
-
-        if mask is not None:
-            _mask |= mask[i,]
-
-        # process = psutil.Process(os.getpid())
-        # print("2: ", process.memory_info().rss/1.e+9)  # in bytes
-        # local_vars = list(locals().items())
-        # for var, obj in local_vars:
-        #     print(var, sys.getsizeof(obj))
-
-        # -- zero and scale -------------------------------------------------------------- #
-        # better to calculate here than from full array, as the
-        # latter may contain too many NaNs due to offest shifting.
-        # TODO: let get_zsw to get functionals for zsw, so _set_calc_zsw
-        # will not be repeateded for every iteration.
-        if extract_exptime:
-            _scale = scales[i]
-        else:  # e.g., "med"
-            _scale = scale
-        _z, _s, _w = get_zsw(
-            arr=np.array(_data[None, :]),  # make a fake (N+1)-D array
-            zero=zero,
-            scale=_scale,
-            weight=weight,
-            zero_kw=zero_kw,
-            scale_kw=scale_kw,
-            zero_to_0th=False,  # to retain original zero
-            scale_to_0th=False,  # to retain original scale
-            zero_section=zero_section,
-            scale_section=scale_section,
-        )
-        zeros[i] = _z[0]
-        scales[i] = _s[0]
-        weights[i] = _w[0]
-
-        # -- Insertion ------------------------------------------------------------------- #
-        arr_full[tuple(slices)] = _data
-        mask_full[tuple(slices)] = _mask
-        if _var is not None:
-            var_full[slices] = _var
-
-    if verbose:
-        logger.info("Done.")
-        if isinstance(items[0], str):
-            logger.info("")
-            logger.info("-" * 80)
-            logger.info(
-                "{:^45s}|{:^9s}|{:^9s}|{:^9s}".format(
-                    "input", "zero", "scale", "weight"
-                )
-            )
-            logger.info("-" * 80)
-            for item, z, s, w in zip(items, zeros, scales, weights):
-                logger.info("{:>45s}|{:3e}|{:3e}|{:3e}".format(item[-45:], z, s, w))
-            logger.info("-" * 80)
-            logger.info("")
-        else:
-            pass
+    arr_full, mask_full, var_full, zeros, scales, weights = load_full_stack(
+        items=items,
+        offsets=offsets,
+        shapes=shapes,
+        sh_comb=sh_comb,
+        dtype=dtype,
+        mask=mask,
+        trimsec=trimsec,
+        extension=extension,
+        extension_mask=e_m,
+        extension_uncertainty=e_u,
+        extract_exptime=extract_exptime,
+        scale=scale,
+        zero=zero,
+        weight=weight,
+        zero_kw=zero_kw,
+        scale_kw=scale_kw,
+        zero_section=zero_section,
+        scale_section=scale_section,
+        scales=scales,
+    )
+    log_zsw_table(items, zeros, scales, weights, verbose)
     # ------------------------------------------------------------------------------------ #
 
     cmt2hdr(
@@ -766,19 +490,15 @@ def imcombine(
     if full:  # unpack the output
         comb, err, mask_rej, mask_thresh, low, upp, nit, rejcode = comb
         mask_total = mask_full | mask_thresh | mask_rej
+    else:
+        err = low = upp = mask_total = rejcode = None
 
     # == Update header properly ========================================================== #
     # Update WCS or PHYSICAL keywords so that "lock frame wcs", etc, on SAO
     # ds9, for example, to give proper visualization:
-    if use_wcs:  # NOTE: the indexing in python is [z, y, x] order!!
-        for i in range(ndim, 0, -1):
-            hdr0[f"CRPIX{i}"] += offsets[0][ndim - i]
+    apply_output_offsets(hdr0, ndim, offsets, use_wcs, use_phy)
 
-    if use_phy:  # NOTE: the indexing in python is [z, y, x] order!!
-        for i in range(ndim, 0, -1):
-            hdr0[f"LTV{i}"] += offsets[0][ndim - i]
-
-    _update_hdr(
+    update_hdr(
         hdr0,
         ncombine,
         imcmb_key=imcmb_key,
@@ -803,62 +523,51 @@ def imcombine(
         logger.info("- Writing output FITS...")
 
     # == Save FITS files ================================================================= #
-    write_kw = dict(output_verify=output_verify, overwrite=overwrite, checksum=checksum)
-    if output is not None:
-        try:
-            comb.write(output, **write_kw)
-        except VerifyError:
-            raise VerifyError("Use output_verify='fix'")
-
-    if output_err is not None:
-        err = err.astype(dtype_err)
-        write2fits(err, hdr0, output_err, return_ccd=False, **write_kw)
-
-    if output_low is not None:
-        low = low.astype(dtype) if dtype_low is None else low.astype(dtype_low)
-        write2fits(low, hdr0, output_low, return_ccd=False, **write_kw)
-
-    if output_upp is not None:
-        upp = upp.astype(dtype) if dtype_upp is None else upp.astype(dtype_upp)
-        write2fits(upp, hdr0, output_upp, return_ccd=False, **write_kw)
-
-    if output_nrej is not None:  # Do this BEFORE output_mask!!
-        nrej = np.count_nonzero(mask_total, axis=0).astype(int_dtype)
-        write2fits(nrej, hdr0, output_nrej, return_ccd=False, **write_kw)
-
-    if output_mask is not None:  # Do this AFTER output_nrej!!
-        # FITS does not accept boolean. We need uint8.
-        write2fits(
-            mask_total.astype(np.uint8), hdr0, output_mask, return_ccd=False, **write_kw
-        )
-
-    if output_rejcode is not None:
-        write2fits(rejcode, hdr0, output_rejcode, return_ccd=False, **write_kw)
+    write_imcombine_outputs(
+        comb=comb,
+        hdr0=hdr0,
+        output=output,
+        output_err=output_err,
+        output_low=output_low,
+        output_upp=output_upp,
+        output_nrej=output_nrej,
+        output_mask=output_mask,
+        output_rejcode=output_rejcode,
+        err=err,
+        low=low,
+        upp=upp,
+        mask_total=mask_total,
+        rejcode=rejcode,
+        int_dtype=int_dtype,
+        dtype=dtype,
+        dtype_err=dtype_err,
+        dtype_low=dtype_low,
+        dtype_upp=dtype_upp,
+        output_verify=output_verify,
+        overwrite=overwrite,
+        checksum=checksum,
+    )
 
     if verbose:
         logger.info("Done.")
 
-    # == Return memroy... ================================================================ #
+    # == Return memory... ================================================================ #
     del hdr0, arr_full, mask_full
 
     # == Write logfile =================================================================== #
-    if logfile is not None:
-        if verbose:
-            logger.info("- Writing summary table...")
-        # Use astropy table rather than import pandas
-        for name in ["scales", "zeros", "weights"]:
-            table_dict[name] = eval(f"list({name})")
-
-        table = Table(table_dict)
-        table["gains"] = gns
-        table["readnoises"] = rds
-        table["snoises"] = sns
-        # NOTE: the indexing in python is [z, y, x] order!!
-        for i in range(ndim, 0, -1):
-            table[f"offset{i}"] = offsets[:, ndim - i]
-        table.write(logfile, format="csv")
-        if verbose:
-            logger.info("Done.")
+    write_imcombine_logfile(
+        logfile=logfile,
+        table_dict=table_dict,
+        ndim=ndim,
+        offsets=offsets,
+        zeros=zeros,
+        scales=scales,
+        weights=weights,
+        gns=gns,
+        rds=rds,
+        sns=sns,
+        verbose=verbose,
+    )
 
     if verbose:
         _t2 = Time.now()
@@ -895,7 +604,7 @@ def imcombine(
         return comb
 
 
-imcombine.__doc__ = """A helper function for `~imred.imutil.ndcombine` to cope with FITS files.
+imcombine.__doc__ = """A helper function for ``imred.ndcombine`` to cope with FITS files.
 
     {}
 
@@ -906,7 +615,7 @@ imcombine.__doc__ = """A helper function for `~imred.imutil.ndcombine` to cope w
         The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
         files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
         good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of `~imred.imutil.imcombine` function, the best use is to
+        acceptable. For the purpose of ``imred.imcombine``, the best use is to
         use the `~glob` pattern or `list` of paths.
 
     mask : `~numpy.ndarray`, optional.
@@ -1208,7 +917,9 @@ def ndcombine(
 ndcombine.__doc__ = """ Combines the given arr assuming no additional offsets.
 
     {}
-    #. offsets is not implemented to `~imred.imutil.ndcombine` (only to fitscombine).
+
+    Offsets are not implemented in ``imred.ndcombine``; use ``imred.imcombine``
+    for FITS inputs with offsets.
 
     Parameters
     ----------
