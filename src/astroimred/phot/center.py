@@ -438,13 +438,13 @@ def center_sep(
             + f"\n\t{crad=:.1f}, {maxiters=:d}, {tol_shift=:.1e}"
         )
         if bkg in ["min", "mean", "median"]:
-            logger.info(f"\tBackgound = **{bkg}** value inside the cutout")
+            logger.info(f"\tBackground = **{bkg}** value inside the cutout")
         elif isinstance(bkg, (int, float)):
-            logger.info(f"\tConstant backgound = {bkg}")
+            logger.info(f"\tConstant background = {bkg}")
         elif isinstance(bkg, np.ndarray):
-            logger.info(f"\tBackgound array: {bkg.shape}")
+            logger.info(f"\tBackground array: {bkg.shape}")
         else:
-            logger.info(f"\tBackgound: {bkg} (sep.Background)")
+            logger.info(f"\tBackground: {bkg} (sep.Background)")
 
     try:
         bkg = bkg.back()  # convert to ndarray
@@ -1149,7 +1149,7 @@ def find_centroid(
         `msky` and `ssky` are not needed to be updated at every iteration.
 
     centroider : callable
-        The centroider function (Dafault uses `photutils.centroid_com`).
+        The centroider function (default uses `photutils.centroid_com`).
 
     cbox_size : float or int, optional
         The size of the box to find the centroid. Recommended to use 2.5 to 4.0

@@ -443,7 +443,7 @@ def pa2xytheta(pa, wcs, location="crpix", step_pix=0.1):
 _PBSTRS = dict(
     w="trailed distance of the pillbox",
     a="semimajor axis of ellipse part (parallel to the trail direction)",
-    b="semiminor axis of ellipse part (perpendiculuar to the trail direction)",
+    b="semiminor axis of ellipse part (perpendicular to the trail direction)",
     theta_pix=(
         "The counterclockwise rotation angle as an angular Quantity or value in "
         + "radians from the positive x axis."
@@ -540,7 +540,7 @@ class PillBoxMaskMixin:
         Notes
         -----
         To make an ndarray to represent the overlapping mask, the three (a
-        rectangular and two elliptical) apertures are generated, but parallely
+        rectangular and two elliptical) apertures are generated, but in parallel
         shifted such that the bounding box has ``ixmin`` and ``iymin`` both
         zero. Then proper mask is generated as an ndarray. It is then used by
         ``PillBoxMaskMixin.to_mask`` to make an ``ApertureMask`` object by
@@ -938,7 +938,7 @@ class SkyPillBoxAnnulus(SkyAperture):
     positions = SkyCoordPositions("positions")
     w = PositiveScalarAngle(f"The {_PBSTRS['w']} in angular units.")
     a_in = PositiveScalarAngle(f"The inner {_PBSTRS['a']} in angular units.")
-    b_in = PositiveScalarAngle(f"The inner {_PBSTRS['b']} in angular units.")
+    a_out = PositiveScalarAngle(f"The outer {_PBSTRS['a']} in angular units.")
     b_out = PositiveScalarAngle(f"The outer {_PBSTRS['b']} in angular units.")
     theta = ScalarAngle(_PBSTRS["theta_sky"])
 

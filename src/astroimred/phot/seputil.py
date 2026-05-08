@@ -95,7 +95,7 @@ def sep_back(
           * **photutils**: In photutils, sigma clipping is used (need check).
 
     filter_threshold : int, optional
-        Name in photutils; `fthresh` in the oritinal sep. Default is ``0``. :
+        Name in photutils; `fthresh` in the original sep. Default is ``0``. :
 
         * **sep**: Filter threshold. Default is ``0.0``.
         * **photutils**: The threshold value for used for selective median
@@ -356,8 +356,8 @@ def sep_extract(
     pos_ref=None,
     sort_by=None,
     sort_ascending=True,
-    bezel_x=[0, 0],
-    bezel_y=[0, 0],
+    bezel_x=None,
+    bezel_y=None,
     gain=None,
     minarea=5,
     maxarea=None,
@@ -439,6 +439,11 @@ def sep_extract(
     >>> plt.tight_layout()
     >>> plt.show()
     """
+    if bezel_x is None:
+        bezel_x = [0, 0]
+    if bezel_y is None:
+        bezel_y = [0, 0]
+
     obj, segm = _sep_extract(
         data=data,
         thresh=thresh,
@@ -483,7 +488,7 @@ def sep_extract(
             )
         dist_ref = np.sqrt((obj["x"] - pos_ref[0]) ** 2 + (obj["y"] - pos_ref[1]) ** 2)
         obj.insert(loc=1, column="dist_ref", value=dist_ref)
-        if sort_by is not None:
+        if sort_by is None:
             sort_by = "dist_ref"
 
     if sort_by is not None:
@@ -513,8 +518,8 @@ def sep_extract_iterative(
     pos_ref=None,
     sort_by=None,
     sort_ascending=True,
-    bezel_x=[0, 0],
-    bezel_y=[0, 0],
+    bezel_x=None,
+    bezel_y=None,
     minarea=5,
     maxarea=None,
     filter_kernel=sep_default_kernel,
@@ -592,6 +597,11 @@ def sep_extract_iterative(
     >>> obj, segm = sep_extract_iterative(data, thresh=3, n_iter=2, seg_dilate=5)
     >>> obj, segm, bkg = sep_extract_iterative(data, thresh=3, return_bkg=True)
     """
+    if bezel_x is None:
+        bezel_x = [0, 0]
+    if bezel_y is None:
+        bezel_y = [0, 0]
+
     if n_iter < 1:
         raise ValueError(f"n_iter must be >= 1 (got {n_iter})")
 
