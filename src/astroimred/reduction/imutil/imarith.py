@@ -365,7 +365,7 @@ def imarith(
             res = fits.PrimaryHDU(data=eval(f"(im1 {op} im2)").astype(dtype))  # HDU
 
         if hdr_ref is not None:
-            res.header = hdr_ref
+            res.header = fits.Header(hdr_ref)
         _replace_nan(res, res.header, replace=replace)
         _update_hdr(
             res.header,
