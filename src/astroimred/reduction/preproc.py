@@ -1,26 +1,20 @@
-from warnings import warn
-
 import astroscrappy
-import ccdproc
 import numpy as np
 import pandas as pd
 from astro_ndslice import listify, slicefy
 from astropy import units as u
-from astropy.nddata import CCDData, StdDevUncertainty
+from astropy.nddata import CCDData
 from astropy.stats import sigma_clipped_stats
 from astropy.time import Time
 from astroscrappy import detect_cosmics
-from ccdproc import flat_correct, subtract_bias, subtract_dark
 
 from astroimred.hduutil import (
     CCDData_astype,
     _parse_image,
-    errormap,
     fixpix,
     imslice,
     load_ccd,
     propagate_ccdmask,
-    set_ccd_gain_rdnoise,
     valinhdr,
 )
 from astroimred.mgmt.misc import (
@@ -41,7 +35,6 @@ __all__ = [
     "flatcor",
     "frincor",
     "ccdred",
-    "bdf_process",
     "run_reduc_plan",
 ]
 
@@ -1264,15 +1257,15 @@ def ccdred(
         Region of `ccd` to be trimmed; see `~ccdproc.subtract_overscan` for
         details. Default is `None`.
 
-    mbiaspath, mdarkpath, mflatpath, mfringepath : path-like, optional.
+    mbiaspath, mdarkpath, mflatpath, mfrinpath : path-like, optional.
         The path to master bias, dark, flat, and fringe FITS files. If `None`,
         the corresponding process is not done. These can be provided in
-        addition to `mbias`, `mdark`, `mflat`, and/or `mfringe`.
+        addition to `mbias`, `mdark`, `mflat`, and/or `mfrin`.
 
-    mbias, mdark, mflat, mfringe : `~astropy.nddata.CCDData`, optional.
+    mbias, mdark, mflat, mfrin : `~astropy.nddata.CCDData`, optional.
         The master bias, dark, and flat in `~astropy.nddata.CCDData`. If this
         is given, the files provided by `mbiaspath`, `mdarkpath`, `mflatpath`
-        and/or `mfringe` are **not** loaded, but these paths will be used for
+        and/or `mfrin` are **not** loaded, but these paths will be used for
         header (``BIASFRM``, ``DARKFRM``, ``FLATFRM`` and/or ``FRINFRM``). If
         the paths are not given, ``xxxxFRM`` will be ``<User>``.
 
@@ -1282,7 +1275,7 @@ def ccdred(
         function object, it will be applied to the fringe before fringe
         subtraction (using `fringe_scale_section`). If "exp", "exposure", or
         "exptime", the exposure time of the fringe frame will be used. (using
-        either `fringe_exposure` or `exposure_key`). If `None`, the fringe
+        either `exptime_frin` or `exptime_key`). If `None`, the fringe
         will be subtracted without modification.
         Default: `None`.
 
@@ -1547,494 +1540,6 @@ def ccdred(
     return proc
 
 
-# NOTE: crrej should be done AFTER bias/dark and flat correction:
-# http://www.astro.yale.edu/dokkum/lacosmic/notes.html
-def bdf_process(
-    ccd,
-    output=None,
-    extension=None,
-    mbiaspath=None,
-    mdarkpath=None,
-    mflatpath=None,
-    mfringepath=None,
-    mbias=None,
-    mdark=None,
-    mflat=None,
-    mfringe=None,
-    fringe_flat_fielded=True,
-    fringe_scale=None,
-    fringe_scale_region=None,
-    fringe_scale_kw=None,
-    trimsec=None,
-    calc_err=False,
-    unit=None,
-    gain=None,
-    gain_key="GAIN",
-    gain_unit=u.electron / u.adu,
-    rdnoise=None,
-    rdnoise_key="RDNOISE",
-    rdnoise_unit=u.electron,
-    exposure_key="EXPTIME",
-    exposure_unit=u.s,
-    fringe_exposure=None,
-    dark_exposure=None,
-    data_exposure=None,
-    dark_scale=False,
-    normalize_exposure=False,
-    normalize_average=False,
-    normalize_median=False,
-    flat_min_value=None,
-    flat_norm_value=1.0,
-    do_crrej=False,
-    crrej_kwargs=None,
-    propagate_crmask=False,
-    verbose_crrej=False,
-    verbose_bdf=True,
-    output_verify="fix",
-    overwrite=True,
-    dtype="float32",
-    uncertainty_dtype="float32",
-):
-    """Do bias, dark and flat process.
-
-    Parameters
-    ----------
-    ccd : `~astropy.nddata.CCDData`-like (e.g., `~astropy.io.fits.PrimaryHDU`, `~astropy.io.fits.ImageHDU`, `~astropy.io.fits.HDUList`), `~numpy.ndarray`, path-like, or number-like
-        The ccd to be processed.
-
-    output : path-like or `None`, optional.
-        The path if you want to save the resulting `ccd` object.
-        Default: `None`.
-
-    mbiaspath, mdarkpath, mflatpath, mfringepath : path-like, optional.
-        The path to master bias, dark, flat, and fringe FITS files. If `None`,
-        the corresponding process is not done. These can be provided in
-        addition to `mbias`, `mdark`, `mflat`, and/or `mfringe`.
-
-    mbias, mdark, mflat, mfringe : `~astropy.nddata.CCDData`, optional.
-        The master bias, dark, and flat in `~astropy.nddata.CCDData`. If this
-        is given, the files provided by `mbiaspath`, `mdarkpath`, `mflatpath`
-        and/or `mfringe` are **not** loaded, but these paths will be used for
-        header (``BIASFRM``, ``DARKFRM``, ``FLATFRM`` and/or ``FRINFRM``). If
-        the paths are not given, ``xxxxFRM`` will be ``<User>``.
-
-    fringe_scale : `int`, `float`, ndarray, function object, ``{"exp", "exposure", "exptime"}``, optional.
-        The scale to be applied to the fringe frame. If numeric or `~numpy.ndarray`, it
-        will directly be multiplied to the fringe before fringe subtraction. If
-        function object, it will be applied to the fringe before fringe
-        subtraction (using `fringe_scale_section`). If "exp", "exposure", or
-        "exptime", the exposure time of the fringe frame will be used. (using
-        either `fringe_exposure` or `exposure_key`). If `None`, the fringe
-        will be subtracted without modification.
-        Default: `None`.
-
-    fringe_scale_region : `~numpy.ndarray`(`bool`), `str`, optional.
-        The mask or FITS-convention section of the fringe and object (science)
-        frames to match the fringe pattern before the subtraction. If `~numpy.ndarray`,
-        it will be forced to be changed into `bool` array. The scale will be
-        ``fringe_scale(object_frame[fringe_scale_region]) /
-        fringe_scale(fringe_frame[fringe_scale_region])``.
-        Default: `None`.
-
-    fringe_scale_kw : `dict`, optional.
-        The kwargs that can be passed to `fringe_scale` if it is a function.
-
-    fringe_flat_fielded : `bool`, optional.
-        Whether the fringe frame is flat-fielded. If `True`, fringe is
-        subtracted AFTER flat-fielding the input frame. Otherwise (default),
-        fringe is subtracted BEFORE flat-fielding the input frame.
-
-    trimsec: `str`, optional.
-        Region of `ccd` to be trimmed; see `~ccdproc.subtract_overscan` for
-        details. Default is `None`.
-
-    calc_err : `bool`, optional.
-        Whether to calculate the error map based on Poisson and readnoise error
-        propagation.
-
-        .. note::
-            Currently it's encouraged to make error-map manually, as the API is
-            not stable.
-
-    unit : `~astropy.units.Unit` or `str`, optional.
-        The units of the data.
-        Default is `None`.
-
-    gain, rdnoise : `None`, `float`, astropy.`~astropy.units.Quantity`, optional.
-        The gain and readnoise value. These are all ignored if
-        ``calc_err=False`` and ``do_crrej=False``. If ``calc_err=True``, it
-        automatically seeks for suitable gain and readnoise value. If `gain` or
-        `readnoise` is specified, they are interpreted with `gain_unit` and
-        `rdnoise_unit`, respectively. If they are not specified, this function
-        will seek for the header with keywords of `gain_key` and `rdnoise_key`,
-        and interprete the header value in the unit of `gain_unit` and
-        `rdnoise_unit`, respectively.
-
-    gain_key, rdnoise_key : `str`, optional.
-        See `gain`, `rdnoise` explanation above.
-        These are all ignored if ``calc_err=False``.
-
-    gain_unit, rdnoise_unit : `str`, astropy.`~astropy.units.Unit`, optional.
-        See `gain`, `rdnoise` explanation above.
-        These are all ignored if ``calc_err=False``.
-
-    dark_exposure, data_exposure : `None`, `float`, astropy `~astropy.units.Quantity`, optional.
-        The exposure times of dark and data frame, respectively. They should
-        both be specified or both `None`. These are all ignored if
-        ``mdarkpath=None``. If both are not specified while `mdarkpath` is
-        given, then the code automatically seeks for header's `exposure_key`.
-        Then interprete the value as the quantity with unit `exposure_unit`. If
-        `mdkarpath` is not `None`, then these are passed to
-        `~ccdproc.subtract_dark`.
-
-    exposure_key : `str`, optional.
-        The header keyword for exposure time.
-
-    exposure_unit : astropy `~astropy.units.Unit`, optional.
-        The unit of the exposure time.
-        Used in `~ccdproc.subtract_dark`.
-
-    normalize_exposure : `bool`, optional.
-        Whether to normalize the values by the exposure time of each frame.
-        Maybe useful for long exposure darks to make 1-sec darks.
-        Default is `False`.
-
-    normalize_average, normalize_median : `bool`, optional.
-        Whether to normalize the values by the average or median value of each
-        frame before combining. Only up to one of these must be `True`. Maybe
-        useful for flat.
-        Default is `False`.
-
-    flat_min_value : `float` or `None`, optional.
-        min_value of `ccdproc.flat_correct`. Minimum value for flat field. The
-        value can either be `None` and no minimum value is applied to the flat or
-        specified by a `float` which will replace all values in the flat by the
-        min_value.
-        Default is `None`.
-
-    flat_norm_value : `float` or `None`, optional.
-        The norm_value of `ccdproc.flat_correct`. If `None`, the flat is
-        internally normalized by its mean before the flat correction, i.e., the
-        flat correction will be like ``image/flat*mean(flat)``.
-        If not `None`, the flat correction will be like
-        ``image/flat*flat_norm_value``. Default is 1 (**different** from
-        `ccdproc` which uses `None` as default).
-
-    crrej_kwargs : `dict` or `None`, optional.
-        If `None` (default), uses some default values (see `crrej`). It is
-        always discouraged to use default except for quick validity-checking,
-        because even the official L.A. Cosmic codes in different versions
-        (IRAF, IDL, Python, etc) have different default parameters, i.e., there
-        is nothing which can be regarded as *the default*. To see all possible
-        keywords, do ``print(astroscrappy.detect_cosmics.__doc__)`` Also refer
-        to
-        https://nbviewer.jupyter.org/github/ysbach/AO2019/blob/master/Notebooks/07-Cosmic_Ray_Rejection.ipynb
-
-    propagate_crmask : `bool`, optional.
-        Whether to save (propagate) the mask from CR rejection (`astroscrappy`)
-        to the CCD's mask. Default is `False`.
-
-    output_verify : `str`
-        Output verification option.  Must be one of ``"fix"``, ``"silentfix"``,
-        ``"ignore"``, ``"warn"``, or ``"exception"``. May also be any
-        combination of ``"fix"`` or ``"silentfix"`` with ``"+ignore"``,
-        ``+warn``, or ``+exception" (e.g. ``"fix+warn"``).  See the astropy
-        documentation below:
-        http://docs.astropy.org/en/stable/io/fits/api/verification.html#verify
-
-    dtype : `str` or `numpy.dtype` or `None`, optional.
-        Allows user to set dtype. See `numpy.array` `dtype` parameter
-        description. If `None` it uses ``np.float64``.
-        Default is `None`.
-    """
-    warn("bdf_process is deprecated in favor of ``ccdred``.", DeprecationWarning)
-
-    def _load_master(path, master, simple=True, unit=None, calc_err=False):
-        if path is None and master is None:
-            return False, None, None
-
-        # else, at least one is given
-        do = True
-        if master is None:
-            master = load_ccd(path, unit=unit, ccddata=True, use_wcs=False)
-
-        # Make master as CCDData if desired
-        master, imname, _ = _parse_image(master, force_ccddata=True)
-
-        if not calc_err:
-            master.uncertainty = None
-
-        return do, master, imname
-
-    def _addfrm(ccd, name, path):
-        ccd.header[f"{name.upper()[:4]}FRM"] = (path, f"applied {name} frame")
-
-    # Set strings for header history & print (if verbose)
-    str_bias = "Bias subtracted (see BIASFRM)"
-    str_dark = "Dark subtracted (see DARKFRM)"
-    str_dscale = "Dark scaling using {}"
-    str_flat = "Flat corrected by image/flat*flat_norm_value (see FLATFRM; FLATNORM)"
-    str_trim = "Trim by FITS section {} (see LTV, LTM, TRIMIM)"
-    str_e0 = "Readnoise propagated with Poisson noise (using gain above) of source."
-    str_ed = "Poisson noise from subtracted dark was propagated."
-    str_ef = "Flat uncertainty was propagated."
-    str_nexp = "Normalized by the exposure time."
-    str_navg = "Normalized by the average value of the frame."
-    str_nmed = "Normalized by the median value of the frame."
-
-    # ************************************************************************************ #
-    # *                                  INITIAL SETTING                                 * #
-    # ************************************************************************************ #
-    # if not isinstance(ccd, CCDData):
-    #     raise TypeError(f"ccd must be CCDData (now it is {type(ccd)})")
-    ccd, _, _ = _parse_image(ccd, extension=extension, force_ccddata=True)
-    PROCESS = []
-    proc = ccd.copy()
-
-    # == Log the CCDPROC version ========================================================== #
-    if "CCDPROCV" in proc.header:
-        if str(proc.header["CCDPROCV"]) != str(ccdproc.__version__):
-            cmt2hdr(
-                proc.header,
-                "h",
-                (
-                    "The ccdproc version prior to this modification was "
-                    + f"{proc.header['CCDPROCV']}."
-                ),
-            )
-            proc.header["CCDPROCV"] = (
-                ccdproc.__version__,
-                "ccdproc version used for processing.",
-            )
-        # else (no version change): do nothing.
-    else:
-        proc.header["CCDPROCV"] = (
-            ccdproc.__version__,
-            "ccdproc version used for processing.",
-        )
-
-    # == Set for BIAS ==================================================================== #
-    do_bias, mbias, mbiaspath = _load_master(mbiaspath, mbias)
-    if do_bias:
-        PROCESS.append("B")
-        _addfrm(proc, "BIAS", mbiaspath)
-
-    # == Set for DARK ==================================================================== #
-    do_dark, mdark, mdarkpath = _load_master(mdarkpath, mdark)
-
-    if do_dark:
-        PROCESS.append("D")
-        _addfrm(proc, "DARK", mdarkpath)
-
-        if dark_scale:
-            # TODO: what if dark_exposure, data_exposure are given explicitly?
-            cmt2hdr(
-                proc.header, "h", str_dscale.format(exposure_key), verbose=verbose_bdf
-            )
-
-    # == Set for FLAT ==================================================================== #
-    do_flat, mflat, mflatpath = _load_master(mflatpath, mflat)
-    if do_flat:
-        PROCESS.append("F")
-        _addfrm(proc, "FLAT", mflatpath)
-        proc.header["FLATNORM"] = (
-            flat_norm_value,
-            "flat_norm_value (none = mean of input flat)",
-        )
-
-    # == Set for FRINGE ================================================================== #
-    do_fringe, mfringe, mfringepath = _load_master(mfringepath, mfringe)
-    if do_fringe:
-        PROCESS.append("R")
-        _addfrm(proc, "FRINGE", mfringepath)
-
-    # == Set gain and rdnoise if at least one of calc_err and do_crrej is True. ========== #
-    if calc_err or do_crrej:
-        set_ccd_gain_rdnoise(
-            proc,
-            gain=gain,
-            gain_key=gain_key,
-            gain_unit=gain_unit,
-            rdnoise=rdnoise,
-            rdnoise_key=rdnoise_key,
-            rdnoise_unit=rdnoise_unit,
-            verbose=verbose_bdf,
-            update_header=True,
-        )
-        gain_Q = proc.gain
-        rdnoise_Q = proc.rdnoise
-
-    # ************************************************************************************ #
-    # *                                 RUN PREPROCESSING                                * #
-    # ************************************************************************************ #
-    # == Do TRIM ========================================================================= #
-    if trimsec is not None:
-        _t = Time.now()
-        sect = dict(trimsec=trimsec, update_header=False)
-        proc = imslice(proc, **sect)
-        mbias = imslice(mbias, **sect) if do_bias else None
-        mdark = imslice(mdark, **sect) if do_dark else None
-        mflat = imslice(mflat, **sect) if do_flat else None
-        mfringe = imslice(mfringe, **sect) if do_fringe else None
-        PROCESS.append("T")
-
-        cmt2hdr(
-            proc.header, "h", str_trim.format(trimsec), verbose=verbose_bdf, t_ref=_t
-        )
-
-    # == Do BIAS ========================================================================= #
-    if do_bias:
-        _t = Time.now()
-        proc = subtract_bias(proc, mbias)
-        cmt2hdr(
-            proc.header, "h", str_bias.format(mbiaspath), verbose=verbose_bdf, t_ref=_t
-        )
-
-    # == Do DARK ========================================================================= #
-    if do_dark:
-        _t = Time.now()
-        if dark_scale:
-            kw = dict(default=1, key=exposure_key, unit=exposure_unit)
-            data_exposure = valinhdr(data_exposure, proc.header, **kw)
-            dark_exposure = valinhdr(dark_exposure, mdark.header, **kw)
-        if dark_exposure is not None and data_exposure is not None:
-            exposure_key = (
-                None  # ccdproc strangely gives error if exposure_key is given.
-            )
-        proc = subtract_dark(
-            proc,
-            mdark,
-            dark_exposure=dark_exposure,
-            data_exposure=data_exposure,
-            exposure_time=exposure_key,
-            exposure_unit=exposure_unit,
-            scale=dark_scale,
-        )
-        cmt2hdr(
-            proc.header, "h", str_dark.format(mdarkpath), verbose=verbose_bdf, t_ref=_t
-        )
-
-    # == Set for uncertainty ============================================================= #
-    # Make UNCERT extension before doing FLAT and FRINGE
-    #   It is better to make_errmap a priori because of mathematical and
-    #   computational convenience. See ``if do_flat:`` clause below.
-    if calc_err:
-        _t = Time.now()
-        err = errormap(proc, gain_epadu=gain, subtracted_dark=mdark)
-        proc.uncertainty = StdDevUncertainty(err)
-
-        s = [str_e0]
-        if do_dark:
-            s.append(str_ed)
-        cmt2hdr(proc.header, "h", s, verbose=verbose_bdf, t_ref=_t)
-
-    # == Do FRINGE **before** flat if not `fringe_flat_fielded` ========================== #
-    if do_fringe and not fringe_flat_fielded:
-        proc = frincor(
-            proc,
-            mfringe,
-            fringe_scale=fringe_scale,
-            fringe_scale_region=fringe_scale_region,
-            fringe_scale_kw=fringe_scale_kw,
-            exptime_key=exposure_key,
-            exptime_data=data_exposure,
-            exptime_frin=fringe_exposure,
-            verbose=verbose_bdf,
-        )
-
-    # == Do FLAT ========================================================================= #
-    if do_flat:
-        # Flat error propagation is done automatically by
-        # ``ccdproc.flat_correct``if it has the uncertainty attribute.
-        _t = Time.now()
-        proc = flat_correct(
-            proc, mflat, min_value=flat_min_value, norm_value=flat_norm_value
-        )
-        s = [str_flat.format(mflatpath)]
-        if calc_err and mflat.uncertainty is not None:
-            s.append(str_ef)
-
-        cmt2hdr(proc.header, "h", s, verbose=verbose_bdf, t_ref=_t)
-
-    # == Do FRINGE **after** flat if `fringe_flat_fielded` =============================== #
-    if do_fringe and fringe_flat_fielded:
-        proc = frincor(
-            proc,
-            mfringe,
-            fringe_scale=fringe_scale,
-            fringe_scale_region=fringe_scale_region,
-            fringe_scale_kw=fringe_scale_kw,
-            exptime_key=exposure_key,
-            exptime_data=data_exposure,
-            exptime_frin=fringe_exposure,
-            verbose=verbose_bdf,
-        )
-
-    # == Normalization =================================================================== #
-    if normalize_exposure:
-        _t = Time.now()
-        if data_exposure is None:
-            data_exposure = proc.header[exposure_key]
-        proc.data = proc.data / data_exposure  # uncertainty will also be..
-        cmt2hdr(proc.header, "h", str_nexp, verbose=verbose_bdf, t_ref=_t)
-
-    if normalize_average:
-        _t = Time.now()
-        avg = np.mean(proc.data)
-        proc.data = proc.data / avg
-        cmt2hdr(proc.header, "h", str_navg, verbose=verbose_bdf, t_ref=_t)
-
-    if normalize_median:
-        _t = Time.now()
-        med = np.median(proc.data)
-        proc.data = proc.data / med
-        cmt2hdr(proc.header, "h", str_nmed, verbose=verbose_bdf, t_ref=_t)
-
-    # == Do CRREJ ======================================================================== #
-    if do_crrej:
-        if crrej_kwargs is None:
-            crrej_kwargs = {}
-            logger.warning(
-                "You are not specifying CR-rejection parameters! It can be "
-                "dangerous to use defaults blindly."
-            )
-
-        _proc = proc.header["PROCESS"]
-        if (("B" in _proc) + ("D" in _proc) + ("F" in _proc)) < 2:
-            logger.warning(
-                "L.A. Cosmic should be run AFTER bias, dark, flat process. "
-                "You have only done %s. "
-                "See http://www.astro.yale.edu/dokkum/lacosmic/notes.html",
-                proc.header["PROCESS"],
-            )
-
-        proc, _ = crrej(
-            proc,
-            propagate_crmask=propagate_crmask,
-            update_header=True,
-            gain=gain_Q,  # already parsed from local variables above
-            rdnoise=rdnoise_Q,  # already parsed from local variables above
-            verbose=verbose_crrej,
-            **crrej_kwargs,
-        )
-
-    # ************************************************************************************ #
-    # *                                  PREPARE OUTPUT                                  * #
-    # ************************************************************************************ #
-    # To avoid ``pssl`` in cr rejection, subtract fringe AFTER the CRREJ.
-    proc = CCDData_astype(proc, dtype=dtype, uncertainty_dtype=uncertainty_dtype)
-    update_process(proc.header, PROCESS, key="PROCESS", delimiter="-")
-    update_tlm(proc.header)
-
-    if output is not None:
-        if verbose_bdf:
-            logger.info("Writing FITS to %s...", output)
-        proc.write(output, output_verify=output_verify, overwrite=overwrite)
-        if verbose_bdf:
-            logger.info("Saved.")
-    return proc
-
-
 def run_reduc_plan(
     plan,
     output=None,
@@ -2045,7 +1550,7 @@ def run_reduc_plan(
     col_flat="FLATFRM",
     col_mask="MASKFILE",
     col_fringe="FRINFRM",
-    fixpix_kw=dict(priority=None, verbose=False),
+    fixpix_kw=None,
     do_crrej=False,
     preload_cals=False,
     return_ccd=False,
@@ -2080,8 +1585,14 @@ def run_reduc_plan(
             return {}
         ccds = {}
         for fpath in df[col].unique():
+            if pd.isna(fpath):
+                continue
             ccds[fpath] = load_ccd(fpath)
         return ccds
+
+    def _get_path(row, col):
+        value = row.get(col)
+        return None if pd.isna(value) else value
 
     if not isinstance(plan, pd.DataFrame):
         raise TypeError("plan must be a ~pandas.DataFrame.")
@@ -2096,6 +1607,8 @@ def run_reduc_plan(
 
     if len(output) != len(plan):
         raise ValueError("output must have the same length as the plan.")
+    if fixpix_kw is None:
+        fixpix_kw = dict(priority=None, verbose=False)
 
     mbiass = _get_frms(plan, col_bias) if preload_cals else {}
     mdarks = _get_frms(plan, col_dark) if preload_cals else {}
@@ -2107,25 +1620,26 @@ def run_reduc_plan(
         ccds = []
 
     for (_, row), outpath in zip(plan.iterrows(), output):
-        mbiaspath = row.get(col_bias)  # either path or None
-        mdarkpath = row.get(col_dark)  # either path or None
-        mflatpath = row.get(col_flat)  # either path or None
-        mfringepath = row.get(col_fringe)  # either path or None
-        maskpath = row.get(col_mask)
-        ccd = bdf_process(
+        mbiaspath = _get_path(row, col_bias)  # either path or None
+        mdarkpath = _get_path(row, col_dark)  # either path or None
+        mflatpath = _get_path(row, col_flat)  # either path or None
+        mfrinpath = _get_path(row, col_fringe)  # either path or None
+        maskpath = _get_path(row, col_mask)
+        ccd = ccdred(
             load_ccd(row[col_file]),
             extension=extension,
             mbias=mbiass.get(mbiaspath),  # = None if not preload_cals or mbiaspath=None
             mdark=mdarks.get(mdarkpath),  # (same as above)
             mflat=mflats.get(mflatpath),  # (same as above)
-            mfringe=mfrins.get(mfringepath),  # (same as above)
+            mfrin=mfrins.get(mfrinpath),  # (same as above)
             mbiaspath=mbiaspath,
             mdarkpath=mdarkpath,
             mflatpath=mflatpath,
-            mfringepath=mfringepath,
+            mfrinpath=mfrinpath,
+            verbose_bdf=verbose,
         )
         # ^ Better to load as CCDData here rather than pass filepath to
-        #   `bdf_process`, to avoid parsing overhead in `_parse_image`.
+        #   `ccdred`, to avoid parsing overhead in `_parse_image`.
 
         ccd = fixpix(
             ccd,
