@@ -227,8 +227,6 @@ def radcum_profile(
         - ``var``  : aperture sum of variance (only if ``return_var=True`` and variance/error given)
         - ``err``  : sqrt of variance sum (only if ``return_var=False`` and variance/error given)
     """
-    from photutils.aperture import aperture_photometry
-
     if var is not None and err is not None:
         raise ValueError("Provide either `var` or `err`, not both.")
 
