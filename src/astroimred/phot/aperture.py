@@ -249,10 +249,7 @@ def ellip_ap_an(
     pt = dict(positions=positions, theta=theta)
 
     ap = EllipticalAperture(**pt, a=a_ap, b=b_ap)
-    try:
-        an = EllipticalAnnulus(**pt, a_in=a_in, a_out=a_out, b_in=b_in, b_out=b_out)
-    except TypeError:  # Prior to photutils 1.0, b_in is not supported.
-        an = EllipticalAnnulus(**pt, a_in=a_in, a_out=a_out, b_out=b_out)
+    an = EllipticalAnnulus(**pt, a_in=a_in, a_out=a_out, b_in=b_in, b_out=b_out)
 
     return ap, an
 

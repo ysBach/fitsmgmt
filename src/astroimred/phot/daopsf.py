@@ -4,11 +4,7 @@ from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling import Fittable2DModel, Parameter
 from astropy.nddata import Cutout2D
 from astropy.table import Table, vstack
-try:
-    from photutils.psf import SourceGrouper
-except ImportError:  # photutils < 2.0
-    SourceGrouper = None
-    from photutils.psf import DAOGroup
+from photutils.psf import SourceGrouper
 
 __all__ = [
     "dao_nstar_clamp",
@@ -137,12 +133,9 @@ def daophot_concat(
 
     tabs[xcol].name = "x_0"
     tabs[ycol].name = "y_0"
-    if SourceGrouper is None:
-        tabs_g = DAOGroup(crit_separation=crit_separation)(tabs)
-    else:
-        grouper = SourceGrouper(min_separation=crit_separation)
-        tabs_g = tabs.copy()
-        tabs_g["group_id"] = grouper(tabs_g["x_0"], tabs_g["y_0"])
+    grouper = SourceGrouper(min_separation=crit_separation)
+    tabs_g = tabs.copy()
+    tabs_g["group_id"] = grouper(tabs_g["x_0"], tabs_g["y_0"])
     tabs_g["x_0"].name = xcol
     tabs_g["y_0"].name = ycol
     return tabs_g

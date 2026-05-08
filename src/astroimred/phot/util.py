@@ -4,7 +4,7 @@ functionality can be achieved by pre-existing packages.
 """
 
 from collections.abc import Callable
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import bottleneck as bn
 import numpy as np
@@ -48,12 +48,12 @@ def sample_std(arr, ddof=0, axis=None):
 def sigma_clipper(
     data: ArrayLike,
     sigma: float = 3.0,
-    sigma_lower: Optional[float] = None,
-    sigma_upper: Optional[float] = None,
-    maxiters: Optional[int] = 5,
-    cenfunc: Union[Literal["median", "mean"], Callable] = "median",
-    stdfunc: Union[Literal["std", "mad_std"], Callable] = sample_std,
-) -> Union[ArrayLike, tuple[ArrayLike, float, float], tuple[ArrayLike, ...]]:
+    sigma_lower: float | None = None,
+    sigma_upper: float | None = None,
+    maxiters: int | None = 5,
+    cenfunc: Literal["median", "mean"] | Callable = "median",
+    stdfunc: Literal["std", "mad_std"] | Callable = sample_std,
+) -> ArrayLike | tuple[ArrayLike, float, float] | tuple[ArrayLike, ...]:
     """A simple wrapper of `astropy.stats.sigma_clip` with sample_std
 
     Parameters

@@ -13,7 +13,7 @@ __all__ = ["apphot_annulus"]
 
 
 # TODO: Put centroiding into this apphot_annulus ?
-# TODO: use variance instead of error (see photutils 0.7)
+# TODO: use variance instead of error
 # TODO: one_aperture_per_row : bool, optional
 # `photutils.aperture.aperture_photometry` produces 1-row result if multiple
 # radii aperture is given with column names starting from ``aperture_sum_0``
@@ -194,8 +194,6 @@ def apphot_annulus(
         try:
             n_apertures = len(aperture)
         except TypeError:
-            # photutils 0.7+ has .isscalar to test this but I want to accept
-            # older photutils too...
             n_apertures = 1
 
     flag_bad = True
@@ -243,16 +241,10 @@ def apphot_annulus(
             [_area[c][0] for c in _area.colnames if c.startswith("aperture_sum")]
         )
     else:
-        try:
-            if n_apertures != 1:
-                aparea = np.array([ap.area for ap in aperture])
-            else:
-                aparea = [aperture.area]
-        except TypeError:  # prior to photutils 0.7
-            if n_apertures != 1:
-                aparea = np.array([ap.area() for ap in aperture])
-            else:
-                aparea = [aperture.area()]
+        if n_apertures != 1:
+            aparea = np.array([ap.area for ap in aperture])
+        else:
+            aparea = [aperture.area]
 
     _phot = aperture_photometry(_arr, aperture, mask=_mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
