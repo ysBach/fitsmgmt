@@ -162,10 +162,42 @@ def mean_std_1d(arr, ddof=0, std=True, var=False):
     raise ValueError("At least one of `std` or `var` must be True.")
 
 
+def _validate_binning_factor(factor, axis):
+    if factor is None:
+        return None
+    if isinstance(factor, (bool, np.bool_)):
+        raise ValueError(f"factor for axis {axis} must be a positive integer.")
+    if not isinstance(factor, (int, np.integer)):
+        raise ValueError(f"factor for axis {axis} must be a positive integer.")
+    factor = int(factor)
+    if factor < 1:
+        raise ValueError(f"factor for axis {axis} must be a positive integer.")
+    return factor
+
+
+def _normalize_binning_factors(arr_shape, factors, order_xyz):
+    ndim = len(arr_shape)
+    if factors is None:
+        return np.ones(ndim, dtype=np.intp)
+
+    raw_factors = list(np.asarray(factors, dtype=object).ravel())
+    if len(raw_factors) != ndim:
+        raise ValueError(
+            f"factors must have the same length as arr.ndim ({ndim}); "
+            f"got {len(raw_factors)}."
+        )
+    if order_xyz:
+        raw_factors = raw_factors[::-1]
+
+    normalized = []
+    for axis, factor in enumerate(raw_factors):
+        factor = arr_shape[axis] if factor is None else factor
+        normalized.append(_validate_binning_factor(factor, axis))
+    return np.asarray(normalized, dtype=np.intp)
+
+
 def binning(
     arr,
-    factor_x=None,
-    factor_y=None,
     factors=None,
     order_xyz=True,
     binfunc=np.mean,
@@ -178,16 +210,12 @@ def binning(
     arr : array-like
         Input array.
 
-    factor_x, factor_y : `int` or `None`, optional
-        The binning factors in x, y direction. This is left as legacy and for
-        clarity, because mostly this function is used for 2-D CCD data. If any
-        of these is given, `order_xyz` is overridden as `True`.
-
     factors : `list`-like of `int`, optional.
-        The factors in pythonic axis order (``order_xyz=False``) or in the xyz
-        order (``order_xyz=True``). If any of the `tuple` is `None`, that will be
-        replaced by the size of the array along that axis, i.e., collapse along
-        that axis.
+        The factors in pythonic axis order (``order_xyz=False``) or in xyz-style
+        order (``order_xyz=True``), which is reversed into NumPy axis order. The
+        number of factors must match ``arr.ndim``. If any factor is ``None``,
+        that factor is replaced by the size of the array along that axis, i.e.,
+        collapse along that axis.
         Default: `None`.
 
     binfunc : callable, optional
@@ -196,8 +224,8 @@ def binning(
         Default: ``np.mean``.
 
     trim_end : `bool`, optional.
-        Whether to trim the end of x, y axes such that binning is done without
-        error.
+        Whether to trim the end of each axis so that the trimmed shape is
+        divisible by the binning factors.
         Default: `False`.
 
     Notes
@@ -211,10 +239,11 @@ def binning(
     >>> from astropy.nddata import CCDData
     >>> import numpy as np
     >>> ccd = CCDData(data=np.arange(1000).reshape(20, 50), unit='adu')
-    >>> kw = dict(factor_x=5, factor_y=5, binfunc=np.sum, trim_end=True)
-    >>> %timeit fm.binning(ccd.data, **kw)
+    >>> bin_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
+    >>> ccd_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
+    >>> %timeit fm.binning(ccd.data, **bin_kw)
     >>> # 10.9 +- 0.216 us (7 runs, 100000 loops each)
-    >>> %timeit fm.bin_ccd(ccd, **kw, update_header=False)
+    >>> %timeit fm.bin_ccd(ccd, **ccd_kw, update_header=False)
     >>> # 32.9 µs +- 878 ns per loop (7 runs, 10000 loops each)
     >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
     >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
@@ -223,55 +252,50 @@ def binning(
     Tested on MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
     GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
     """
-    # def binning(arr, factor_x=1, factor_y=1, binfunc=np.mean, trim_end=False):
-    #     binned = arr.copy()
-    #     if trim_end:
-    #         ny_orig, nx_orig = binned.shape
-    #         iy_max = ny_orig - (ny_orig % factor_y)
-    #         ix_max = nx_orig - (nx_orig % factor_x)
-    #         binned = binned[:iy_max, :ix_max]
-    #     ny, nx = binned.shape
-    #     nby = ny // factor_y
-    #     nbx = nx // factor_x
-    #     binned = binned.reshape(nby, factor_y, nbx, factor_x)
-    #     binned = binfunc(binned, axis=(-1, 1))
-    #     return binned
+    arr = np.asarray(arr)
+    if arr.size == 0:
+        raise ValueError("arr must not be empty.")
 
-    binned = arr.copy()
+    factors = _normalize_binning_factors(
+        arr.shape,
+        factors,
+        order_xyz,
+    )
+    shape = np.asarray(arr.shape, dtype=np.intp)
 
-    if factor_x is not None or factor_y is not None:
-        factors = (factor_x, factor_y)
-        order_xyz = True
+    if np.any(factors > shape):
+        axis = int(np.flatnonzero(factors > shape)[0])
+        raise ValueError(
+            f"factor for axis {axis} ({factors[axis]}) is larger than "
+            f"the axis length ({shape[axis]})."
+        )
 
-    if factors is None:
-        factors = np.ones(arr.ndim)
-    else:
-        factors = np.array(factors).ravel()
-        for i, f in enumerate(factors):
-            if f is None:
-                factors[i] = arr.shape[i]
-
-    if order_xyz:
-        factors = factors[::-1]  # convert back to python order
-
+    remainder = shape % factors
     if trim_end:
-        n_orig = binned.shape
-        i_max = n_orig - (n_orig % factors)
-        slices = tuple(slice(None, im, None) for im in i_max)
-        binned = binned[slices]
+        trim_shape = shape - remainder
+        if np.any(trim_shape == 0):
+            axis = int(np.flatnonzero(trim_shape == 0)[0])
+            raise ValueError(
+                f"factor for axis {axis} ({factors[axis]}) trims the axis "
+                "to length 0."
+            )
+        slices = tuple(slice(None, int(size)) for size in trim_shape)
+        arr = arr[slices]
+        shape = trim_shape
+    elif np.any(remainder):
+        axis = int(np.flatnonzero(remainder)[0])
+        raise ValueError(
+            f"array shape along axis {axis} ({shape[axis]}) is not divisible "
+            f"by factor {factors[axis]}; use trim_end=True to trim trailing "
+            "elements."
+        )
 
-    npix = binned.shape
-    nbin = npix // factors
-    nbin[nbin == 0] = 1
-    newshape = []
-    for nbin_i, factor_i in zip(nbin, factors):
-        newshape.append(nbin_i)
-        newshape.append(factor_i)
-
-    binned = binned.reshape(newshape)
-    funcaxis = np.arange(1, binned.ndim + 1, 2).astype(int)
-    binned = binfunc(binned, axis=tuple(funcaxis))
-    return binned
+    nbin = shape // factors
+    newshape = tuple(
+        int(item) for pair in zip(nbin, factors, strict=True) for item in pair
+    )
+    reshaped = arr.reshape(newshape)
+    return binfunc(reshaped, axis=tuple(range(1, reshaped.ndim, 2)))
 
 
 # FIXME: I am not sure whether these gain conversions are universal or just

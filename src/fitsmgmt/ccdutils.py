@@ -27,6 +27,53 @@ __all__ = [
 ]
 
 
+def _normalize_ccd_binning_factors(data_shape, factors):
+    if factors is None:
+        factors = (1,) * len(data_shape)
+    raw_factors = tuple(np.asarray(factors, dtype=object).ravel())
+    if len(raw_factors) != len(data_shape):
+        raise ValueError(
+            "bin_ccd factors must have the same length as ccd.data.ndim "
+            f"({len(data_shape)}); got {len(raw_factors)}."
+        )
+
+    # binning() defaults to xyz-style factor order, so map None values against
+    # the reversed NumPy shape for header reporting.
+    xyz_shape = tuple(data_shape[::-1])
+    effective = []
+    for axis, (factor, axis_size) in enumerate(zip(raw_factors, xyz_shape)):
+        if factor is None:
+            effective.append(int(axis_size))
+            continue
+        if isinstance(factor, (bool, np.bool_)):
+            raise ValueError(f"factor for axis {axis} must be a positive integer.")
+        if not isinstance(factor, (int, np.integer)):
+            raise ValueError(f"factor for axis {axis} must be a positive integer.")
+        factor = int(factor)
+        if factor < 1:
+            raise ValueError(f"factor for axis {axis} must be a positive integer.")
+        effective.append(factor)
+    return raw_factors, tuple(effective)
+
+
+def _update_binning_header(header, factors):
+    if len(factors) in (2, 3):
+        keys = ("XBINNING", "YBINNING", "ZBINNING")
+        axis_names = ("X", "Y", "Z")
+        for key, axis_name, factor in zip(keys, axis_names, factors, strict=False):
+            header[key] = (
+                factor,
+                f"Binning done after the observation in {axis_name} direction",
+            )
+        return
+
+    for idx, factor in enumerate(factors, start=1):
+        header[f"BINNING{idx}"] = (
+            factor,
+            f"Binning factor {idx} applied after the observation",
+        )
+
+
 def CCDData_astype(ccd, dtype="float32", uncertainty_dtype=None, copy=True):
     """Assign dtype to the `~astropy.nddata.CCDData` object (numpy uses float64 default).
 
@@ -166,16 +213,19 @@ def set_ccd_attribute(
 
             try:
                 v = ccd.header[key]
-                s.append(
-                    f"[fitsmgmt.set_ccd_attribute] (Original {key} = {v} is overwritten.)"
-                )
+                s.append(f"[fm.set_ccd_attribute] (Original {key} = {v} is overwritten.)")
 
             except (KeyError, ValueError):
                 pass
 
             ccd.header[key] = (value_Q.value, header_comment)
         # add as history
-        headers.cmt2hdr(ccd.header, "h", s, t_ref=_t_start)
+        headers.cmt2hdr(
+            ccd.header,
+            "h",
+            s,
+            t_ref=_t_start,
+        )
 
     setattr(ccd, name, value_Q)
     headers.update_tlm(ccd.header)
@@ -359,12 +409,16 @@ def imslice(
                     hdr.setdefault(f"LTM{i+1}_{j+1}", 0.0)
 
         if trimsec is not None:
-            infostr = [
-                f"[fitsmgmt.imslice] Sliced using `{trimsec = }`: converted to {sl}. "
-            ]
+            infostr = [f"[fm.imslice] Sliced using `{trimsec = }`: converted to {sl}. "]
             if fill_value is not None:
                 infostr.append(f"Filled background with `{fill_value = }`.")
-            headers.cmt2hdr(hdr, "h", infostr, t_ref=_t, verbose=verbose)
+            headers.cmt2hdr(
+                hdr,
+                "h",
+                infostr,
+                t_ref=_t,
+                verbose=verbose,
+            )
             headers.update_process(hdr, "T")
 
     return nccd
@@ -518,8 +572,7 @@ def cut_ccd(ccd, position, size, wcs=None, mode="trim", fill_value=np.nan, warni
 
 def bin_ccd(
     ccd,
-    factor_x=1,
-    factor_y=1,
+    factors=None,
     binfunc=np.mean,
     trim_end=False,
     update_header=True,
@@ -532,8 +585,11 @@ def bin_ccd(
     ccd : `~astropy.nddata.CCDData`
         The ccd to be binned
 
-    factor_x, factor_y : `int`, optional.
-        The binning factors in x, y direction.
+    factors : `list`-like of `int`, optional.
+        The binning factors. The order matches
+        ``mathutils.binning(..., order_xyz=True)``. For 2-D data this is
+        ``(x, y)``; for 3-D data this is ``(x, y, z)``. If `None`, every
+        factor is treated as ``1``.
 
     binfunc : callable, optional.
         The function to be applied for binning, such as ``np.sum``,
@@ -559,10 +615,11 @@ def bin_ccd(
     >>> from astropy.nddata import CCDData
     >>> import numpy as np
     >>> ccd = CCDData(data=np.arange(1000).reshape(20, 50), unit='adu')
-    >>> kw = dict(factor_x=5, factor_y=5, binfunc=np.sum, trim_end=True)
-    >>> %timeit fm.binning(ccd.data, **kw)
+    >>> bin_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
+    >>> ccd_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
+    >>> %timeit fm.binning(ccd.data, **bin_kw)
     >>> # 10.9 +- 0.216 us (7 runs, 100000 loops each)
-    >>> %timeit fm.bin_ccd(ccd, **kw, update_header=False)
+    >>> %timeit fm.bin_ccd(ccd, **ccd_kw, update_header=False)
     >>> # 32.9 µs +- 878 ns per loop (7 runs, 10000 loops each)
     >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
     >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
@@ -576,7 +633,9 @@ def bin_ccd(
     if not isinstance(ccd, CCDData):
         raise TypeError("ccd must be CCDData object.")
 
-    if factor_x == 1 and factor_y == 1:
+    factors, header_factors = _normalize_ccd_binning_factors(ccd.data.shape, factors)
+
+    if all(factor == 1 for factor in header_factors):
         return ccd
 
     if copy:
@@ -586,27 +645,19 @@ def bin_ccd(
 
     _ccd.data = binning(
         _ccd.data,
-        factor_x=factor_x,
-        factor_y=factor_y,
+        factors=factors,
         binfunc=binfunc,
         trim_end=trim_end,
     )
     if update_header:
         _ccd.header["BINFUNC"] = (binfunc.__name__, "The function used for binning.")
-        _ccd.header["XBINNING"] = (
-            factor_x,
-            "Binning done after the observation in X direction",
-        )
-        _ccd.header["YBINNING"] = (
-            factor_y,
-            "Binning done after the observation in Y direction",
-        )
+        _update_binning_header(_ccd.header, header_factors)
         # add as history
         headers.cmt2hdr(
             _ccd.header,
             "h",
             t_ref=_t_start,
-            s=f"[bin_ccd] Binned by (xbin, ybin) = ({factor_x}, {factor_y}) ",
+            s=f"[fm.bin_ccd] Binned by factors = {header_factors} ",
         )
     return _ccd
 
@@ -656,6 +707,9 @@ def convert_bit(
         _ccd.header,
         "h",
         t_ref=_t,
-        s="Converted {}-bit to {}-bit".format(original_bit, target_bit),
+        s="[fm.convert_bit] Converted {}-bit to {}-bit".format(
+            original_bit,
+            target_bit,
+        ),
     )
     return _ccd
