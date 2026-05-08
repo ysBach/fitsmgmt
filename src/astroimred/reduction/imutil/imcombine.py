@@ -39,6 +39,7 @@ from .util_comb import (
     _set_reject_name,
     _set_sigma,
     _set_thresh_mask,
+    _default_zsw_kw,
     do_zs,
     get_zsw,
 )
@@ -334,24 +335,24 @@ def imcombine(
     trimsec=None,
     blank=np.nan,
     offsets=None,
-    thresholds=[-np.inf, np.inf],
+    thresholds=None,
     zero=None,
     zero_to_0th=True,
     zero_section=None,
     scale=None,
     scale_to_0th=True,
     scale_section=None,
-    zero_kw={"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
-    scale_kw={"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
+    zero_kw=None,
+    scale_kw=None,
     weight=None,
     reject=None,
-    sigma=[3.0, 3.0],
+    sigma=None,
     cenfunc="median",
     maxiters=50,
     ddof=1,
     nkeep=1,
     maxrej=None,
-    n_minmax=[1, 1],
+    n_minmax=None,
     rdnoise=0.0,
     gain=1.0,
     snoise=0.0,
@@ -381,6 +382,12 @@ def imcombine(
     overwrite=False,
     checksum=False,
 ):
+    thresholds = [-np.inf, np.inf] if thresholds is None else list(thresholds)
+    zero_kw = _default_zsw_kw() if zero_kw is None else dict(zero_kw)
+    scale_kw = _default_zsw_kw() if scale_kw is None else dict(scale_kw)
+    sigma = [3.0, 3.0] if sigma is None else sigma
+    n_minmax = [1, 1] if n_minmax is None else n_minmax
+
     if verbose:
         _t1 = Time.now()
         logger.info(_t1.iso)
@@ -988,24 +995,24 @@ def ndcombine(
     copy=True,
     blank=np.nan,
     offsets=None,
-    thresholds=[-np.inf, np.inf],
+    thresholds=None,
     zero=None,
     scale=None,
     weight=None,
-    zero_kw={"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
-    scale_kw={"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
+    zero_kw=None,
+    scale_kw=None,
     zero_to_0th=True,
     scale_to_0th=True,
     zero_section=None,
     scale_section=None,
     reject=None,
     cenfunc="median",
-    sigma=[3.0, 3.0],
+    sigma=None,
     maxiters=3,
     ddof=1,
     nkeep=1,
     maxrej=None,
-    n_minmax=[1, 1],
+    n_minmax=None,
     rdnoise=0.0,
     gain=1.0,
     snoise=0.0,
@@ -1018,6 +1025,12 @@ def ndcombine(
     full=False,
     return_variance=False,
 ):
+    thresholds = [-np.inf, np.inf] if thresholds is None else list(thresholds)
+    zero_kw = _default_zsw_kw() if zero_kw is None else dict(zero_kw)
+    scale_kw = _default_zsw_kw() if scale_kw is None else dict(scale_kw)
+    sigma = [3.0, 3.0] if sigma is None else sigma
+    n_minmax = [1, 1] if n_minmax is None else n_minmax
+
     if copy:
         arr = arr.copy()
 

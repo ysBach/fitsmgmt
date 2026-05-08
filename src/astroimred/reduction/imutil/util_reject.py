@@ -369,7 +369,8 @@ def _minmax(arr, mask=None, q_low=0, q_upp=0, calc_low=True, calc_upp=True):
     return (mask, low, upp, 1, code)
 
 
-def minmax_mask(arr, mask=None, n_minmax=[1, 1], full=True):
+def minmax_mask(arr, mask=None, n_minmax=None, full=True):
+    n_minmax = [1, 1] if n_minmax is None else n_minmax
     mask = _set_mask(arr, mask)
     q_low, q_upp = _set_minmax(arr, n_minmax, axis=0)
     # Original path (fallback when IMUTIL_USE_NUMBA is False or arr not 3D):

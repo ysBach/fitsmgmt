@@ -23,6 +23,10 @@ __all__ = [
 ]
 
 
+def _default_zsw_kw():
+    return {"cenfunc": "median", "stdfunc": "std", "std_ddof": 1}
+
+
 def do_zs(arr, zeros, scales, copy=False):
     if copy:
         arr = arr.copy()
@@ -87,7 +91,11 @@ def get_zsw(
         else:
             return fun
 
-    def _set_calc_zsw(arr, zero_scale_weight, zsw_kw={}):
+    zero_kw = _default_zsw_kw() if zero_kw is None else dict(zero_kw)
+    scale_kw = _default_zsw_kw() if scale_kw is None else dict(scale_kw)
+
+    def _set_calc_zsw(arr, zero_scale_weight, zsw_kw=None):
+        zsw_kw = {} if zsw_kw is None else dict(zsw_kw)
         if isinstance(zero_scale_weight, str):
             zswstr = zero_scale_weight.lower()
             calc_zsw = True
@@ -100,10 +108,10 @@ def get_zsw(
             # not, the ``zsw = fun_simple(data, axis=None)`` code below raises
             # unwanted TypeError, so that `redo` is always `True`.
             elif zswstr in ["avg_sc", "average_sc", "mean_sc"]:
-                _ = zsw_kw.pop("axis", None)  # if exist `axis`, remove it.
+                zsw_kw.pop("axis", None)  # if exist `axis`, remove it.
                 calcfun = lambda x, axis: sigma_clipped_stats(x, axis=None, **zsw_kw)[0]
             elif zswstr in ["med_sc", "medi_sc", "median_sc"]:
-                _ = zsw_kw.pop("axis", None)  # if exist `axis`, remove it.
+                zsw_kw.pop("axis", None)  # if exist `axis`, remove it.
                 calcfun = lambda x, axis: sigma_clipped_stats(x, axis=None, **zsw_kw)[1]
             else:
                 raise ValueError(
