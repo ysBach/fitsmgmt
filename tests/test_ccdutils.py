@@ -3,8 +3,8 @@
 import numpy as np
 from astropy.nddata import CCDData
 
-import fitsmgmt as fm
-from fitsmgmt import ccdutils
+import astroimred as air
+from astroimred import ccdutils
 
 
 def _header_value(header, key):
@@ -19,10 +19,10 @@ class TestCcdUtils:
 
     def test_ccd_helpers_have_canonical_modules(self):
         """CCD operations are exposed from ccdutils."""
-        assert fm.imslice is ccdutils.imslice
-        assert fm.cut_ccd is ccdutils.cut_ccd
-        assert fm.bin_ccd is ccdutils.bin_ccd
-        assert fm.set_ccd_attribute is ccdutils.set_ccd_attribute
+        assert air.imslice is ccdutils.imslice
+        assert air.cut_ccd is ccdutils.cut_ccd
+        assert air.bin_ccd is ccdutils.bin_ccd
+        assert air.set_ccd_attribute is ccdutils.set_ccd_attribute
 
     def test_bin_ccd_uses_xyz_header_keys_for_2d(self):
         """2-D binning should write X/Y binning header cards."""

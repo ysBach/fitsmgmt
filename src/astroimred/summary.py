@@ -144,13 +144,13 @@ def fits_summary(
     Notes
     -----
     I want to use ccdproc.ImageFileCollection instead of this, but it is about
-    4 times slower than my `~fitsmgmt.summary.fits_summary`, so I cannot use it yet.
+    4 times slower than my `~astroimred.summary.fits_summary`, so I cannot use it yet.
 
     Examples
     -------
 
     >>> from pathlib import Path
-    >>> import fitsmgmt as fm
+    >>> import astroimred as air
     >>> keys = ["OBS-TIME", "FILTER", "OBJECT"]
     >>> # actually it is case-insensitive
     >>> # The keywords you want to extract
@@ -159,7 +159,7 @@ def fits_summary(
     >>> # The toppath
     >>> savepath = TOPPATH / "summary_20180101.csv"
     >>> # list of all the fits files in TOPPATH/rawdata:
-    >>> summary = fm.fits_summary(
+    >>> summary = air.fits_summary(
     >>>     TOPPATH/"rawdata/*.fits",
     >>>     keywords=keys,
     >>>     fname_option='name',

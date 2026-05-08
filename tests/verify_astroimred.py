@@ -7,13 +7,13 @@ import numpy as np
 import astropy.units as u
 from astropy.io import fits
 
-# Import fitsmgmt
+# Import astroimred
 try:
-    from fitsmgmt import (
+    from astroimred import (
         ccdutils,
         headers,
         io,
-        logging as fmlogging,
+        logging as airlogging,
         mathutils,
         misc,
         paths,
@@ -25,23 +25,23 @@ except ImportError:
 
     sys.path.insert(0, os.path.abspath("src"))
 
-    from fitsmgmt import (
+    from astroimred import (
         ccdutils,
         headers,
         io,
-        logging as fmlogging,
+        logging as airlogging,
         mathutils,
         misc,
         paths,
         summary,
     )
 
-logger = fmlogging.logger
+logger = airlogging.logger
 
 
 def run_tests():
-    fmlogging.enable_console_logging()
-    logger.info("Starting Verification of fitsmgmt...")
+    airlogging.enable_console_logging()
+    logger.info("Starting Verification of astroimred...")
 
     # Setup temp dir
     tmpdir = Path(tempfile.mkdtemp())
@@ -52,8 +52,8 @@ def run_tests():
         # 1. Test Logging
         # ==========================================
         logger.info("--- Testing Logging ---")
-        fmlogging.set_log_level("DEBUG")
-        fmlogging.enable_console_logging(level=10)
+        airlogging.set_log_level("DEBUG")
+        airlogging.enable_console_logging(level=10)
 
         # ==========================================
         # 2. Test Utils

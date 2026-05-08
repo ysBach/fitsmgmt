@@ -1,6 +1,6 @@
-"""Logging configuration for fitsmgmt.
+"""Logging configuration for astroimred.
 
-This module provides a centralized logging infrastructure for fitsmgmt,
+This module provides a centralized logging infrastructure for astroimred,
 following Python library best practices.
 
 By default, the logger uses a NullHandler to be silent (library mode).
@@ -8,22 +8,22 @@ Users can enable console logging for interactive use.
 
 Examples
 --------
->>> import fitsmgmt as fm
+>>> import astroimred as air
 >>> import logging
 >>> # Enable INFO-level logging for interactive use
->>> fm.enable_console_logging(level=logging.INFO)
+>>> air.enable_console_logging(level=logging.INFO)
 >>> # Or use DEBUG for detailed diagnostics
->>> fm.enable_console_logging(level=logging.DEBUG)
+>>> air.enable_console_logging(level=logging.DEBUG)
 >>> # Standard logging configuration also works
->>> logging.getLogger("fitsmgmt").setLevel(logging.WARNING)
+>>> logging.getLogger("astroimred").setLevel(logging.WARNING)
 """
 import logging
 
 __all__ = ["logger", "set_log_level", "enable_console_logging"]
 
 # Package-level logger using standard naming convention
-# When imported as a package, this will be 'fitsmgmt'
-logger = logging.getLogger("fitsmgmt")
+# When imported as a package, this will be 'astroimred'
+logger = logging.getLogger("astroimred")
 
 # Default: NullHandler (silent by default for library usage)
 # This follows the Python logging best practices for libraries:
@@ -32,7 +32,7 @@ logger.addHandler(logging.NullHandler())
 
 
 def set_log_level(level):
-    """Set the log level for fitsmgmt.
+    """Set the log level for astroimred.
 
     Parameters
     ----------
@@ -42,10 +42,10 @@ def set_log_level(level):
 
     Examples
     --------
-    >>> import fitsmgmt as fm
+    >>> import astroimred as air
     >>> import logging
-    >>> fm.set_log_level(logging.DEBUG)
-    >>> fm.set_log_level('INFO')  # Also accepts strings
+    >>> air.set_log_level(logging.DEBUG)
+    >>> air.set_log_level('INFO')  # Also accepts strings
     """
     if isinstance(level, str):
         level = getattr(logging, level.upper())
@@ -56,7 +56,7 @@ def enable_console_logging(level=logging.INFO, format=None):
     """Enable console logging for interactive use.
 
     This is a convenience function to quickly enable visible logging output
-    when using fitsmgmt interactively. By default, the library is silent
+    when using astroimred interactively. By default, the library is silent
     (only a NullHandler is attached).
 
     Parameters
@@ -72,14 +72,14 @@ def enable_console_logging(level=logging.INFO, format=None):
 
     Examples
     --------
-    >>> import fitsmgmt as fm
+    >>> import astroimred as air
     >>> import logging
     >>> # Basic usage - INFO level
-    >>> fm.enable_console_logging()
+    >>> air.enable_console_logging()
     >>> # Detailed debugging
-    >>> fm.enable_console_logging(level=logging.DEBUG)
+    >>> air.enable_console_logging(level=logging.DEBUG)
     >>> # Custom format with timestamps
-    >>> fm.enable_console_logging(
+    >>> air.enable_console_logging(
     ...     level=logging.DEBUG,
     ...     format="%(asctime)s [%(levelname)s] %(message)s"
     ... )

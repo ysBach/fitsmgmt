@@ -8,11 +8,11 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from fitsmgmt import (
+from astroimred import (
     ccdutils,
     headers,
     io,
-    logging as fmlogging,
+    logging as airlogging,
     mathutils,
     misc,
     summary,
@@ -41,16 +41,16 @@ def dummy_fits(temp_env):
 
 def test_logging():
     """Test logging configuration."""
-    fmlogging.set_log_level("DEBUG")
-    fmlogging.enable_console_logging(level=10)
+    airlogging.set_log_level("DEBUG")
+    airlogging.enable_console_logging(level=10)
     # Since we can't easily capture logger output configured to stdout in pytest
     # without caplog, we just verify the function runs and level is set.
-    assert fmlogging.logger.level == logging.DEBUG
-    for handler in fmlogging.logger.handlers[:]:
+    assert airlogging.logger.level == logging.DEBUG
+    for handler in airlogging.logger.handlers[:]:
         if isinstance(handler, logging.StreamHandler) and not isinstance(
             handler, logging.FileHandler
         ):
-            fmlogging.logger.removeHandler(handler)
+            airlogging.logger.removeHandler(handler)
 
 def test_listify():
     """Test listify utility."""

@@ -1,5 +1,5 @@
 """
-Test configuration and fixtures for fitsmgmt tests.
+Test configuration and fixtures for astroimred tests.
 
 This module provides common fixtures and utilities for testing, including:
 - Sample FITS data generation

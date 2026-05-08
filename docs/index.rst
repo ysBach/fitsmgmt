@@ -1,4 +1,4 @@
-fitsmgmt
+astroimred
 ========
 
 FITS file management and lightweight inspection utilities.

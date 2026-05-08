@@ -1,5 +1,5 @@
 """
-Tests for fitsmgmt.airmass module.
+Tests for astroimred.airmass module.
 
 These tests verify airmass calculations against known physical values.
 Airmass is a fundamental astronomical quantity, so we use strict tolerances.
@@ -11,7 +11,7 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 
-from fitsmgmt import airmass
+from astroimred import airmass
 
 # Strict tolerance for physical calculations
 RTOL = 1e-6

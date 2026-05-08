@@ -4,8 +4,8 @@ from astropy import units as u
 from astropy.io import fits
 import pytest
 
-import fitsmgmt as fm
-from fitsmgmt import headers, misc
+import astroimred as air
+from astroimred import headers, misc
 
 
 class TestHeaderExports:
@@ -13,9 +13,9 @@ class TestHeaderExports:
 
     def test_header_helpers_live_in_headers(self):
         """Header edit/accessor helpers live in headers."""
-        assert fm.hedit is headers.hedit
-        assert fm.key_remover is headers.key_remover
-        assert fm.hdrval is headers.hdrval
+        assert air.hedit is headers.hedit
+        assert air.key_remover is headers.key_remover
+        assert air.hdrval is headers.hdrval
         assert not hasattr(headers, "valinhdr")
         assert not hasattr(headers, "get_from_header")
         assert not hasattr(headers, "get_if_none")

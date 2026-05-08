@@ -235,15 +235,15 @@ def binning(
 
 
     >>> from astropy.nddata.blocks import block_reduce
-    >>> import fitsmgmt as fm
+    >>> import astroimred as air
     >>> from astropy.nddata import CCDData
     >>> import numpy as np
     >>> ccd = CCDData(data=np.arange(1000).reshape(20, 50), unit='adu')
     >>> bin_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
     >>> ccd_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
-    >>> %timeit fm.binning(ccd.data, **bin_kw)
+    >>> %timeit air.binning(ccd.data, **bin_kw)
     >>> # 10.9 +- 0.216 us (7 runs, 100000 loops each)
-    >>> %timeit fm.bin_ccd(ccd, **ccd_kw, update_header=False)
+    >>> %timeit air.bin_ccd(ccd, **ccd_kw, update_header=False)
     >>> # 32.9 µs +- 878 ns per loop (7 runs, 10000 loops each)
     >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
     >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us

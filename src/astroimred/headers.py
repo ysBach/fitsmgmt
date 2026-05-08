@@ -85,11 +85,11 @@ def cmt2hdr(
 
     %timeit ccd.header.copy()
     1.67 ms +/- 33.3 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    %timeit fm.cmt2hdr(ccd.header.copy(), 'h', 'test')
+    %timeit air.cmt2hdr(ccd.header.copy(), 'h', 'test')
     1.89 ms +/- 141 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    %timeit fm.cmt2hdr(ccd.header.copy(), 'hist', 'test')
+    %timeit air.cmt2hdr(ccd.header.copy(), 'hist', 'test')
     1.89 ms +/- 144 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
-    %timeit fm.cmt2hdr(ccd.header.copy(), 'histORy', 'test')
+    %timeit air.cmt2hdr(ccd.header.copy(), 'histORy', 'test')
     1.95 ms +/- 146 µs per loop (mean +/- std. dev. of 7 runs, 100 loops each)
     """
     if set_kw is None:
@@ -132,7 +132,7 @@ def update_tlm(header):
 
      Timing on MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB
     (2400MHz DDR4), Radeon Pro 560X (4GB)]:
-    %timeit fm.update_tlm(ccd.header)
+    %timeit air.update_tlm(ccd.header)
     # 443 µs +/- 19.5 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
     """
     now = Time(Time.now(), precision=0).isot
@@ -209,7 +209,7 @@ def update_process(
             header,
             "c",
             time_fmt=None,
-            s=f"[fm.update_process] Standard items for {key} includes B=bias, D=dark, "
+            s=f"[air.update_process] Standard items for {key} includes B=bias, D=dark, "
             + "F=flat, T=trim, W=WCS, O=Overscan, I=Illumination, C=CRrej, R=fringe, "
             + "P=fixpix, X=crosstalk.",
         )
@@ -314,13 +314,13 @@ def hedit(
         if key in header:
             oldv = header[key]
             infostr = (
-                f"[fm.HEDIT] {key}={oldv} ({type(oldv).__name__}) "
+                f"[air.HEDIT] {key}={oldv} ({type(oldv).__name__}) "
                 f"--> {val} ({type(val).__name__})"
             )
             _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
         else:
             if add:  # add key only if `add` is True.
-                infostr = f"[fm.HEDIT] Add {key}= {val} ({type(val).__name__})"
+                infostr = f"[air.HEDIT] Add {key}= {val} ({type(val).__name__})"
                 _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
             elif verbose:
                 logger.info(
@@ -612,8 +612,8 @@ def hdrval(
         For a test astropy.nddata.CCDData, the following timing gave ~ 0.5 ms on MBP 15" [2018,
         macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB (2400MHz DDR4), Radeon
         Pro 560X (4GB)]
-        %timeit ((fm.hdrval(None, ccd.header, "EXPTIME", unit=u.s)
-                 / fm.hdrval(3*u.s, ccd.header, "EXPTIME", unit=u.s)).si.value)
+        %timeit ((air.hdrval(None, ccd.header, "EXPTIME", unit=u.s)
+                 / air.hdrval(3*u.s, ccd.header, "EXPTIME", unit=u.s)).si.value)
     """
     if value is None:
         if key is None:

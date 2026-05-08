@@ -262,10 +262,10 @@ def _parse_image(
     >>> data = np.random.normal(size=(100,100))
     >>> ccd = CCDData(data, unit='adu')
     >>> fpath = "img/0001.fits"  # doctest: +SKIP
-    >>> %timeit fm._parse_image(data, name="test", force_ccddata=True)
-    >>> %timeit fm._parse_image(ccd, name="test", force_ccddata=True)
-    >>> %timeit fm._parse_image(fpath, name="test", force_ccddata=True) # doctest: +SKIP
-    >>> %timeit fm._parse_image(fpath, name="test", force_ccddata=False)[0]*1.0 # doctest: +SKIP
+    >>> %timeit air._parse_image(data, name="test", force_ccddata=True)
+    >>> %timeit air._parse_image(ccd, name="test", force_ccddata=True)
+    >>> %timeit air._parse_image(fpath, name="test", force_ccddata=True) # doctest: +SKIP
+    >>> %timeit air._parse_image(fpath, name="test", force_ccddata=False)[0]*1.0 # doctest: +SKIP
     # 14.2 µs +- 208 ns per loop (mean +- std. dev. of 7 runs, 100000 loops each)
     # 16.6 µs +- 298 ns per loop (mean +- std. dev. of 7 runs, 100000 loops each)
     # 20.8 ms +- 133 µs per loop (mean +- std. dev. of 7 runs, 10000 loops each)
@@ -455,7 +455,7 @@ def _parse_extension(*args, ext=None, extname=None, extver=None):
     -----
     extension parser itself is not a time-consuming process:
 
-    %timeit fm._parse_extension()
+    %timeit air._parse_extension()
     # 1.52 µs +- 69.3 ns per loop (mean +- std. dev. of 7 runs, 1000000 loops each)
     """
 
@@ -859,7 +859,7 @@ def load_ccds(
 
     .. code-block:: python
 
-        %timeit ccds = fm.load_ccds("h_20191021_000*")
+        %timeit ccds = air.load_ccds("h_20191021_000*")
         105 ms +- 2.11 ms per loop (mean +- std. dev. of 7 runs, 10 loops each)
     """
     paths2load = []

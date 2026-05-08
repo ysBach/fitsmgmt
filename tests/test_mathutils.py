@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from fitsmgmt import mathutils, misc
+from astroimred import mathutils, misc
 
 RTOL = 1e-6
 ATOL = 1e-8

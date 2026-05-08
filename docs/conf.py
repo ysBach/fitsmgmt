@@ -1,12 +1,12 @@
-"""Sphinx configuration for fitsmgmt."""
+"""Sphinx configuration for astroimred."""
 
 from __future__ import annotations
 
 from importlib.metadata import version
 
-project = "fitsmgmt"
+project = "astroimred"
 author = "ysBach"
-release = version("fitsmgmt")
+release = version("astroimred")
 version = ".".join(release.split(".")[:2])
 
 extensions = [

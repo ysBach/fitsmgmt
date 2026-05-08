@@ -1,4 +1,4 @@
-"""fitsmgmt: FITS file management and lightweight inspection utilities."""
+"""astroimred: FITS file management and lightweight inspection utilities."""
 
 from .logging import logger, set_log_level, enable_console_logging
 from .airmass import *

@@ -2,8 +2,8 @@
 
 import numpy as np
 
-import fitsmgmt as fm
-from fitsmgmt import imstat
+import astroimred as air
+from astroimred import imstat
 
 RTOL = 1e-6
 ATOL = 1e-8
@@ -14,7 +14,7 @@ class TestGiveStats:
 
     def test_give_stats_lives_in_imstat(self):
         """give_stats is an imstat helper."""
-        assert fm.give_stats is imstat.give_stats
+        assert air.give_stats is imstat.give_stats
 
     def test_stats_basic(self, sample_data_2d):
         """Test basic statistics calculation."""

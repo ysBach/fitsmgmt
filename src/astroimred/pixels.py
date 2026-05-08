@@ -63,10 +63,10 @@ def fixpix(
     >>> data = np.random.normal(size=(1000, 1000))
     >>> mask = np.zeros_like(data).astype(bool)
     >>> mask[10, 10] = True
-    >>> %timeit fm.fixpix(data, mask)
+    >>> %timeit air.fixpix(data, mask)
     19.7 ms +- 1.53 ms per loop (mean +- std. dev. of 7 runs, 100 loops each)
 
-    >>> print(data[9:12, 9:12], fm.fixpix(data, mask)[9:12, 9:12])
+    >>> print(data[9:12, 9:12], air.fixpix(data, mask)[9:12, 9:12])
     # [[ 1.64164502 -1.00385046 -1.24748504]
     #  [-1.31877621  1.37965928  0.66008966]
     #  [-0.7960262  -0.14613834 -1.34513327]]
@@ -212,7 +212,7 @@ def fixpix(
             "h",
             t_ref=_t_start,
             verbose=verbose,
-            s="[fm.fixpix] Pixel values interpolated.",
+            s="[air.fixpix] Pixel values interpolated.",
         )
         headers.update_process(_ccd.header, "P")
 
@@ -322,7 +322,7 @@ def find_extpix(
             verbose=verbose,
             t_ref=_t,
             s=(
-                "[fm.find_extpix] Extrema pixel values found N(smallest, largest) = "
+                "[air.find_extpix] Extrema pixel values found N(smallest, largest) = "
                 + f"{npixs} excluding mask ({maskname}){bezstr}. See MINViii and MAXViii."
             ),
         )
@@ -412,7 +412,7 @@ def find_satpix(
             "h",
             verbose=verbose,
             t_ref=_t,
-            s="[fm.find_satpix] Saturated pixels calculated based on satlevel = "
+            s="[air.find_satpix] Saturated pixels calculated based on satlevel = "
             + f"{satlevel}, excluding mask ({maskname}){bezstr}. "
             + "See NSATPIX and SATLEVEL.",
         )

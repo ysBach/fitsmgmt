@@ -1,14 +1,23 @@
 import argparse
-import sys
-from .filemgmt import make_summary
-from .logging import enable_console_logging
 import logging
+import sys
 
-def run_summary():
-    parser = argparse.ArgumentParser(description="Create a summary table from FITS files.")
-    parser.add_argument("inputs", nargs="+", help="Input FITS files (glob patterns allowed)")
+from .summary import fits_summary
+from .logging import enable_console_logging
+
+
+def run_summary() -> None:
+    """Run the ``astroimred-summary`` command-line entry point."""
+    parser = argparse.ArgumentParser(
+        description="Create a summary table from FITS files."
+    )
+    parser.add_argument(
+        "inputs", nargs="+", help="Input FITS files (glob patterns allowed)"
+    )
     parser.add_argument("-o", "--output", help="Output file (CSV, etc.)", default=None)
-    parser.add_argument("-k", "--keywords", nargs="+", help="Keywords to extract", default=None)
+    parser.add_argument(
+        "-k", "--keywords", nargs="+", help="Keywords to extract", default=None
+    )
     parser.add_argument("-e", "--extension", help="Extension to read", default=None)
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
 
@@ -18,12 +27,12 @@ def run_summary():
         enable_console_logging(level=logging.INFO)
 
     try:
-        df = make_summary(
+        df = fits_summary(
             inputs=args.inputs,
             extension=args.extension,
             keywords=args.keywords,
             output=args.output,
-            verbose=args.verbose
+            verbose=args.verbose,
         )
         if df is not None and args.output is None:
             print(df)

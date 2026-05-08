@@ -1,7 +1,7 @@
 """Tests for pixel mask and saturation helpers."""
 
-import fitsmgmt as fm
-from fitsmgmt import pixels
+import astroimred as air
+from astroimred import pixels
 
 
 class TestPixelTools:
@@ -9,6 +9,6 @@ class TestPixelTools:
 
     def test_pixel_helpers_have_canonical_modules(self):
         """Pixel operations are exposed from pixels."""
-        assert fm.fixpix is pixels.fixpix
-        assert fm.find_extpix is pixels.find_extpix
-        assert fm.find_satpix is pixels.find_satpix
+        assert air.fixpix is pixels.fixpix
+        assert air.find_extpix is pixels.find_extpix
+        assert air.find_satpix is pixels.find_satpix

@@ -1,7 +1,7 @@
 """Tests for WCS helper utilities."""
 
-import fitsmgmt as fm
-from fitsmgmt import wcstools
+import astroimred as air
+from astroimred import wcstools
 
 
 class TestWcsTools:
@@ -9,7 +9,7 @@ class TestWcsTools:
 
     def test_wcstools_exported_from_package_root(self):
         """WCS helpers live in wcstools and package root."""
-        assert fm.wcsremove is wcstools.wcsremove
+        assert air.wcsremove is wcstools.wcsremove
 
     def test_wcsremove_header(self, sample_header):
         """Test WCS keyword removal from an in-memory header."""

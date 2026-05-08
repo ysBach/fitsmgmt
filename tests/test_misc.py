@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from fitsmgmt import misc
+from astroimred import misc
 
 # Strict tolerance for numerical comparisons
 RTOL = 1e-6

@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.io import fits
 
-from fitsmgmt import summary
+from astroimred import summary
 
 
 class TestSummary:

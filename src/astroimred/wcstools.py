@@ -269,7 +269,7 @@ def wcsremove(
 
     Notes
     -----
-    For ``fm.wcsremove("test.fit")`` with a simple 33.6MB FITS file (71
+    For ``air.wcsremove("test.fit")`` with a simple 33.6MB FITS file (71
     keywords, 20 `~astropy.wcs.WCS`-related keywords, 5 COMMENTs) on MBP 14" [2021, macOS
     13.1, M1Pro(6P+2E/G16c/N16c/32G)]:
 

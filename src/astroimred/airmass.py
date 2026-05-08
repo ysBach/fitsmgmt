@@ -63,10 +63,10 @@ def calc_airmass(
     # Using numexpr will introduce a large overhead for the calculation if this
     # is repeated for thousands of images:
     # numexpr version:
-    # %timeit fm.calc_airmass(10)
+    # %timeit air.calc_airmass(10)
     # 21.3 µs +/- 2.44 µs per loop (mean +/- std. dev. of 7 runs, 10000 loops each)
     # numpy version:
-    # %timeit fm.calc_airmass(10)
+    # %timeit air.calc_airmass(10)
     # 3.65 µs +/- 93.5 ns per loop (mean +/- std. dev. of 7 runs, 100000 loops each)
 
     if cos_zd is None:
@@ -268,8 +268,8 @@ def airmass_to_hdr(
         header,
         "c",
         t_ref=_t,
-        s="[fm.airmass_to_hdr] AIRMASS, AM_XXX, ZD_XXX, ALT_XXX, AZ_XXX are calculated. "
-        + "`fitsmgmt` uses airmass calculation algorithm identical to IRAF: See "
+        s="[air.airmass_to_hdr] AIRMASS, AM_XXX, ZD_XXX, ALT_XXX, AZ_XXX are calculated. "
+        + "`astroimred` uses airmass calculation algorithm identical to IRAF: See "
         + "'Some Factors Affecting the Accuracy of Stellar Photometry with CCDs', "
         + "by P. Stetson, DAO preprint, September 1988. ",
     )
@@ -360,7 +360,7 @@ def airmass_from_hdr(
     def _cards_airmass(am_eff, alldict):
         """Gives airmass and alt-az related header cards."""
         amstr = (
-            "fitsmgmt's airmass calculation uses the same algorithm as IRAF: From "
+            "astroimred's airmass calculation uses the same algorithm as IRAF: From "
             + "'Some Factors Affecting the Accuracy of Stellar Photometry with CCDs' by "
             + "P. Stetson, DAO preprint, September 1988."
         )
@@ -392,8 +392,8 @@ def airmass_from_hdr(
                 "[deg] Zenithal distance (end of the exposure)",
             ),
             Card("COMMENT", amstr),
-            Card("HISTORY", "ALT-AZ calculated from fitsmgmt."),
-            Card("HISTORY", "AIRMASS calculated from fitsmgmt."),
+            Card("HISTORY", "ALT-AZ calculated from astroimred."),
+            Card("HISTORY", "AIRMASS calculated from astroimred."),
         ]
         return cs
 

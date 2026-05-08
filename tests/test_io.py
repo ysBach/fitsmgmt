@@ -5,8 +5,8 @@ from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
 
-import fitsmgmt as fm
-from fitsmgmt import io
+import astroimred as air
+from astroimred import io
 
 # Strict tolerance for numerical comparisons
 RTOL = 1e-6
@@ -47,7 +47,7 @@ class TestParseDataHeader:
 
     def test_parsers_live_in_io(self):
         """Private parser helpers live in io."""
-        assert fm._parse_data_header is io._parse_data_header
+        assert air._parse_data_header is io._parse_data_header
 
     def test_parse_ccddata(self, sample_ccddata):
         """Test parsing `~astropy.nddata.CCDData` object."""
@@ -164,15 +164,15 @@ class TestInputs2List:
 
 
 class TestLoadCcd:
-    """Tests for `~fitsmgmt.io.load_ccd` function."""
+    """Tests for `~astroimred.io.load_ccd` function."""
 
     def test_load_ccd_lives_in_io(self):
         """load_ccd implementation lives in io."""
-        assert fm.load_ccd is io.load_ccd
+        assert air.load_ccd is io.load_ccd
 
     def test_load_ccds_lives_only_in_io(self):
         """load_ccds implementation lives in io and package root."""
-        assert fm.load_ccds is io.load_ccds
+        assert air.load_ccds is io.load_ccds
 
     def test_load_basic(self, temp_fits_file):
         """Test basic FITS loading."""

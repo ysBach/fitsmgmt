@@ -1,6 +1,6 @@
 [project]
-name = "fitsmgmt"
-version = "0.2.0"
+name = "astroimred"
+version = "0.3.0"
 description = "FITS file management and lightweight inspection utilities."
 readme = "README.md"
 authors = [

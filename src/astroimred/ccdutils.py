@@ -98,7 +98,7 @@ def CCDData_astype(ccd, dtype="float32", uncertainty_dtype=None, copy=True):
     >>> import numpy as np
     >>> ccd = CCDData.read("image_unitygain001.fits", 0)
     >>> ccd.uncertainty = np.sqrt(ccd.data)
-    >>> ccd = fm.CCDData_astype(ccd, dtype='int16', uncertainty_dtype='float32')
+    >>> ccd = air.CCDData_astype(ccd, dtype='int16', uncertainty_dtype='float32')
     """
     if copy:
         nccd = ccd.copy()
@@ -213,7 +213,7 @@ def set_ccd_attribute(
 
             try:
                 v = ccd.header[key]
-                s.append(f"[fm.set_ccd_attribute] (Original {key} = {v} is overwritten.)")
+                s.append(f"[air.set_ccd_attribute] (Original {key} = {v} is overwritten.)")
 
             except (KeyError, ValueError):
                 pass
@@ -409,7 +409,7 @@ def imslice(
                     hdr.setdefault(f"LTM{i+1}_{j+1}", 0.0)
 
         if trimsec is not None:
-            infostr = [f"[fm.imslice] Sliced using `{trimsec = }`: converted to {sl}. "]
+            infostr = [f"[air.imslice] Sliced using `{trimsec = }`: converted to {sl}. "]
             if fill_value is not None:
                 infostr.append(f"Filled background with `{fill_value = }`.")
             headers.cmt2hdr(
@@ -611,15 +611,15 @@ def bin_ccd(
     block_reduce:
 
     >>> from astropy.nddata.blocks import block_reduce
-    >>> import fitsmgmt as fm
+    >>> import astroimred as air
     >>> from astropy.nddata import CCDData
     >>> import numpy as np
     >>> ccd = CCDData(data=np.arange(1000).reshape(20, 50), unit='adu')
     >>> bin_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
     >>> ccd_kw = dict(factors=(5, 5), binfunc=np.sum, trim_end=True)
-    >>> %timeit fm.binning(ccd.data, **bin_kw)
+    >>> %timeit air.binning(ccd.data, **bin_kw)
     >>> # 10.9 +- 0.216 us (7 runs, 100000 loops each)
-    >>> %timeit fm.bin_ccd(ccd, **ccd_kw, update_header=False)
+    >>> %timeit air.bin_ccd(ccd, **ccd_kw, update_header=False)
     >>> # 32.9 µs +- 878 ns per loop (7 runs, 10000 loops each)
     >>> %timeit -r 1 -n 1 block_reduce(ccd, block_size=5)
     >>> # 518 ms, 2.13 ms, 250 us, 252 us, 257 us, 267 us
@@ -657,7 +657,7 @@ def bin_ccd(
             _ccd.header,
             "h",
             t_ref=_t_start,
-            s=f"[fm.bin_ccd] Binned by factors = {header_factors} ",
+            s=f"[air.bin_ccd] Binned by factors = {header_factors} ",
         )
     return _ccd
 
@@ -707,7 +707,7 @@ def convert_bit(
         _ccd.header,
         "h",
         t_ref=_t,
-        s="[fm.convert_bit] Converted {}-bit to {}-bit".format(
+        s="[air.convert_bit] Converted {}-bit to {}-bit".format(
             original_bit,
             target_bit,
         ),
