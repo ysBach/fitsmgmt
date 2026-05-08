@@ -151,7 +151,9 @@ def _load_im_name_hdr(
 
         trimsecs = offsets2slice(shapes, offsets, method="inner", fits_convention=True)
         if verbose:
-            logger.info("Using offsets %s, trimming happened for im1 and im2:", offsets_name)
+            logger.info(
+                "Using offsets %s, trimming happened for im1 and im2:", offsets_name
+            )
 
         if force_ccddata:
             im1 = imslice(im1, trimsecs[0], verbose=verbose)
@@ -188,6 +190,7 @@ def imarith(
     error_calc=False,
     ignore_header=False,
     overwrite=False,
+    output_verify="exception",
     verbose=True,
 ):
     """Similar to IRAF IMARITH
@@ -266,6 +269,9 @@ def imarith(
         deviation, etc.)
         Default: `False`.
 
+    output_verify : `str`, optional.
+        FITS verification option passed to Astropy when `output` is written.
+
     Returns
     -------
     ccd : `~astropy.nddata.CCDData`
@@ -320,7 +326,7 @@ def imarith(
             verbose=verbose,
         )
         if output is not None:
-            hdu.writeto(Path(output), overwrite=overwrite)
+            hdu.writeto(Path(output), overwrite=overwrite, output_verify=output_verify)
         return hdu
 
     else:
@@ -378,8 +384,8 @@ def imarith(
 
         if output is not None:
             if isinstance(res, CCDData):
-                res.write(output, overwrite=overwrite)
+                res.write(output, overwrite=overwrite, output_verify=output_verify)
             else:
-                res.writeto(output, overwrite=overwrite)
+                res.writeto(output, overwrite=overwrite, output_verify=output_verify)
 
         return res
