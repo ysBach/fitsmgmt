@@ -212,7 +212,7 @@ def fixpix(
             "h",
             t_ref=_t_start,
             verbose=verbose,
-            s="[fixpix] Pixel values interpolated.",
+            s="[fm.fixpix] Pixel values interpolated.",
         )
         headers.update_process(_ccd.header, "P")
 
@@ -322,9 +322,8 @@ def find_extpix(
             verbose=verbose,
             t_ref=_t,
             s=(
-                "[fitsmgmt.find_extpix] Extrema pixel values found N(smallest, largest) = "
-                + f"{npixs} excluding mask ({maskname}){bezstr}. "
-                + "See MINViii and MAXViii."
+                "[fm.find_extpix] Extrema pixel values found N(smallest, largest) = "
+                + f"{npixs} excluding mask ({maskname}){bezstr}. See MINViii and MAXViii."
             ),
         )
     return exts
@@ -413,10 +412,8 @@ def find_satpix(
             "h",
             verbose=verbose,
             t_ref=_t,
-            s=(
-                "[fitsmgmt.find_satpix] Saturated pixels calculated based on satlevel = "
-                + f"{satlevel}, excluding mask ({maskname}){bezstr}. "
-                + "See NSATPIX and SATLEVEL."
-            ),
+            s="[fm.find_satpix] Saturated pixels calculated based on satlevel = "
+            + f"{satlevel}, excluding mask ({maskname}){bezstr}. "
+            + "See NSATPIX and SATLEVEL.",
         )
     return satmask

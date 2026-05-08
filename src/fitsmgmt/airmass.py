@@ -268,12 +268,10 @@ def airmass_to_hdr(
         header,
         "c",
         t_ref=_t,
-        s=(
-            "[fitsmgmt.airmass] AIRMASS, AM_XXX, ZD_XXX, ALT_XXX, AZ_XXX are calculated. "
-            + "`fitsmgmt` uses airmass calculation algorithm identical to IRAF: See "
-            + "'Some Factors Affecting the Accuracy of Stellar Photometry with CCDs', "
-            + "by P. Stetson, DAO preprint, September 1988. "
-        ),
+        s="[fm.airmass_to_hdr] AIRMASS, AM_XXX, ZD_XXX, ALT_XXX, AZ_XXX are calculated. "
+        + "`fitsmgmt` uses airmass calculation algorithm identical to IRAF: See "
+        + "'Some Factors Affecting the Accuracy of Stellar Photometry with CCDs', "
+        + "by P. Stetson, DAO preprint, September 1988. ",
     )
 
 

@@ -209,11 +209,9 @@ def update_process(
             header,
             "c",
             time_fmt=None,
-            s=(
-                f"[fitsmgmt.update_process] Standard items for {key} includes B=bias, D=dark, "
-                + "F=flat, T=trim, W=WCS, O=Overscan, I=Illumination, C=CRrej, R=fringe, "
-                + "P=fixpix, X=crosstalk."
-            ),
+            s=f"[fm.update_process] Standard items for {key} includes B=bias, D=dark, "
+            + "F=flat, T=trim, W=WCS, O=Overscan, I=Illumination, C=CRrej, R=fringe, "
+            + "P=fixpix, X=crosstalk.",
         )
 
     header[key] = (delimiter.join(process), "Process (order: 1-2-3-...): see comment.")
@@ -316,13 +314,13 @@ def hedit(
         if key in header:
             oldv = header[key]
             infostr = (
-                f"[fitsmgmt.HEDIT] {key}={oldv} ({type(oldv).__name__}) "
-                + f"--> {val} ({type(val).__name__})"
+                f"[fm.HEDIT] {key}={oldv} ({type(oldv).__name__}) "
+                f"--> {val} ({type(val).__name__})"
             )
             _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
         else:
             if add:  # add key only if `add` is True.
-                infostr = f"[fitsmgmt.HEDIT add] {key}= {val} ({type(val).__name__})"
+                infostr = f"[fm.HEDIT] Add {key}= {val} ({type(val).__name__})"
                 _add_key(header, key, val, infostr, cmt=cmt, before=bef, after=aft)
             elif verbose:
                 logger.info(
