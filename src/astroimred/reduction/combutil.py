@@ -10,15 +10,16 @@ from astropy.time import Time
 from ccdproc import combine
 
 from astroimred.filemgmt import make_summary
-from astroimred.hduutil import (
+from astroimred.imops.ccdutils import (
     CCDData_astype,
-    _parse_extension,
-    chk_keyval,
     imslice,
+)
+from astroimred.mgmt.io import (
     inputs2list,
     load_ccd,
 )
-from astroimred.mgmt.misc import cmt2hdr
+from astroimred.mgmt.headers import chk_keyval, cmt2hdr
+from astroimred.mgmt.io import _parse_extension
 from astroimred.mgmt.logging import logger
 
 __all__ = [

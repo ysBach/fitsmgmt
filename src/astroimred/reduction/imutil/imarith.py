@@ -6,14 +6,12 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from astroimred.hduutil import (
+from astroimred.imops.ccdutils import (
     CCDData_astype,
-    _has_header,
-    _parse_extension,
-    _parse_image,
     imslice,
 )
-from astroimred.mgmt.misc import cmt2hdr, update_tlm
+from astroimred.mgmt.headers import cmt2hdr, update_tlm
+from astroimred.mgmt.io import _has_header, _parse_extension, _parse_image
 from astroimred.mgmt.logging import logger
 
 __all__ = ["imarith"]

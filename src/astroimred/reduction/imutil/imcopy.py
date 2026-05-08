@@ -2,8 +2,9 @@ import numpy as np
 from astropy.nddata import CCDData
 
 from astroimred.mgmt.logging import logger
-from astroimred.hduutil import CCDData_astype, _parse_image, imslice, inputs2list
-from astroimred.mgmt.misc import update_tlm
+from astroimred.imops.ccdutils import CCDData_astype, imslice
+from astroimred.mgmt.headers import update_tlm
+from astroimred.mgmt.io import _parse_image, inputs2list
 
 __all__ = ["imcopy"]
 
