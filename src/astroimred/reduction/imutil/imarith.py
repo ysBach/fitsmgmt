@@ -14,6 +14,8 @@ from astroimred.mgmt.headers import cmt2hdr, update_tlm
 from astroimred.mgmt.io import _has_header, _parse_extension, _parse_image
 from astroimred.mgmt.logging import logger
 
+from ._imcombine_fits import _get_image_hdu
+
 __all__ = ["imarith"]
 
 # TODO: add sections
@@ -71,6 +73,16 @@ def _replace_nan(res, header, replace=None):
         cmt2hdr(header, "h", f"Non-finite pixels replaced by {replace}", time_fmt=None)
 
 
+def _make_primary_hdu(data, header):
+    header = fits.Header(header)
+    for key in list(header):
+        if key in {"SIMPLE", "XTENSION", "BITPIX", "NAXIS", "PCOUNT", "GCOUNT"}:
+            del header[key]
+        elif key.startswith("NAXIS") and key[5:].isdigit():
+            del header[key]
+    return fits.PrimaryHDU(data=data, header=header)
+
+
 def _load_im_name_hdr(
     im1,
     im2,
@@ -90,7 +102,8 @@ def _load_im_name_hdr(
         """Checks if has header && convert to `~astropy.io.fits.HDUList` if path-like."""
         try:  # if path-like, assume it has hdr. It's ~ 100x faster than opening the file by _has_header.
             fpath = Path(im)
-            im = fits.open(fpath)[_parse_extension(extension)]  # turn it into HDUList
+            with fits.open(fpath) as hdul:
+                im = _get_image_hdu(hdul, _parse_extension(extension)).copy()
             name = str(fpath) if name is None else name
             # ^ If not set again, the imname will become User-provided PrimaryHDU.
             im_has_hdr = True
@@ -368,7 +381,10 @@ def imarith(
             res = fits.PrimaryHDU(data=eval(f"(im1 {op} im2)").astype(dtype))  # HDU
 
         if hdr_ref is not None:
-            res.header = fits.Header(hdr_ref)
+            if isinstance(res, CCDData):
+                res.header = fits.Header(hdr_ref)
+            else:
+                res = _make_primary_hdu(res.data, hdr_ref)
         _replace_nan(res, res.header, replace=replace)
         _update_hdr(
             res.header,
