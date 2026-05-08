@@ -15,7 +15,7 @@ from numba import njit, prange
 from . import config
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmean_1d(vals):
     """Mean of finite values; NaN if none."""
     s = 0.0
@@ -30,7 +30,7 @@ def _nanmean_1d(vals):
     return s / n
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmedian_1d(vals):
     """Median of finite values (mean of two middle for even); NaN if none."""
     buf = np.empty(len(vals))
@@ -49,7 +49,7 @@ def _nanmedian_1d(vals):
         return buf[mid]
     return (buf[mid - 1] + buf[mid]) / 2.0
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanstd_1d(vals, ddof=0):
     """Std of finite values; NaN if none."""
     mean = _nanmean_1d(vals)
@@ -67,7 +67,7 @@ def _nanstd_1d(vals, ddof=0):
         return np.nan
     return np.sqrt(s / (n - ddof))
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _reject_sigclip_pixel(
     col,
     mask_in,
@@ -171,7 +171,7 @@ def _reject_sigclip_pixel(
                     std = np.sqrt((1.0 + snoise_ref) * abs(cen + zero_ref) * scale_ref + rdnoise_ref * rdnoise_ref)
                 else:
                     std = _nanstd_1d(vals, ddof)
-                if np.isnan(cen) or np.isnan(std) or std == 0:
+                if np.isnan(cen) or np.isnan(std):
                     break
 
                 low_new = cen - sigma_lower * std
@@ -203,7 +203,7 @@ def _reject_sigclip_pixel(
                     std = np.sqrt((1.0 + snoise_ref) * abs(cen + zero_ref) * scale_ref + rdnoise_ref * rdnoise_ref)
                 else:
                     std = _nanstd_1d(vals, ddof)
-                if np.isnan(cen) or np.isnan(std) or std == 0:
+                if np.isnan(cen) or np.isnan(std):
                     break
 
                 low_new = cen - sigma_lower * std
@@ -278,7 +278,7 @@ def _reject_sigclip_pixel(
     return mask_final, low_new, upp_new, nit, code
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def reject_sigclip_3d(
     arr,
     mask_in,
@@ -335,7 +335,7 @@ def reject_sigclip_3d(
     return mask_out, low_out, upp_out, nit_out, code_out
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _reject_minmax_pixel(col, mask_in, q_low, q_upp, calc_low, calc_upp):
     """
     Per-pixel minmax rejection.
@@ -362,6 +362,12 @@ def _reject_minmax_pixel(col, mask_in, q_low, q_upp, calc_low, calc_upp):
 
     low = np.nan
     upp = np.nan
+    for i in range(n):
+            if not mask[i]:
+                if np.isnan(low) or vals[i] < low:
+                    low = vals[i]
+                if np.isnan(upp) or vals[i] > upp:
+                    upp = vals[i]
 
     # Reject lowest
     if n_rej_low > 0:
@@ -377,12 +383,6 @@ def _reject_minmax_pixel(col, mask_in, q_low, q_upp, calc_low, calc_upp):
                     mask[min_idx] = True
                     vals[min_idx] = np.nan
 
-            if calc_low:
-                for i in range(n):
-                    if not mask[i]:
-                        if np.isnan(low) or vals[i] < low:
-                            low = vals[i]
-
     # Reject highest
     if n_rej_upp > 0:
             for _ in range(n_rej_upp):
@@ -396,17 +396,11 @@ def _reject_minmax_pixel(col, mask_in, q_low, q_upp, calc_low, calc_upp):
                     mask[max_idx] = True
                     vals[max_idx] = np.nan
 
-            if calc_upp:
-                for i in range(n):
-                    if not mask[i]:
-                        if np.isnan(upp) or vals[i] > upp:
-                            upp = vals[i]
-
     code = 1 if (n_rej_low == 0 or n_rej_upp == 0) else 0
     return mask, low, upp, code
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def reject_minmax_3d(arr, mask_in, q_low, q_upp, calc_low, calc_upp):
     """
     (N, H, W) -> (H, W) masks, bounds, code.

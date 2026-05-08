@@ -82,7 +82,7 @@ def _median_lower_1d(vals):
 
 # --- NaN-ignoring 1d kernels (use when has_nan is True) ---
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmean_1d(vals):
     """Mean of finite values; NaN if none."""
     s = 0.0
@@ -97,7 +97,7 @@ def _nanmean_1d(vals):
     return s / n
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nansum_1d(vals):
     """Sum of finite values; NaN if none."""
     s = 0.0
@@ -112,7 +112,7 @@ def _nansum_1d(vals):
     return s
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmin_1d(vals):
     """Min of finite values; NaN if none."""
     out = np.nan
@@ -124,7 +124,7 @@ def _nanmin_1d(vals):
     return out
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmax_1d(vals):
     """Max of finite values; NaN if none."""
     out = np.nan
@@ -136,7 +136,7 @@ def _nanmax_1d(vals):
     return out
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmedian_1d(vals):
     """Median of finite values (mean of two middle for even); NaN if none."""
     buf = np.empty(len(vals))
@@ -156,7 +156,7 @@ def _nanmedian_1d(vals):
     return (buf[mid - 1] + buf[mid]) / 2.0
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True)
 def _nanmedian_lower_1d(vals):
     """Lower median of finite values (for even n take lower of two middle); NaN if none."""
     buf = np.empty(len(vals))
@@ -176,7 +176,7 @@ def _nanmedian_lower_1d(vals):
     return buf[mid - 1]
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def combine_nanmean(arr):
     """(N, H, W) -> (H, W); mean along axis=0 ignoring NaN."""
     n, h, w = arr.shape
@@ -188,7 +188,7 @@ def combine_nanmean(arr):
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def combine_nansum(arr):
     """(N, H, W) -> (H, W); sum along axis=0 ignoring NaN."""
     n, h, w = arr.shape
@@ -199,7 +199,7 @@ def combine_nansum(arr):
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def combine_nanmin(arr):
     """(N, H, W) -> (H, W); min along axis=0 ignoring NaN."""
     n, h, w = arr.shape
@@ -210,7 +210,7 @@ def combine_nanmin(arr):
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def combine_nanmax(arr):
     """(N, H, W) -> (H, W); max along axis=0 ignoring NaN."""
     n, h, w = arr.shape
@@ -221,7 +221,7 @@ def combine_nanmax(arr):
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def combine_nanmedian(arr):
     """(N, H, W) -> (H, W); median along axis=0 ignoring NaN (mean of two for even)."""
     n, h, w = arr.shape
@@ -232,7 +232,7 @@ def combine_nanmedian(arr):
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, parallel=True)
 def combine_nanlmedian(arr):
     """(N, H, W) -> (H, W); lower median along axis=0 ignoring NaN."""
     n, h, w = arr.shape
