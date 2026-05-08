@@ -1,5 +1,5 @@
 from warnings import warn
-from typing import Union
+from typing import Optional, Union
 
 import astroscrappy
 import ccdproc
@@ -484,7 +484,7 @@ def medfilt_bpm(
 
     The followings are returned as `dict` only if ``full=True``.
 
-    posmask, negmask : ndarry of `bool`
+    posmask, negmask : ndarray of `bool`
         The masked pixels by positive/negative criteria.
 
     sky_std : `float`
@@ -501,7 +501,7 @@ def medfilt_bpm(
     3. Stddev ratio ((data-medfilt)/std) generated,
     4. posmask and negmask calculated by clips MB_[ADD/RAT/STD]_[U/L] and
       logic MB_[N/P]LOG (see keywords),
-    5. Pixels of (posmask | negmask) are repleced with median filtered frame.
+    5. Pixels of (posmask | negmask) are replaced with median filtered frame.
 
     """
     from scipy.ndimage import median_filter
@@ -516,7 +516,7 @@ def medfilt_bpm(
         return clips
 
     if (med_sub_clip is None) and (med_rat_clip is None) and (std_rat_clip is None):
-        warn("No BPM is found because all clips are None.", end=" ")
+        logger.warning("No BPM is found because all clips are None.")
         if full:
             return ccd, dict(
                 posmask=None,
@@ -732,7 +732,7 @@ def medfilt_bpm(
         #        + "(3) Stddev ratio ((data-medfilt)/std) generated, "
         #        + "(4) posmask and negmask calculated by clips "
         #        + "MB_[ADD/RAT/STD]_[U/L] and logic MB_[N/P]LOG (see keywords),"
-        #        + "(5) Pixels of (posmask | negmask) are repleced with median "
+        #        + "(5) Pixels of (posmask | negmask) are replaced with median "
         #        + "filtered frame."
         #        ))
 
@@ -888,7 +888,7 @@ def darkcor(
 
     dark_scale : `bool`, optional.
         Whether to scale dark frame. If `True`, ``scale = exptime_data/exptime_dark`` is
-        multipled to dark frame.
+        multiplied to dark frame.
         Default: `False`
 
     copy : `bool`, optional
@@ -913,8 +913,10 @@ def darkcor(
 
         msg = "[fir.darkcor] Dark scaled by exptime: "
         if exptime_data is None or exptime_dark is None:
-            warn(
-                f"exptime_data={exptime_data}, exptime_dark={exptime_dark}. Fix scale=1."
+            logger.warning(
+                "exptime_data=%s, exptime_dark=%s. Fix scale=1.",
+                exptime_data,
+                exptime_dark,
             )
             scale = 1
             msg += "Fixed scale=1 (metadata missing)."
@@ -1049,7 +1051,7 @@ def frincor(
     mfrinpath=None,
     fringe_scale=None,
     fringe_scale_region=None,
-    fringe_scale_kw={},
+    fringe_scale_kw=None,
     exptime_key="EXPTIME",
     exptime_data=None,
     exptime_frin=None,
@@ -1066,7 +1068,7 @@ def frincor(
     mfringe : `~astropy.nddata.CCDData`
         The fringe frame.
 
-    fringe_scale : `int`, `float`, ndarry, function object, ``{"exp", "exposure", "exptime"}``, optional.
+    fringe_scale : `int`, `float`, ndarray, function object, ``{"exp", "exposure", "exptime"}``, optional.
         The scale to be applied to the fringe frame. If numeric or `~numpy.ndarray`, it
         will directly be multiplied to the fringe before fringe subtraction. If
         function object, it will be applied to the fringe before fringe
@@ -1108,6 +1110,8 @@ def frincor(
     """
     if mfrin is None and mfrinpath is None:
         return ccd.copy() if copy else ccd
+    if fringe_scale_kw is None:
+        fringe_scale_kw = {}
 
     def _str(_ccd, frm, sec=None, fun=None, scal=None):
         str1 = f"[fir.ccdred.frincor] Fringe subtracted (FRINFRM = {frm})"
@@ -1214,7 +1218,7 @@ def ccdred(
     fringe_flat_fielded: bool = True,
     fringe_scale=None,
     fringe_scale_region: str = None,
-    fringe_scale_kw: dict = {},
+    fringe_scale_kw: Optional[dict] = None,
     gain: Union[float, u.Unit] = 1,
     gain_key: str = "GAIN",
     gain_unit: u.Unit = u.electron / u.adu,
@@ -1234,7 +1238,7 @@ def ccdred(
     flat_fill: float = 1,
     flat_norm_value: float = 1,
     do_crrej: bool = False,
-    crrej_kw: dict = LACOSMIC_CRREJ,
+    crrej_kw: Optional[dict] = None,
     propagate_crmask: bool = False,
     verbose_crrej: bool = False,
     verbose_bdf: int = 1,
@@ -1273,7 +1277,7 @@ def ccdred(
         header (``BIASFRM``, ``DARKFRM``, ``FLATFRM`` and/or ``FRINFRM``). If
         the paths are not given, ``xxxxFRM`` will be ``<User>``.
 
-    fringe_scale : `int`, `float`, ndarry, function object, ``{"exp", "exposure", "exptime"}``, optional.
+    fringe_scale : `int`, `float`, ndarray, function object, ``{"exp", "exposure", "exptime"}``, optional.
         The scale to be applied to the fringe frame. If numeric or `~numpy.ndarray`, it
         will directly be multiplied to the fringe before fringe subtraction. If
         function object, it will be applied to the fringe before fringe
@@ -1502,15 +1506,16 @@ def ccdred(
     # == Do CRREJ ======================================================================== #
     if do_crrej:
         if crrej_kw is None:
-            crrej_kw = {}
-            warn("Using defailt CR-rejection paramters.")
+            crrej_kw = LACOSMIC_CRREJ.copy()
+            logger.warning("Using default CR-rejection parameters.")
 
         _proc = proc.header["PROCESS"]
         if (("B" in _proc) + ("D" in _proc) + ("F" in _proc)) < 2:
-            warn(
+            logger.warning(
                 "L.A. Cosmic should be run AFTER bias, dark, flat process. "
-                + f"You have only done {proc.header['PROCESS']}. "
-                + "See http://www.astro.yale.edu/dokkum/lacosmic/notes.html"
+                "You have only done %s. "
+                "See http://www.astro.yale.edu/dokkum/lacosmic/notes.html",
+                proc.header["PROCESS"],
             )
 
         proc, _ = crrej(
@@ -1560,7 +1565,7 @@ def bdf_process(
     fringe_flat_fielded=True,
     fringe_scale=None,
     fringe_scale_region=None,
-    fringe_scale_kw={},
+    fringe_scale_kw=None,
     trimsec=None,
     calc_err=False,
     unit=None,
@@ -1614,7 +1619,7 @@ def bdf_process(
         header (``BIASFRM``, ``DARKFRM``, ``FLATFRM`` and/or ``FRINFRM``). If
         the paths are not given, ``xxxxFRM`` will be ``<User>``.
 
-    fringe_scale : `int`, `float`, ndarry, function object, ``{"exp", "exposure", "exptime"}``, optional.
+    fringe_scale : `int`, `float`, ndarray, function object, ``{"exp", "exposure", "exptime"}``, optional.
         The scale to be applied to the fringe frame. If numeric or `~numpy.ndarray`, it
         will directly be multiplied to the fringe before fringe subtraction. If
         function object, it will be applied to the fringe before fringe
@@ -1990,17 +1995,18 @@ def bdf_process(
     if do_crrej:
         if crrej_kwargs is None:
             crrej_kwargs = {}
-            warn(
-                "You are not specifying CR-rejection parameters! It can be"
-                + " dangerous to use defaults blindly."
+            logger.warning(
+                "You are not specifying CR-rejection parameters! It can be "
+                "dangerous to use defaults blindly."
             )
 
         _proc = proc.header["PROCESS"]
         if (("B" in _proc) + ("D" in _proc) + ("F" in _proc)) < 2:
-            warn(
+            logger.warning(
                 "L.A. Cosmic should be run AFTER bias, dark, flat process. "
-                + f"You have only done {proc.header['PROCESS']}. "
-                + "See http://www.astro.yale.edu/dokkum/lacosmic/notes.html"
+                "You have only done %s. "
+                "See http://www.astro.yale.edu/dokkum/lacosmic/notes.html",
+                proc.header["PROCESS"],
             )
 
         proc, _ = crrej(

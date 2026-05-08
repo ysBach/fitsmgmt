@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.nddata import CCDData
 
+from astroimred.mgmt.logging import logger
 from astroimred.hduutil import CCDData_astype, _parse_image, imslice, inputs2list
 from astroimred.mgmt.misc import update_tlm
 
@@ -58,13 +59,13 @@ def imcopy(
         don't change anything.
         Default: `None`.
 
-    kwargs : optionals
+    kwargs : optional
         The keyword arguments for ``~astropy.nddata.CCDData.write``.
 
     Returns
     -------
     results: `~astropy.nddata.CCDData` or `list` of `~astropy.nddata.CCDData`
-        Only if `return_ccd` is set `True`. A sinlge `~astropy.nddata.CCDData
+        Only if `return_ccd` is set `True`. A single `~astropy.nddata.CCDData
         will be returned if only one was input. Otherwise, the same number of
         `~astropy.nddata.CCDData will be gathered as a `list` and returned.
 
@@ -110,7 +111,7 @@ def imcopy(
         sects = np.atleast_1d(trimsecs)
         to_trim = True
         if sects.ndim > 1:
-            print(f"`trimsecs` with > 1D are flattened. Now {sects.ndim}-D.")
+            logger.info("`trimsecs` with > 1D are flattened. Now %d-D.", sects.ndim)
             sects = sects.ravel()
         n = sects.shape[0]
     else:
@@ -133,7 +134,7 @@ def imcopy(
     if return_ccd:
         results = []
 
-    # TODO: Use fits.open rather than CCDData for speed isseu.
+    # TODO: Use fits.open rather than CCDData for speed issue.
     for i, item in enumerate(inputs):
         if isinstance(item, CCDData):
             ccd = item

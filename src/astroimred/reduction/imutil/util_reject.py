@@ -1,6 +1,8 @@
 import bottleneck as bn
 import numpy as np
 
+from astroimred.mgmt.logging import logger
+
 from . import docstrings
 from .numba_reject import reject_minmax_numba, reject_sigclip_numba
 from . import config
@@ -92,7 +94,7 @@ def _iter_rej(
     k = 0
     # mask_pix is where **NO** rejection should occur.
     if (nkeep == 0) and (maxrej == ncombine):
-        print("nkeep, maxrej turned off.")
+        logger.info("nkeep, maxrej turned off.")
         # no need to check mask_pix iteratively
         while k < maxiters:
             cen, std = __calc_censtd(_arr=_arr)

@@ -175,7 +175,6 @@ def _median(a, axis=None, out=None, overwrite_input=False, choose="mean"):
     else:
         indexer[axis] = slice(index - 1, index + 1)
     indexer = tuple(indexer)
-    print(part[indexer])
     # Check if the array contains any nan's
     if np.issubdtype(a.dtype, np.inexact) and sz > 0:
         # warn and return nans like mean would

@@ -377,7 +377,7 @@ def select_fits(
                     if trimsec is not None:
                         ccd_i = imslice(ccd_i, trimsec=trimsec)
                     matched.append(ccd_i)
-                else:  # TODO: Is is better to remove Path here?
+                else:  # TODO: Is it better to remove Path here?
                     if path_to_text:
                         matched.append(str(item))
                     else:
@@ -388,12 +388,13 @@ def select_fits(
     # ************************************************************************************ #
     if len(matched) == 0:
         if selecting:
-            warn(
-                f'No FITS file had "{str(type_key)} = {str(type_val)}". '
-                + "Maybe int/float/str confusing?"
+            logger.warning(
+                'No FITS file had "%s = %s". Maybe int/float/str confusing?',
+                type_key,
+                type_val,
             )
         else:
-            warn("No FITS file found")
+            logger.warning("No FITS file found")
     else:
         if selecting:
             N = len(matched)
@@ -633,7 +634,7 @@ def stack_FITS(
                         matched.append(ccd_i)
                     else:
                         matched.append(ccd_i.data)
-                else:  # TODO: Is is better to remove Path here?
+                else:  # TODO: Is it better to remove Path here?
                     matched.append(Path(item))
 
     # ************************************************************************************ #
@@ -641,12 +642,13 @@ def stack_FITS(
     # ************************************************************************************ #
     if len(matched) == 0:
         if selecting:
-            warn(
-                f'No FITS file had "{str(type_key)} = {str(type_val)}"'
-                + "Maybe int/float/str confusing?"
+            logger.warning(
+                'No FITS file had "%s = %s". Maybe int/float/str confusing?',
+                type_key,
+                type_val,
             )
         else:
-            warn("No FITS file found")
+            logger.warning("No FITS file found")
     else:
         if selecting:
             N = len(matched)
