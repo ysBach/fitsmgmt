@@ -1,13 +1,20 @@
 import numpy as np
+import pandas as pd
 import pytest
 from astropy import units as u
 from astropy.nddata import CCDData
 
-import astroimred.reduction as fir
+import astroimred.reduction as imred
+
+
+def test_bdf_process_removed():
+    """`bdf_process` is no longer part of the reduction API."""
+    assert not hasattr(imred.preproc, "bdf_process")
+    assert not hasattr(imred, "bdf_process")
 
 
 class TestBiasCor:
-    """Tests for `~fir.preproc.biascor` function."""
+    """Tests for `~imred.preproc.biascor` function."""
 
     def test_bias_subtraction(self):
         """Test simple bias subtraction."""
@@ -17,7 +24,7 @@ class TestBiasCor:
         mbias = CCDData(bias, unit="adu")
 
         # Expected: 100 - 10 = 90
-        corrected = fir.preproc.biascor(ccd, mbias=mbias)
+        corrected = imred.preproc.biascor(ccd, mbias=mbias)
         np.testing.assert_allclose(corrected.data, 90.0, rtol=1e-6)
 
     def test_bias_file_input(self, tmp_path):
@@ -30,12 +37,12 @@ class TestBiasCor:
         bias_path = tmp_path / "mbias.fits"
         mbias.write(bias_path)
 
-        corrected = fir.preproc.biascor(ccd, mbiaspath=bias_path)
+        corrected = imred.preproc.biascor(ccd, mbiaspath=bias_path)
         np.testing.assert_allclose(corrected.data, 90.0, rtol=1e-6)
 
 
 class TestDarkCor:
-    """Tests for `~fir.preproc.darkcor` function."""
+    """Tests for `~imred.preproc.darkcor` function."""
 
     def test_dark_subtraction_no_scaling(self):
         """Test dark subtraction without exposure scaling."""
@@ -47,7 +54,7 @@ class TestDarkCor:
         # Actually dark_scale=False is default. It just subtracts.
         mdark = CCDData(dark, unit="adu")
 
-        corrected = fir.preproc.darkcor(ccd, mdark=mdark, dark_scale=False)
+        corrected = imred.preproc.darkcor(ccd, mdark=mdark, dark_scale=False)
         # Expected: 100 - 5 = 95
         np.testing.assert_allclose(corrected.data, 95.0, rtol=1e-6)
 
@@ -68,7 +75,7 @@ class TestDarkCor:
         ccd.header["EXPTIME"] = 10.0
 
         # We need to tell the function to scale.
-        corrected = fir.preproc.darkcor(
+        corrected = imred.preproc.darkcor(
             ccd,
             mdark=mdark,
             dark_scale=True,
@@ -80,7 +87,7 @@ class TestDarkCor:
 
 
 class TestFlatCor:
-    """Tests for `~fir.preproc.flatcor` function."""
+    """Tests for `~imred.preproc.flatcor` function."""
 
     def test_flat_correction(self):
         """Test simple flat field correction."""
@@ -97,7 +104,7 @@ class TestFlatCor:
         # It also has flat_norm_value. Default=1.
         # If flat is normalized (mean ~ 1), we just divide.
 
-        corrected = fir.preproc.flatcor(ccd, mflat=mflat, flat_norm_value=1.0)
+        corrected = imred.preproc.flatcor(ccd, mflat=mflat, flat_norm_value=1.0)
 
         expected_left = 100 / 0.8  # 125
         expected_right = 100 / 1.2 # 83.333...
@@ -107,10 +114,10 @@ class TestFlatCor:
 
 
 class TestCCDRed:
-    """Tests for the main `~fir.preproc.ccdred` wrapper."""
+    """Tests for the main `~imred.preproc.ccdred` wrapper."""
 
     def test_full_reduction_chain(self, tmp_path):
-        """Test bias -> dark -> flat chain via `~fir.preproc.ccdred`."""
+        """Test bias -> dark -> flat chain via `~imred.preproc.ccdred`."""
         # Setup data
         shape = (10, 10)
         # Raw data: 1000 ADU flat background + signal
@@ -144,7 +151,7 @@ class TestCCDRed:
         # 3. Flat correction: 980 / 2.0 = 490 (assuming flat not normalized internally or norm_val=1)
         # Note: ccdred has flat_norm_value default=1.
 
-        reduced = fir.preproc.ccdred(
+        reduced = imred.preproc.ccdred(
             ccd,
             mbiaspath=mbias_path,
             mdarkpath=mdark_path,
@@ -156,3 +163,40 @@ class TestCCDRed:
         )
 
         np.testing.assert_allclose(reduced.data, 490.0, rtol=1e-6)
+
+
+class TestRunReducPlan:
+    """Tests for `~imred.preproc.run_reduc_plan`."""
+
+    def test_return_ccd_uses_ccdred(self, tmp_path):
+        """Test reduction-plan execution returns in-memory CCDs."""
+        shape = (5, 5)
+
+        raw = CCDData(np.ones(shape) * 100.0, unit="adu")
+        raw.header["EXPTIME"] = 1.0
+        raw_path = tmp_path / "raw.fits"
+        raw.write(raw_path)
+
+        mbias_path = tmp_path / "bias.fits"
+        CCDData(np.ones(shape) * 10.0, unit="adu").write(mbias_path)
+
+        mflat_path = tmp_path / "flat.fits"
+        CCDData(np.ones(shape) * 2.0, unit="adu").write(mflat_path)
+
+        plan = pd.DataFrame(
+            {
+                "file": [raw_path],
+                "BIASFRM": [mbias_path],
+                "FLATFRM": [mflat_path],
+            }
+        )
+
+        reduced = imred.preproc.run_reduc_plan(
+            plan,
+            return_ccd=True,
+            fixpix_kw={"priority": None, "verbose": False},
+            verbose=False,
+        )
+
+        assert len(reduced) == 1
+        np.testing.assert_allclose(reduced[0].data, 45.0, rtol=1e-6)
