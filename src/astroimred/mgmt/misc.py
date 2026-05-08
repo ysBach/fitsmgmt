@@ -9,7 +9,7 @@ from astro_ndslice import listify
 from astropy import units as u
 from astropy.time import Time
 
-from .logging import logger
+from ..logging import logger
 
 try:
     import numba as nb

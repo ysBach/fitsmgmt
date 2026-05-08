@@ -6,7 +6,7 @@ from astropy.time import Time
 from astro_ndslice import is_list_like, listify
 
 from . import io as _io
-from .logging import logger
+from ..logging import logger
 from .misc import change_to_quantity, str_now
 
 __all__ = [

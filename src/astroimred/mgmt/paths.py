@@ -8,7 +8,7 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 
 from .headers import key_mapper, key_remover
-from .logging import logger
+from ..logging import logger
 
 __all__ = [
     "mkdir",

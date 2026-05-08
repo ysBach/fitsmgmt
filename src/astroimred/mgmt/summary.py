@@ -10,7 +10,7 @@ from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
 
 from .io import _parse_extension, inputs2list
-from .logging import logger
+from ..logging import logger
 
 __all__ = [
     "fits_summary",

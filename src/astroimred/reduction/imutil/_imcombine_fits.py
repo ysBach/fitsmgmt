@@ -18,7 +18,7 @@ from astropy.wcs import WCS
 
 from astroimred.mgmt.headers import update_tlm
 from astroimred.mgmt.io import _parse_data_header, get_size, load_ccd, write2fits
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 
 from .util_comb import _set_combfunc, _set_gain_rdns, get_zsw
 

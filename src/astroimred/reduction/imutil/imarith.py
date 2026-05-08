@@ -12,7 +12,7 @@ from astroimred.imops.ccdutils import (
 )
 from astroimred.mgmt.headers import cmt2hdr, update_tlm
 from astroimred.mgmt.io import _has_header, _parse_extension, _parse_image
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 
 from ._imcombine_fits import _get_image_hdu
 

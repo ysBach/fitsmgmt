@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from .mgmt.logging import enable_console_logging
+from .logging import enable_console_logging
 from .mgmt.summary import fits_summary
 
 

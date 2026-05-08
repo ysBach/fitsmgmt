@@ -20,7 +20,7 @@ from astroimred.mgmt.io import (
 from astroimred.mgmt.headers import cmt2hdr
 from astroimred.mgmt.io import _parse_extension
 from astroimred.mgmt.misc import str_now
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 from . import docstrings
 from ._imcombine_fits import (
     apply_output_offsets,

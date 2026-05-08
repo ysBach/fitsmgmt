@@ -20,7 +20,7 @@ from astroimred.mgmt.io import (
 )
 from astroimred.mgmt.headers import chk_keyval, cmt2hdr
 from astroimred.mgmt.io import _parse_extension
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 
 __all__ = [
     "sstd",

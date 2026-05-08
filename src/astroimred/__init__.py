@@ -2,7 +2,7 @@
 
 import sys as _sys
 
-from .mgmt.logging import logger, set_log_level, enable_console_logging
+from .logging import logger, set_log_level, enable_console_logging
 from .mgmt import *
 from .imops import *
 from .mgmt.airmass import *

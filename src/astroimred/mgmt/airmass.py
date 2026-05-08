@@ -9,7 +9,7 @@ from astropy.time import Time
 from typing import TypeAlias
 
 from .headers import cmt2hdr, hdrval
-from .logging import logger
+from ..logging import logger
 from .misc import change_to_quantity
 
 __all__ = ["calc_airmass", "airmass_obs", "airmass_to_hdr", "airmass_from_hdr"]

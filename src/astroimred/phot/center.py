@@ -11,7 +11,7 @@ from scipy import ndimage
 from scipy.optimize import curve_fit
 
 from .background import sky_fit
-from .logging import logger
+from ..logging import logger
 from .seputil import _sanitize_byteorder, _sep_extract, sep_default_kernel, sep_extract
 from .util import Gaussian2D_correct
 

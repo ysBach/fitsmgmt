@@ -8,7 +8,7 @@ from photutils.aperture import Aperture, aperture_photometry
 import sep
 
 from .background import sky_fit
-from .logging import logger
+from ..logging import logger
 
 __all__ = ["apphot_annulus"]
 

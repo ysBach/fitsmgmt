@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.nddata import CCDData
 
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.mgmt.headers import update_tlm
 from astroimred.mgmt.io import _parse_image, inputs2list

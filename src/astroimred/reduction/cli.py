@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 import numpy as np
 
-from astroimred.mgmt.logging import enable_console_logging
+from astroimred.logging import enable_console_logging
 
 from .imutil.imarith import imarith
 from .imutil.imcombine import imcombine

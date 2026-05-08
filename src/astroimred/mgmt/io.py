@@ -13,7 +13,7 @@ from astropy.nddata import CCDData
 from astropy.table import Table
 from astropy.wcs import WCS
 
-from .logging import logger
+from ..logging import logger
 
 try:
     import fitsio

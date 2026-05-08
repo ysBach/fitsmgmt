@@ -11,7 +11,7 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy.wcs import WCS, Wcsprm
 
-from .logging import logger
+from ..logging import logger
 
 __all__ = ["wcs_crota", "center_radec", "fov_radius", "wcsremove", "pixel_scale"]
 

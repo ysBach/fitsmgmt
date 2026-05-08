@@ -1,6 +1,9 @@
 """FITS file, header, WCS, path, and metadata management helpers."""
 
-from .logging import logger, set_log_level, enable_console_logging
+import sys as _sys
+
+from .. import logging as logging
+from ..logging import logger, set_log_level, enable_console_logging
 from .airmass import *
 from .headers import *
 from .io import *
@@ -9,7 +12,9 @@ from .paths import *
 from .summary import *
 from .wcstools import *
 
-from . import airmass, headers, io, logging, misc, paths, summary, wcstools
+from . import airmass, headers, io, misc, paths, summary, wcstools
+
+_sys.modules[f"{__name__}.logging"] = logging
 
 __all__ = [
     "airmass",

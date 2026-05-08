@@ -12,7 +12,7 @@ from astroscrappy import detect_cosmics
 from astroimred.mgmt.headers import cmt2hdr, update_process, update_tlm
 from astroimred.imops.ccdutils import propagate_ccdmask
 from astroimred.mgmt.io import _parse_image
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 from astroimred.mgmt.misc import change_to_quantity
 
 __all__ = [
