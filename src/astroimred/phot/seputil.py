@@ -29,18 +29,12 @@ to +0.5. Simple test code::
     # y: [7.66666667]
 """
 
-from warnings import warn
-
 from astropy.nddata import support_nddata
 import numpy as np
 import pandas as pd
+import sep
 
 from .util import bezel_mask, gaussian_kernel
-
-try:
-    import sep
-except ImportError:
-    warn("Package sep is not installed. Some functions will not work.")
 
 
 __all__ = ["sep_back", "sep_extract", "sep_extract_iterative", "sep_flux_auto"]

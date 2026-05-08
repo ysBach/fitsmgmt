@@ -5,6 +5,7 @@ from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.table import QTable
 from photutils.aperture import Aperture, aperture_photometry
+import sep
 
 from .background import sky_fit
 from .logging import logger
@@ -376,11 +377,6 @@ def apphot_ellip_sep(
     bpa : float
         b per a (ellipticity)
     """
-    try:
-        import sep
-    except ImportError:
-        raise ImportError("sep is required for apphot_annulus_sep")
-
     if sky_keys is None:
         sky_keys = {}
 

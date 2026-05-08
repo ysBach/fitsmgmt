@@ -309,16 +309,7 @@ def array_with_nan():
     return np.array([1.0, 2.0, np.nan, 4.0, 5.0])
 
 
-# =============================================================================
-# Helper to skip if sep not installed
-# =============================================================================
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_sep: mark test as requiring sep package"
     )
-
-
-@pytest.fixture
-def skip_if_no_sep():
-    """Skip test if sep is not installed."""
-    pytest.importorskip("sep")

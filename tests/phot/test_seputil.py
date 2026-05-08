@@ -3,17 +3,13 @@ Tests for astroimred.phot.seputil module.
 
 All expected values are analytically derived.
 
-Note: These tests require the sep package to be installed.
-Tests are skipped if sep is not available.
+Note: These tests require the sep package, which is a core dependency.
 """
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from astropy.nddata import CCDData
-
-# Skip entire module if sep is not installed
-sep = pytest.importorskip("sep")
 
 from astroimred.phot.seputil import sep_back, sep_extract, sep_flux_auto
 
@@ -195,6 +191,40 @@ class TestSepExtract:
         # Distance should be small for source at (50, 50)
         if len(obj) > 0:
             assert obj['dist_ref'].iloc[0] < 5.0
+
+    def test_sep_extract_pos_ref_sorts_by_distance_by_default(self):
+        """Test sep_extract sorts by dist_ref when pos_ref is given."""
+        yy, xx = np.mgrid[:100, :100]
+        data = (
+            100.0
+            + 1000.0 * np.exp(-((xx - 25.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
+            + 1000.0 * np.exp(-((xx - 75.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
+        )
+        bkg = sep_back(data)
+
+        obj, _ = sep_extract(data, thresh=50, bkg=bkg, pos_ref=(75, 50))
+
+        assert len(obj) >= 2
+        assert obj["dist_ref"].iloc[0] <= obj["dist_ref"].iloc[1]
+        assert_allclose(obj["x"].iloc[0], 75.0, atol=2.0)
+
+    def test_sep_extract_pos_ref_respects_explicit_sort_by(self):
+        """Test explicit sort_by is not overwritten by pos_ref."""
+        yy, xx = np.mgrid[:100, :100]
+        data = (
+            100.0
+            + 1000.0 * np.exp(-((xx - 25.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
+            + 100.0 * np.exp(-((xx - 75.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
+        )
+        bkg = sep_back(data)
+
+        obj, _ = sep_extract(
+            data, thresh=20, bkg=bkg, pos_ref=(75, 50), sort_by="flux",
+            sort_ascending=False
+        )
+
+        assert len(obj) >= 2
+        assert_allclose(obj["x"].iloc[0], 25.0, atol=2.0)
 
 
 # =============================================================================
