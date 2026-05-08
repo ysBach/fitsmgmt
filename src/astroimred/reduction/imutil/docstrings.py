@@ -354,4 +354,4 @@ offsets : `str` or (n, m)-d array
 
 def IMCOMBINE_LINK(indent=0):
     return _fix("""
-.. _IMCOMBINE: https://iraf.net/irafhelp.php?val=`~fir.imutil.imcombine`&help=Help+Page""", indent)
+.. _IMCOMBINE: https://iraf.readthedocs.io/en/latest/tasks/images/immatch/imcombine.html""", indent)
