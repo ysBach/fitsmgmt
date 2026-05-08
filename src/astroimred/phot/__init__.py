@@ -2,6 +2,7 @@ import sys as _sys
 
 from .. import logging as logging
 from ..logging import logger, set_log_level, enable_console_logging
+from .pillbox import *
 from .aperture import *
 from .aputil import *
 from .apphot import *

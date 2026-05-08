@@ -18,7 +18,7 @@ from astroimred.mgmt.headers import cmt2hdr, hdrval, update_process, update_tlm
 from astroimred.mgmt.misc import (
     change_to_quantity,
 )
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 
 from .crrej import LACOSMIC_CRREJ, crrej, medfilt_bpm
 
