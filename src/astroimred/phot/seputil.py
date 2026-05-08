@@ -1,0 +1,822 @@
+"""
+A collection of convenience functions used with the package sep.
+
+Why use sep, not photutils?
+===========================
+
+Many times the purpose of SExtractor is to mearly **find** objects, not
+detailed photometry of them. Thus, the calculational speed is an important
+factor.
+
+sep is about 100 times faster in background estimation than photutils from many
+tests (see sep/bench.py of the sep repo).
+
+Benchmark results on various systems are documented in the source code.
+
+Pixel convention
+================
+
+Note that sep also uses same pixel notation as photutils: pixel 0 covers -0.5
+to +0.5. Simple test code::
+
+    >>> test = np.zeros((15, 15))
+    >>> test[7, 8] = 1
+    >>> test[8, 9] = 2
+    >>> obj = pd.DataFrame(sep.extract(test, 0))
+    >>> for c in obj.columns:
+    ...     print(f"{c}: {obj[c].values}")
+    # x: [8.66666667]
+    # y: [7.66666667]
+"""
+
+from warnings import warn
+
+from astropy.nddata import support_nddata
+import numpy as np
+import pandas as pd
+
+from .util import bezel_mask, gaussian_kernel
+
+try:
+    import sep
+except ImportError:
+    warn("Package sep is not installed. Some functions will not work.")
+
+
+__all__ = ["sep_back", "sep_extract", "sep_extract_iterative", "sep_flux_auto"]
+
+sep_default_kernel = np.array(
+    [[1.0, 2.0, 1.0], [2.0, 4.0, 2.0], [1.0, 2.0, 1.0]], dtype=np.float32
+)
+
+
+def _sanitize_byteorder(data):
+    if data is None:
+        return None
+    # return np.ascontiguousarray(data)
+    elif data.dtype.byteorder == ">":
+        return data.byteswap().view(data.dtype.newbyteorder())
+    else:
+        return data
+
+
+def sep_back(
+    data,
+    mask=None,
+    maskthresh=0.0,
+    filter_threshold=0.0,
+    box_size=(64, 64),
+    filter_size=(3, 3),
+    byteorder=">",
+):
+    """
+    Notes
+    -----
+    This includes `sep`'s `Background`. Equivalent processes in photutils may
+    include `Background2D`.
+
+    Parameters
+    ----------
+    data : CCDData or array-like
+        The 2D array from which to estimate the background.
+
+    mask : `~numpy.ndarray`, optional
+        2-d mask array.
+
+    maskthresh : float, optional
+        Only in `sep`. The effective mask will be ``m = (mask.astype(float) >
+        maskthresh)``:
+
+          * **sep**: Mask threshold. This is the inclusive upper limit on the
+            mask value in order for the corresponding pixel to be unmasked. For
+            boolean arrays, False and True are interpreted as 0 and 1, resp.
+            Thus, given a threshold of zero, `True` corresponds to masked and
+            `False` corresponds to unmasked.
+          * **photutils**: In photutils, sigma clipping is used (need check).
+
+    filter_threshold : int, optional
+        Name in photutils; `fthresh` in the oritinal sep. Default is ``0``. :
+
+        * **sep**: Filter threshold. Default is ``0.0``.
+        * **photutils**: The threshold value for used for selective median
+          filtering of the low-resolution 2D background map. The median filter
+          will be applied to only the background meshes with values larger than
+          `filter_threshold`.  Set to `None` to filter all meshes (default).
+
+    box_size : int or array_like (int)
+        Name in photutils; `bh`, `bw` order in sep. Default is ``(64, 64)``
+
+          * **sep**: Size of background boxes in pixels. Default is ``64``.
+          * **photutils**: The box size along each axis. If `box_size` is a
+            scalar then a square box of size `box_size` will be used. If
+            `box_size` has two elements, they should be in ``(ny, nx)`` order.
+            For best results, the box shape should be chosen such that the
+            `data` are covered by an integer number of boxes in both
+            dimensions. When this is not the case, see the `edge_method`
+            keyword for more options.
+
+    filter_size : int or array_like (int), optional
+        Name in photutils; `fh`, `fw` order in sep. Default is ``(3, 3)``.
+
+          * **sep**: Filter width and height in boxes. Default is ``3``.
+          * **photutils**: The window size of the 2D median filter to apply to
+            the low-resolution background map. If `filter_size` is a scalar
+            then a square box of size `filter_size` will be used. If
+            `filter_size` has two elements, they should be in ``(ny, nx)``
+            order. A filter size of ``1`` (or ``(1, 1)``) means no filtering.
+
+    Returns
+    -------
+    bkg : sep.Background
+        Use `bkg.back()` and `bkg.rms()` to get the background and rms error.
+        All other methods/attributes include `bkg.subfrom()`, `bkg.globalback`,
+        and `bkg.globalrms`.
+    """
+    try:
+        data = _sanitize_byteorder(data)
+    except AttributeError:  # if data is in CCDData...
+        data = _sanitize_byteorder(data.data)
+
+    if mask is not None:
+        mask = np.asarray(mask).astype(bool)
+
+    box_size = np.atleast_1d(box_size)
+    if len(box_size) == 1:
+        box_size = np.repeat(box_size, 2)
+    box_size = (min(box_size[0], data.shape[0]), min(box_size[1], data.shape[1]))
+
+    filter_size = np.atleast_1d(filter_size)
+    if len(filter_size) == 1:
+        filter_size = np.repeat(filter_size, 2)
+
+    kw = dict(
+        mask=mask,
+        bw=box_size[1],
+        bh=box_size[0],
+        fw=filter_size[1],
+        fh=filter_size[0],
+        maskthresh=maskthresh,
+        fthresh=filter_threshold,
+    )
+    try:
+        bkg = sep.Background(data, **kw)
+    except ValueError:  # Non-native byte order
+        try:  # numpy < 2
+            data = data.byteswap().newbyteorder()
+        except AttributeError:  # numpy >= 2
+            data = data.view(data.dtype.newbyteorder(byteorder))
+        try:
+            bkg = sep.Background(data, **kw)
+        except ValueError:  # e.g., int16 not supported
+            bkg = sep.Background(data.astype("float32"), **kw)
+
+    return bkg
+
+
+@support_nddata
+def _sep_extract(
+    data,
+    thresh,
+    bkg=None,
+    mask=None,
+    maskthresh=0.0,
+    err=None,
+    var=None,
+    gain=None,
+    minarea=5,
+    filter_kernel=sep_default_kernel,
+    filter_type="matched",
+    deblend_nthresh=32,
+    deblend_cont=0.005,
+    clean=True,
+    clean_param=1.0,
+    seg_remove_mask=True,
+    byteorder=">",
+):
+    """sep.extract wrapper with minor sanitization of arrays and segmap
+    Notes
+    -----
+    This is a wrapper of `sep.extract`. Only the difference is that (1) `data`,
+    `err`, `var`, `mask` are "sanitized" to be in native byte order, (2) the
+    final segmentation map is updated so that the masked pixels are set to 0,
+    and (3) add support for Gaussian kernel if `filter_kernel` is a float.
+
+    Parameters
+    ----------
+    data : CCDData or array-like
+        The 2D array from which to estimate the background.
+
+    thresh : float, optional
+        Only in sep. Threshold pixel value for detection. If an `err` or `var`
+        array is **not** given, this is interpreted as an absolute threshold.
+        If `err` or `var` is given, this is interpreted as a relative
+        threshold: the absolute threshold at pixel (j, i) will be ``thresh *
+        err[j, i]`` or ``thresh * sqrt(var[j, i])``. Note: If you want to give
+        pixel-wise threshold, make the `err` with such threshold values and set
+        ``thresh = 1``.
+
+    bkg : sep.Background object, numeric, ndarray or `None`
+        The `sep.Background` object used to extract sky and sky rms.
+
+    mask : `~numpy.ndarray`, optional
+        Mask array. `True` values, or numeric values greater than `maskthresh`,
+        are considered masked. Masking a pixel is equivalent to setting data to
+        zero and noise (if present) to infinity.
+
+    maskthresh : float, optional
+        Mask threshold. This is the inclusive upper limit on the mask value in
+        order for the corresponding pixel to be unmasked. For boolean arrays,
+        `False` and `True` are interpreted as 0 and 1, respectively. Thus,
+        given a threshold of zero, True corresponds to masked and `False`
+        corresponds to unmasked.
+        Default is ``0.0``.
+
+    err, var : float or `~numpy.ndarray`, optional
+        Error *or* variance (specify at most one). This can be used to specify
+        a pixel-by-pixel detection threshold; see `thresh`.
+
+    gain : float, optional
+        Conversion factor between data array units and poisson counts. This
+        does not affect detection; it is used only in calculating Poisson noise
+        contribution to uncertainty param(eters such as `errx2`. If not given,
+        no Poisson noise will be added.
+
+    minarea : int, optional
+        Minimum number of pixels required for an object. Default is ``5``.
+
+    filter_kernel : `~numpy.ndarray` or None, optional
+        Filter kernel used for on-the-fly filtering (used to enhance
+        detection). Default is a 3x3 array: [[1,2,1], [2,4,2], [1,2,1]]. If
+        float, a circular Gaussian kernel of that sigma will be used (kernel
+        size is approximately 2*min(sigma, 1) + 1 pixels). Set to `None` to
+        skip convolution.
+
+    filter_type : {'matched', 'conv'}, optional
+        Filter treatment. This affects filtering behavior when a noise array is
+        supplied. ``'matched'`` (default) accounts for pixel-to-pixel noise in
+        the filter kernel. ``'conv'`` is simple convolution of the data array,
+        ignoring pixel-to-pixel noise across the kernel. ``'matched'`` should
+        yield better detection of faint sources in areas of rapidly varying
+        noise (such as found in coadded images made from semi-overlapping
+        exposures). The two options are equivalent when noise is constant.
+
+    deblend_nthresh : int, optional
+        Number of thresholds used for object deblending. Default is ``32``.
+
+    deblend_cont : float, optional
+        Minimum contrast ratio used for object deblending. Default is ``0.005``. To
+        entirely disable deblending, set to 1.0.
+
+    clean : bool, optional
+        Whether to perform cleaning (remove false positives especially nearby
+        bright sources).
+        Default is `True`. (see Notes)
+
+    clean_param : float, optional
+        The Moffat power index for cleaning processes (see Notes). Default is ``1.0``.
+
+    Returns
+    -------
+    obj, segm
+
+    Notes
+    -----
+    The **cleaning** means to check if each object would have been detected
+    even if there was no nearby sources. Thus, the code "removes" any nearby
+    objects, and see if the object is still detected. If not, it is considered
+    as a false positive and removed. The removal of nearby object is done by
+    fitting a Moffat profile. `clean_param` is the Moffat beta parameter (power
+    index). Although SEP default is 1.0 and original SExtractor accepts any
+    value between 0.1 to 10, Moffat profile will have finite flux only if
+    `clean_param > 2`.
+    """
+
+    def _gaussian_kernel(sig):
+        if isinstance(sig, (int, float)):
+            return gaussian_kernel(
+                sigma=sig, nsigma=min(1, 3 / sig), normalize_area=False
+            )
+        else:
+            return sig
+
+    if err is not None and var is not None:
+        raise ValueError("Upto one of `err` and `var` can be given.")
+
+    # No need to check CCDData thanks to @support_nddata.
+    data = np.ascontiguousarray(data)
+    mask = None if mask is None else np.ascontiguousarray(mask)
+
+    if bkg is None:
+        data_skysub = data
+        # No need to further update `var` or `err`.
+    elif isinstance(bkg, (int, float, np.ndarray)):
+        data_skysub = data - bkg
+        # No need to further update `var` or `err`.
+    else:
+        data_skysub = data - bkg.back()
+        if var is not None:  # Then err is None (see above)
+            var = var + bkg.rms() ** 2
+        elif err is not None:  # Then var is None (see above)
+            err = np.sqrt(err**2 + bkg.rms() ** 2)
+
+    obj, seg = sep.extract(
+        _sanitize_byteorder(data_skysub),
+        thresh=thresh,
+        err=None if err is None else np.ascontiguousarray(err),
+        var=None if var is None else np.ascontiguousarray(var),
+        mask=mask,  # already contiguous (see above)
+        maskthresh=maskthresh,
+        minarea=minarea,
+        filter_kernel=_gaussian_kernel(filter_kernel),
+        filter_type=filter_type,
+        deblend_nthresh=deblend_nthresh,
+        deblend_cont=deblend_cont,
+        clean=clean,
+        clean_param=clean_param,
+        gain=gain,
+        segmentation_map=True,
+    )
+    if seg_remove_mask and mask is not None:
+        # FIXME: https://github.com/kbarbary/sep/issues/149
+        # Use boolean indexing, not bitwise AND — seg is an int label array
+        # and `seg & ~mask` corrupts label values via bitwise ops on integers.
+        seg[mask.astype(bool)] = 0
+    return obj, seg
+
+
+# TODO: use astropy.nddata's @support_nddata
+def sep_extract(
+    data,
+    thresh,
+    bkg=None,
+    mask=None,
+    maskthresh=0.0,
+    err=None,
+    var=None,
+    pos_ref=None,
+    sort_by=None,
+    sort_ascending=True,
+    bezel_x=[0, 0],
+    bezel_y=[0, 0],
+    gain=None,
+    minarea=5,
+    maxarea=None,
+    filter_kernel=sep_default_kernel,
+    filter_type="matched",
+    deblend_nthresh=32,
+    deblend_cont=0.005,
+    clean=True,
+    clean_param=1.0,
+    seg_remove_mask=True,
+):
+    """
+    Notes
+    -----
+    This includes `sep`'s `extract`. Equivalent processes in photutils may
+    include `detect_sources` and `source_properties`. Maybe we can use
+    ``extract(data=data, err=err, thresh=3)`` for a snr > 3 extraction.
+
+    Parameters
+    ----------
+    data : CCDData or array-like
+        The 2D array from which to estimate the background.
+
+    pos_ref : `None`, list-like of two floats, optional
+        If not `None`, it must be the (x, y) position of the reference point.
+        The returned `obj` will have ``'dist_ref'`` column which is the
+        distance of the object's position (``sqrt((obj["x"] - pos_ref[0])**2 +
+        (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default,
+        unless `sort_by` is specified (see `sort_by`).
+
+    sort_by : str, optional
+        The column name to sort the output. If `pos_ref` is not `None`, a new
+        column is added to the `sep` results, called ``"dist_ref"`` and
+        `sort_by` is based on this column by default. Otherwise, it should be a
+        name of column in `sep` result.
+
+    sort_ascending : bool, optional
+        Sort ascending vs. descending. Specify list for multiple sort orders.
+        If this is a list of bools, must match the length of the `sort_by`.
+
+    bezel_x, bezel_y : int, float, 2-array-like, optional
+        The bezel (border width) for x and y axes. If array-like, it should be
+        ``(lower, upper)``. Mathematically put, only objects with center
+        ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx - bezel_x[1] - 0.5)``
+        (similar for y) will be selected. If you want to keep some stars
+        outside the edges, put negative values (e.g., ``-5``).
+
+    maxarea : int, optional
+        Maximum number of pixels required for an object. It is useful to reject
+        any artifact (too low threshold) or extended source. Default is `None`.
+
+    Other Parameters:
+        See `~_sep_extract` or `sep.extract` for other parameters and notes.
+
+    Returns
+    -------
+    obj, segm
+
+    Example
+    -------
+    To test:
+
+    >>> def bkg(data, mask, th):
+    >>>     return sep.Background(data, mask=mask, maskthresh=th).back()
+    >>> np.random.seed(1234)
+    >>> data = np.random.normal(scale=100, size=(1000, 1000))
+    >>> bs = []
+    >>> bs.append(bkg(data, mask=None, th=0))
+    >>> bs.append(bkg(data, mask=data, th=-1.e+5))
+    >>> bs.append(bkg(data, mask=data, th=0))
+    >>> bs.append(bkg(data, mask=data, th=+1.e+5))
+    >>> bs.append(bkg(data, mask=data.astype(bool), th=+1.e+5))
+    >>> np.testing.assert_array_almost_equal(bs[1], bs[2])
+    >>> fig, axs = plt.subplots(2, 4, figsize=(8, 5))
+    >>> for idx, b in enumerate(bs):
+    >>>     ax = axs[idx%2, idx//2]
+    >>>     ax.imshow(b, origin='lower')
+    >>>     ax.set(title=idx)
+    >>> plt.tight_layout()
+    >>> plt.show()
+    """
+    obj, segm = _sep_extract(
+        data=data,
+        thresh=thresh,
+        bkg=bkg,
+        mask=mask,
+        maskthresh=maskthresh,
+        err=err,
+        var=var,
+        gain=gain,
+        minarea=minarea,
+        filter_kernel=filter_kernel,
+        filter_type=filter_type,
+        deblend_nthresh=deblend_nthresh,
+        deblend_cont=deblend_cont,
+        clean=clean,
+        clean_param=clean_param,
+        seg_remove_mask=seg_remove_mask,
+    )
+
+    obj = pd.DataFrame(obj)
+    n_original = len(obj)
+
+    ny, nx = data.shape
+
+    # use 1-indexing for the ``segm_label``
+    # obj = obj.reset_index(drop=True)
+    # obj = obj.rename(columns={'index': 'segm_label'})
+    # obj['segm_label'] += 1
+    obj.insert(loc=0, column="segm_label", value=np.arange(1, len(obj) + 1).astype(int))
+    # log the original input threshold
+    obj.insert(loc=1, column="thresh_raw", value=thresh)
+    mask = bezel_mask(obj["x"], obj["y"], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
+    if maxarea is not None:
+        mask = mask & (obj["npix"] <= maxarea)
+    obj = obj[~mask]
+
+    if pos_ref is not None:
+        pos_ref = np.array(pos_ref).flatten()
+        if pos_ref.size != 2:
+            raise ValueError(
+                f"pos_ref must have the size of two (now it is {pos_ref.size})."
+            )
+        dist_ref = np.sqrt((obj["x"] - pos_ref[0]) ** 2 + (obj["y"] - pos_ref[1]) ** 2)
+        obj.insert(loc=1, column="dist_ref", value=dist_ref)
+        if sort_by is not None:
+            sort_by = "dist_ref"
+
+    if sort_by is not None:
+        obj = obj.sort_values(sort_by, ascending=sort_ascending).reset_index(drop=True)
+
+    # Set segm value to 0 (False) if removed by bezel.
+    if len(obj) < n_original:
+        segm_survived = np.isin(segm, obj["segm_label"].values)
+        segm[~segm_survived] = 0
+
+    return obj, segm
+
+
+def sep_extract_iterative(
+    data,
+    thresh,
+    mask=None,
+    maskthresh=0.0,
+    err=None,
+    var=None,
+    gain=None,
+    n_iter=2,
+    seg_dilate=0,
+    box_size=(64, 64),
+    filter_size=(3, 3),
+    filter_threshold=0.0,
+    pos_ref=None,
+    sort_by=None,
+    sort_ascending=True,
+    bezel_x=[0, 0],
+    bezel_y=[0, 0],
+    minarea=5,
+    maxarea=None,
+    filter_kernel=sep_default_kernel,
+    filter_type="matched",
+    deblend_nthresh=32,
+    deblend_cont=0.005,
+    clean=True,
+    clean_param=1.0,
+    seg_remove_mask=True,
+    return_bkg=False,
+):
+    """Iterative background estimation and source extraction.
+
+    Runs ``n_iter`` rounds of:
+
+    1. Estimate background with `sep_back`, masking user-supplied pixels and
+       any sources found in the previous iteration.
+    2. Extract sources with `sep_extract` using the new background.
+
+    The segmentation map from each pass is (optionally dilated and) added to
+    the running source mask before the next background estimation, so bright
+    halos and wings are excluded from the sky fit.
+
+    Parameters
+    ----------
+    data : array-like
+        The 2D image array.
+    thresh : float
+        Detection threshold passed to `sep_extract` (absolute if no ``err``/
+        ``var`` is given, otherwise relative to the noise).
+    mask : array-like of bool, optional
+        External bad-pixel mask (``True`` = masked). Combined with the
+        iteratively-built source mask for background estimation.
+        Default is `None`.
+    maskthresh : float, optional
+        Mask threshold forwarded to `sep_back` and `sep_extract`.
+        Default is ``0.0``.
+    err, var : float or array-like, optional
+        Error or variance map. At most one may be given.
+    gain : float, optional
+        Gain (e/ADU) forwarded to `sep_extract`.
+    n_iter : int, optional
+        Number of background + extraction iterations. ``1`` is equivalent to
+        a single `sep_back` → `sep_extract` call. Default is ``2``.
+    seg_dilate : int, optional
+        Radius (pixels) by which to dilate the segmentation map before using
+        it as a source mask in the next background estimation. Useful for
+        masking stellar wings. ``0`` means no dilation. Default is ``0``.
+    box_size : int or array-like of int, optional
+        Background mesh box size forwarded to `sep_back`. Default is ``(64, 64)``.
+    filter_size : int or array-like of int, optional
+        Background mesh filter size forwarded to `sep_back`. Default is ``(3, 3)``.
+    filter_threshold : float, optional
+        Background filter threshold forwarded to `sep_back`. Default is ``0.0``.
+    pos_ref, sort_by, sort_ascending, bezel_x, bezel_y, minarea, maxarea,
+    filter_kernel, filter_type, deblend_nthresh, deblend_cont, clean,
+    clean_param, seg_remove_mask :
+        Forwarded unchanged to `sep_extract` on every iteration.
+    return_bkg : bool, optional
+        If `True`, also return the final `sep.Background` object.
+        Default is `False`.
+
+    Returns
+    -------
+    obj : `~pandas.DataFrame`
+        Extracted source catalog from the final iteration.
+    segm : 2D ndarray of int
+        Segmentation map from the final iteration.
+    bkg : sep.Background
+        Only returned when ``return_bkg=True``. The background object from
+        the final iteration.
+
+    Examples
+    --------
+    >>> obj, segm = sep_extract_iterative(data, thresh=3, n_iter=2, seg_dilate=5)
+    >>> obj, segm, bkg = sep_extract_iterative(data, thresh=3, return_bkg=True)
+    """
+    if n_iter < 1:
+        raise ValueError(f"n_iter must be >= 1 (got {n_iter})")
+
+    # running source mask (starts empty, grows each iteration)
+    src_mask = np.zeros(np.asarray(data).shape, dtype=bool)
+    if mask is not None:
+        base_mask = np.asarray(mask, dtype=bool)
+    else:
+        base_mask = None
+
+    bkg = None
+    obj = None
+    segm = None
+
+    for i in range(n_iter):
+        # combine user mask with sources found so far
+        combined_mask = src_mask if base_mask is None else (base_mask | src_mask)
+
+        bkg = sep_back(
+            data,
+            mask=combined_mask if combined_mask.any() else None,
+            maskthresh=maskthresh,
+            filter_threshold=filter_threshold,
+            box_size=box_size,
+            filter_size=filter_size,
+        )
+
+        obj, segm = sep_extract(
+            data,
+            thresh=thresh,
+            bkg=bkg,
+            mask=base_mask,
+            maskthresh=maskthresh,
+            err=err,
+            var=var,
+            gain=gain,
+            pos_ref=pos_ref,
+            sort_by=sort_by,
+            sort_ascending=sort_ascending,
+            bezel_x=bezel_x,
+            bezel_y=bezel_y,
+            minarea=minarea,
+            maxarea=maxarea,
+            filter_kernel=filter_kernel,
+            filter_type=filter_type,
+            deblend_nthresh=deblend_nthresh,
+            deblend_cont=deblend_cont,
+            clean=clean,
+            clean_param=clean_param,
+            seg_remove_mask=seg_remove_mask,
+        )
+
+        # build new source mask from segmentation map
+        src_mask = segm > 0
+        if seg_dilate > 0:
+            from scipy.ndimage import binary_dilation
+            struct = _disk_struct(seg_dilate)
+            src_mask = binary_dilation(src_mask, structure=struct)
+
+    if return_bkg:
+        return obj, segm, bkg
+    return obj, segm
+
+
+def _disk_struct(radius):
+    """Boolean disk structuring element of given radius for dilation."""
+    r = int(radius)
+    y, x = np.ogrid[-r: r + 1, -r: r + 1]
+    return x ** 2 + y ** 2 <= r ** 2
+
+
+def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
+    """Calculate FLUX_AUTO
+    # https://sep.readthedocs.io/en/v1.0.x/apertures.html#equivalent-of-flux-auto-e-g-mag-auto-in-source-extractor
+    """
+
+    sepx, sepy = sepext["x"], sepext["y"]
+    sepa, sepb = sepext["a"], sepext["b"]
+    septh = sepext["theta"]
+
+    r_kron, nrej_k = sep.kron_radius(data, sepx, sepy, sepa, sepb, septh, 6.0)
+    fl, dfl, nrej = sep.sum_ellipse(
+        data,
+        sepx,
+        sepy,
+        sepa,
+        sepb,
+        septh,
+        r=phot_autoparams[0] * r_kron,
+        err=err,
+        subpix=1,
+    )
+    nrej |= nrej_k  # combine flags into 'flag'
+
+    r_min = phot_autoparams[1]  # R_min = 3.5
+    use_circle = r_kron * np.sqrt(sepa * sepb) < r_min
+    cfl, cdfl, nrej_c = sep.sum_circle(
+        data, sepx[use_circle], sepy[use_circle], r_min, err=err, subpix=1
+    )
+    fl[use_circle] = cfl
+    dfl[use_circle] = cdfl
+    nrej[use_circle] = nrej_c
+    return fl, dfl, nrej
+
+
+# def sep_find_obj(
+#         ccd, mask=None, err=None, var=None,
+#         thresh_tests=[30, 20, 10, 6, 5, 4, 3],
+#         bezel_x=None, bezel_y=None, box_size=(64, 64),
+#         filter_size=(12, 12), deblend_cont=1, minarea=100, verbose=True,
+#         update_header=True, **extract_kw
+# ):
+#     """
+#     Parameters
+#     ----------
+#     ccd : CCDData or ndarray.
+#         The CCD or ndarray to find object.
+
+#     thresh_tests : list-like of float, optional
+#         The SNR thresholds to be used for finding the object. It is
+#         first sorted in descending order, and if more than one object is
+#         found, that value is used.
+
+#     bezel_x, bezel_y : int, float, list of such, optional
+#         The x and y bezels, in ``[lower, upper]`` convention.
+
+#     box_size : int or array-like (int) optional.
+#         The background smooting box size. Default is ``(64, 64)``
+#         for NIC. **Note**: If array-like, order must be ``[height,
+#         width]``, i.e., y and x size.
+
+#     filter_size : int or array-like (int) optional.
+#         The 2D median filter size. Default is ``(12, 12)`` for NIC.
+#         **Note**: If array-like, order must be ``[height, width]``,
+#         i.e., y and x size.
+
+#     minarea : int, optional
+#         Minimum number of pixels required for an object. Default is
+#         100 for NIC.
+
+#     deblend_cont : float, optional
+#         Minimum contrast ratio used for object deblending. To
+#         entirely disable deblending, set to 1.0 (default). Default of
+#         sep was 0.005.
+
+#     # gauss_fbox : int, float, array-like of such, optional
+#     #     The fitting box size to fit a Gaussian2D function to the
+#     #     objects found by `sep`. This is done to automatically set
+#     #     aperture sizes of the object.
+
+#     Returns
+#     -------
+
+#     Note
+#     ----
+#     This includes `sep`'s `extract` and `background`.
+#     Equivalent processes in photutils may include `detect_sources`
+#     and `source_properties`, and `Background2D`, respectively.
+
+#     Example
+#     -------
+#     >>>
+#     """
+
+#     if isinstance(ccd, CCDData):
+#         _arr = ccd.data.copy()
+#         _mask = ccd.mask
+#         if update_header:
+#             try:
+#                 import astroimred as fm
+#                 add2hdr = fm.add2hdr
+#             except ImportError:
+#                 raise ImportError("astroimred is needed for update_header.")
+#     else:
+#         _arr = np.array(ccd)
+#         _mask = None
+#         update_header = False  # override
+#         if update_header and verbose:
+#             warn("Given array, not CCDData. Header will not be updated.")
+
+#     if _mask is None:
+#         _mask = np.zeros_like(_arr, dtype=bool)
+
+#     if mask is not None:
+#         _mask = _mask | mask
+
+#     bkg_kw = dict(mask=_mask, maskthresh=0.0, filter_threshold=0.0,
+#                   box_size=box_size, filter_size=filter_size)
+
+#     sepv = sep.__version__
+#     s_bkg = f"Background estimated from sep (v {sepv}) with {bkg_kw}."
+
+#     _t = Time.now()
+#     bkg = sep_back(_arr, **bkg_kw)
+#     if update_header:
+#         add2hdr(ccd.header, 'h', s_bkg, verbose=verbose, t_ref=_t)
+
+#     thresh_tests = np.sort(np.atleast_1d(thresh_tests))[::-1]
+#     for thresh in thresh_tests:
+#         ext_kw = dict(bkg=bkg, err=err, mask=_mask, thresh=thresh,
+#                       minarea=minarea,
+#                       deblend_cont=deblend_cont, bezel_x=bezel_x,
+#                       bezel_y=bezel_y, **extract_kw)
+#         s_obj = f"Objects found from sep (v {sepv}) with {ext_kw}."
+
+#         _t = Time.now()
+#         obj, seg = sep_extract(_arr, **ext_kw)
+#         if update_header:
+#             add2hdr(ccd.header, 'h', s_obj, verbose=verbose, t_ref=_t)
+
+#         nobj = len(obj)
+#         ccd.header["NOBJ-SEP"] = (nobj, "Number of objects found from SEP.")
+
+#     if nobj < 1:
+#         warn("No object found!", Warning)
+#     elif nobj > 1:
+#         # Sort obj such that the 0-th is our target.
+#         ny, nx = ccd.data.shape
+#         obj['_r'] = np.sqrt((obj['x'] - nx/2)**2 + (obj['y'] - ny/2)**2)
+#         obj.sort_values('_r', inplace=True)
+
+#         if update_header:
+#             s = ("{} objects found; Only the one closest to the FOV center "
+#                  + "(segmentation map label = {}) will be used.")
+#             s = s.format(nobj, obj['segm_label'].values[0])
+#             add2hdr(ccd.header, 'h', s, verbose=verbose)
+
+#     return bkg, obj, seg
