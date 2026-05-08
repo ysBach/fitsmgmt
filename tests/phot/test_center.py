@@ -5,18 +5,18 @@ All expected values are analytically derived.
 """
 
 import numpy as np
-import pytest
 from astropy.nddata import CCDData
 from numpy.testing import assert_allclose, assert_array_equal
 from photutils.centroids import centroid_com
 
-from .conftest import make_gaussian_2d
 from astroimred.phot.center import (
-    circular_slice,
-    circular_bbox_cut,
-    find_centroid,
     GaussianConst2D,
+    circular_bbox_cut,
+    circular_slice,
+    find_centroid,
 )
+
+from .conftest import make_gaussian_2d
 
 
 # =============================================================================
@@ -173,7 +173,7 @@ class TestGaussianConst2D:
             y_mean=5.0,
             x_stddev=2.0,
             y_stddev=2.0,
-            theta=0.0
+            theta=0.0,
         )
 
         value = model(5.0, 5.0)
@@ -193,7 +193,7 @@ class TestGaussianConst2D:
             y_mean=5.0,
             x_stddev=2.0,
             y_stddev=2.0,
-            theta=0.0
+            theta=0.0,
         )
 
         # Point at 1 sigma in x direction
@@ -214,7 +214,7 @@ class TestGaussianConst2D:
             y_mean=5.0,
             x_stddev=1.0,
             y_stddev=1.0,
-            theta=0.0
+            theta=0.0,
         )
 
         # Point at 10 sigma away
@@ -229,7 +229,9 @@ class TestGaussianConst2D:
 class TestFindCentroid:
     """Tests for find_centroid function."""
 
-    def test_find_centroid_centered_source(self, ccd_with_source, gaussian_params_centered):
+    def test_find_centroid_centered_source(
+        self, ccd_with_source, gaussian_params_centered
+    ):
         """
         Test find_centroid on source at integer position.
 
@@ -240,16 +242,18 @@ class TestFindCentroid:
             position_xy=(50, 50),
             cbox_size=15,
             maxiters=10,
-            tol_shift=1e-4
+            tol_shift=1e-4,
         )
 
-        expected_x = gaussian_params_centered['x_mean']
-        expected_y = gaussian_params_centered['y_mean']
+        expected_x = gaussian_params_centered["x_mean"]
+        expected_y = gaussian_params_centered["y_mean"]
 
         assert_allclose(result[0], expected_x, atol=0.1)
         assert_allclose(result[1], expected_y, atol=0.1)
 
-    def test_find_centroid_offset_source(self, ccd_with_source_offset, gaussian_params_offset):
+    def test_find_centroid_offset_source(
+        self, ccd_with_source_offset, gaussian_params_offset
+    ):
         """
         Test find_centroid on source at fractional position.
 
@@ -261,11 +265,11 @@ class TestFindCentroid:
             position_xy=(50, 51),
             cbox_size=15,
             maxiters=10,
-            tol_shift=1e-4
+            tol_shift=1e-4,
         )
 
-        expected_x = gaussian_params_offset['x_mean']
-        expected_y = gaussian_params_offset['y_mean']
+        expected_x = gaussian_params_offset["x_mean"]
+        expected_y = gaussian_params_offset["y_mean"]
 
         # Should converge to within 0.2 pixels
         assert_allclose(result[0], expected_x, atol=0.2)
@@ -274,11 +278,7 @@ class TestFindCentroid:
     def test_find_centroid_full_output(self, ccd_with_source):
         """Test find_centroid with full=True returns history."""
         result = find_centroid(
-            ccd_with_source,
-            position_xy=(50, 50),
-            cbox_size=15,
-            maxiters=5,
-            full=True
+            ccd_with_source, position_xy=(50, 50), cbox_size=15, maxiters=5, full=True
         )
 
         # Should return (position, x_history, y_history, total_shift)
@@ -289,16 +289,18 @@ class TestFindCentroid:
         assert len(x_hist) >= 2
         assert len(y_hist) >= 2
 
-    def test_find_centroid_max_shift_warning(self, ccd_with_source):
-        """Test find_centroid warns when shift exceeds max_shift."""
-        with pytest.warns(UserWarning, match="shifted larger than"):
+    def test_find_centroid_max_shift_warning(self, ccd_with_source, caplog):
+        """Test find_centroid logs when shift exceeds max_shift."""
+        with caplog.at_level("WARNING", logger="astroimred"):
             find_centroid(
                 ccd_with_source,
                 position_xy=(40, 40),  # Far from true position (50, 50)
                 cbox_size=15,
                 maxiters=10,
-                max_shift=5.0  # Will exceed this
+                max_shift=5.0,  # Will exceed this
             )
+
+        assert "shifted larger than" in caplog.text
 
 
 # =============================================================================
@@ -322,7 +324,7 @@ class TestCentroidingAnalytical:
             y_mean=y_true,
             amplitude=1000.0,
             x_stddev=3.0,
-            background=0.0
+            background=0.0,
         )
 
         x_com, y_com = centroid_com(data)
@@ -347,7 +349,7 @@ class TestCentroidingAnalytical:
             y_mean=y_true,
             amplitude=1000.0,
             x_stddev=3.0,
-            background=0.0
+            background=0.0,
         )
 
         # With constant background (but mask it out)
@@ -357,7 +359,7 @@ class TestCentroidingAnalytical:
             y_mean=y_true,
             amplitude=1000.0,
             x_stddev=3.0,
-            background=100.0
+            background=100.0,
         )
         mask = data_with_bg < 150  # Mask out background
 
@@ -404,14 +406,14 @@ class TestCenterEdgeCases:
     def test_find_centroid_at_edge(self, gaussian_source_centered):
         """Test find_centroid behaves sensibly near image edge."""
         # Use Gaussian source data with a position near the source
-        ccd = CCDData(gaussian_source_centered, unit='adu')
+        ccd = CCDData(gaussian_source_centered, unit="adu")
 
         # Position near the source but not exactly at center
         result = find_centroid(
             ccd,
             position_xy=(48, 48),  # Slightly off from center at (50, 50)
             cbox_size=11,
-            maxiters=3
+            maxiters=3,
         )
 
         # Should converge toward the source center
@@ -423,6 +425,7 @@ class TestCenterEdgeCases:
         # Uniform images have no gradient, so centroiding can fail
         # The function should either return NaN or raise an error
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
@@ -430,7 +433,7 @@ class TestCenterEdgeCases:
                     ccd_uniform,
                     position_xy=(50, 50),
                     cbox_size=7,
-                    maxiters=1  # Just one iteration to check behavior
+                    maxiters=1,  # Just one iteration to check behavior
                 )
                 # If it returns, values might be NaN or the original position
                 # Both are acceptable behaviors for undefined centroid

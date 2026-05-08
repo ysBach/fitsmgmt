@@ -224,8 +224,6 @@ class TestWriteFits:
     def test_write_return_ccd(self, sample_data_2d, sample_header, tmp_path):
         """Test write2fits with return_ccd=`True`."""
         outpath = tmp_path / "output.fits"
-        result = io.write2fits(
-            sample_data_2d, sample_header, outpath, return_ccd=True
-        )
+        result = io.write2fits(sample_data_2d, sample_header, outpath, return_ccd=True)
         assert isinstance(result, CCDData)
         np.testing.assert_array_equal(result.data, sample_data_2d)

@@ -1,12 +1,14 @@
 """FITS header editing and accessor helpers."""
 
+import contextlib
+
+from astro_ndslice import is_list_like, listify
 from astropy import units as u
 from astropy.io import fits
 from astropy.time import Time
-from astro_ndslice import is_list_like, listify
 
-from . import io as _io
 from ..logging import logger
+from . import io as _io
 from .misc import change_to_quantity, str_now
 
 __all__ = [
@@ -136,10 +138,8 @@ def update_tlm(header):
     # 443 µs +/- 19.5 µs per loop (mean +/- std. dev. of 7 runs, 1000 loops each)
     """
     now = Time(Time.now(), precision=0).isot
-    try:
+    with contextlib.suppress(KeyError):
         del header["FITS-TLM"]
-    except KeyError:
-        pass
     try:
         header.set(
             "FITS-TLM",
@@ -308,7 +308,9 @@ def hedit(
         keys, values, comments, befores, afters
     )
 
-    for key, val, cmt, bef, aft in zip(keys, values, comments, befores, afters):
+    for key, val, cmt, bef, aft in zip(
+        keys, values, comments, befores, afters, strict=False
+    ):
         if key in header:
             oldv = header[key]
             infostr = (
@@ -471,8 +473,8 @@ def chk_keyval(type_key, type_val, group_key):
             type_key = list(type_key)
             if not all(isinstance(x, str) for x in type_key):
                 raise TypeError("Some of type_key are not str.")
-        except TypeError:
-            raise TypeError("type_key should be str or convertible to list.")
+        except TypeError as err:
+            raise TypeError("type_key should be str or convertible to list.") from err
     elif isinstance(type_key, str):
         type_key = [type_key]
     else:
@@ -486,8 +488,8 @@ def chk_keyval(type_key, type_val, group_key):
     elif is_list_like(type_val):
         try:
             type_val = list(type_val)
-        except TypeError:
-            raise TypeError("type_val should be str or convertible to list.")
+        except TypeError as err:
+            raise TypeError("type_val should be str or convertible to list.") from err
     elif isinstance(type_val, str):
         type_val = [type_val]
     else:
@@ -503,8 +505,8 @@ def chk_keyval(type_key, type_val, group_key):
             group_key = list(group_key)
             if not all(isinstance(x, str) for x in group_key):
                 raise TypeError("Some of group_key are not str.")
-        except TypeError:
-            raise TypeError("group_key should be str or convertible to list.")
+        except TypeError as err:
+            raise TypeError("group_key should be str or convertible to list.") from err
     elif isinstance(group_key, str):
         group_key = [group_key]
     else:
@@ -639,10 +641,8 @@ def hdrval(
         value = change_to_quantity(value, unit, to_value=False)
 
     if to_value:
-        try:
+        with contextlib.suppress(AttributeError):
             value = value.value
-        except AttributeError:
-            pass
     if return_source:
         return value, source
     return value
@@ -698,16 +698,16 @@ def midtime_obs(
                 out_subfmt=out_subfmt,
                 location=location,
             )
-        except (KeyError, IndexError):
-            raise KeyError(f"The key '{dateobs=}' not found in header.")
+        except (KeyError, IndexError) as err:
+            raise KeyError(f"The key '{dateobs=}' not found in header.") from err
     else:
         time_0 = dateobs
 
     if isinstance(exptime, str):
         try:
             exptime = header.get(exptime, default=0) * exptime_unit
-        except (KeyError, IndexError):
-            raise KeyError(f"The key '{exptime=}' not found in header.")
+        except (KeyError, IndexError) as err:
+            raise KeyError(f"The key '{exptime=}' not found in header.") from err
     elif isinstance(exptime, (int, float)):
         exptime = exptime * exptime_unit
     elif not isinstance(exptime, u.Quantity):

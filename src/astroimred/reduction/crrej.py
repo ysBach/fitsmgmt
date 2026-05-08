@@ -9,10 +9,10 @@ from astropy.stats import sigma_clipped_stats
 from astropy.time import Time
 from astroscrappy import detect_cosmics
 
-from astroimred.mgmt.headers import cmt2hdr, update_process, update_tlm
 from astroimred.imops.ccdutils import propagate_ccdmask
-from astroimred.mgmt.io import _parse_image
 from astroimred.logging import logger
+from astroimred.mgmt.headers import cmt2hdr, update_process, update_tlm
+from astroimred.mgmt.io import _parse_image
 from astroimred.mgmt.misc import change_to_quantity
 
 __all__ = [
@@ -170,8 +170,17 @@ def parse_crrej_psf(
                 raise ValueError(f"fs ({fs}) not understood")
             return fsmode, psfmodel, psfk, psffwhm, psfsize, psfbeta
 
-        res = dict(fsmode=[], psfmodel=[], psfk=[], psffwhm=[], psfsize=[], psfbeta=[])
-        for _fs, _psffwhm, _psfsize, _psfbeta in zip(fs, psffwhm, psfsize, psfbeta):
+        res = {
+            "fsmode": [],
+            "psfmodel": [],
+            "psfk": [],
+            "psffwhm": [],
+            "psfsize": [],
+            "psfbeta": [],
+        }
+        for _fs, _psffwhm, _psfsize, _psfbeta in zip(
+            fs, psffwhm, psfsize, psfbeta, strict=False
+        ):
             fsmode, psfmodel, psfk, psffwhm, psfsize, psfbeta = _allocate(
                 _fs, _psffwhm, _psfsize, _psfbeta
             )
@@ -184,22 +193,25 @@ def parse_crrej_psf(
         return res
 
     elif isinstance(fs, np.ndarray):
-        return dict(fsmode="convolve", psfk=fs)
+        return {"fsmode": "convolve", "psfk": fs}
     elif isinstance(fs, str):
         if fs == "median":
-            return dict(fsmode=fs)
+            return {"fsmode": fs}
         elif fs == "moffat":
-            return dict(
-                fsmode="convolve",
-                psfmodel="moffat",
-                psffwhm=psffwhm,
-                psfsize=psfsize,
-                psfbeta=psfbeta,
-            )
+            return {
+                "fsmode": "convolve",
+                "psfmodel": "moffat",
+                "psffwhm": psffwhm,
+                "psfsize": psfsize,
+                "psfbeta": psfbeta,
+            }
         elif fs in ["gauss", "gaussx", "gaussy"]:
-            return dict(
-                fsmode="convolve", psfmodel=fs, psffwhm=psffwhm, psfsize=psfsize
-            )
+            return {
+                "fsmode": "convolve",
+                "psfmodel": fs,
+                "psffwhm": psffwhm,
+                "psfsize": psfsize,
+            }
     else:
         raise ValueError(f"fs ({fs}) not understood")
 
@@ -523,8 +535,8 @@ def medfilt_bpm(
     cval=0.0,
     origin=0,
     med_sub_clip=None,
-    med_rat_clip=[0.5, 2],
-    std_rat_clip=[-5, 5],
+    med_rat_clip=None,
+    std_rat_clip=None,
     dtype="float32",
     update_header=True,
     verbose=False,
@@ -626,8 +638,12 @@ def medfilt_bpm(
     """
     from scipy.ndimage import median_filter
 
+    if std_rat_clip is None:
+        std_rat_clip = [-5, 5]
+    if med_rat_clip is None:
+        med_rat_clip = [0.5, 2]
     if sigclip_kw is None:
-        sigclip_kw = dict(sigma=3.0, maxiters=5, std_ddof=1)
+        sigclip_kw = {"sigma": 3.0, "maxiters": 5, "std_ddof": 1}
 
     def _sanitize_clips(clips):
         clips = np.atleast_1d(clips)
@@ -638,15 +654,15 @@ def medfilt_bpm(
     if (med_sub_clip is None) and (med_rat_clip is None) and (std_rat_clip is None):
         logger.warning("No BPM is found because all clips are None.")
         if full:
-            return ccd, dict(
-                posmask=None,
-                negmask=None,
-                med_filt=None,
-                med_sub=None,
-                med_rat=None,
-                std_rat=None,
-                std=None,
-            )
+            return ccd, {
+                "posmask": None,
+                "negmask": None,
+                "med_filt": None,
+                "med_sub": None,
+                "med_rat": None,
+                "std_rat": None,
+                "std": None,
+            }
         else:
             return ccd
 
@@ -658,7 +674,7 @@ def medfilt_bpm(
 
     _LOGICAL_AND = []
     _LOGICAL_STR = []
-    for i, _logical in enumerate(logical):
+    for _i, _logical in enumerate(logical):
         _logical_and = _logical in ["and", "&"]
         if not _logical_and and _logical not in ["or", "|"]:
             raise ValueError("logical not understood.")
@@ -667,15 +683,8 @@ def medfilt_bpm(
         _LOGICAL_STR.append("and" if _logical_and else "or")
 
     def _set_masks(arr2test, clips):
-        if clips[0] is None:  # let lower clip does not affect final mask
-            _negmask = _LOGICAL_AND[0]  # isinstance bool
-        else:
-            _negmask = arr2test < clips[0]  # isinstance ndarray
-
-        if clips[1] is None:  # let upper clip does not affect final mask
-            _posmask = _LOGICAL_AND[1]  # isinstance bool
-        else:
-            _posmask = arr2test > clips[1]  # isinstance ndarray
+        _negmask = _LOGICAL_AND[0] if clips[0] is None else arr2test < clips[0]
+        _posmask = _LOGICAL_AND[1] if clips[1] is None else arr2test > clips[1]
 
         return _negmask, _posmask
 
@@ -696,9 +705,13 @@ def medfilt_bpm(
     else:
         slices = [slice(None, None, None)] * arr.ndim
 
-    medfilt_kw = dict(
-        size=size, footprint=footprint, mode=mode, cval=cval, origin=origin
-    )
+    medfilt_kw = {
+        "size": size,
+        "footprint": footprint,
+        "mode": mode,
+        "cval": cval,
+        "origin": origin,
+    }
 
     _t = Time.now()
     med_filt = median_filter(arr, **medfilt_kw)
@@ -787,7 +800,7 @@ def medfilt_bpm(
 
     _t = Time.now()
     npmask = []
-    for msc, mrc, src in zip(med_sub_clip, med_rat_clip, std_rat_clip):
+    for msc, mrc, src in zip(med_sub_clip, med_rat_clip, std_rat_clip, strict=False):
         if isinstance(msc, bool) and isinstance(mrc, bool) and isinstance(src, bool):
             npmask.append(np.zeros_like(arr, dtype=bool))
 
@@ -802,7 +815,7 @@ def medfilt_bpm(
     mask_sr = _set_masks(std_ratio, std_rat_clip)
 
     masks = []
-    for i, (ms, mr, sr) in enumerate(zip(mask_ms, mask_mr, mask_sr)):
+    for i, (ms, mr, sr) in enumerate(zip(mask_ms, mask_mr, mask_sr, strict=False)):
         if isinstance(ms, bool) and isinstance(mr, bool) and isinstance(sr, bool):
             # i.e., if all of neg or pos were None
             masks.append(np.zeros_like(arr, dtype=bool))  # all False
@@ -859,14 +872,14 @@ def medfilt_bpm(
     nccd = CCDData(data=arr - cadd, header=hdr, unit=ccd.unit)
 
     if full:
-        return nccd, dict(
-            negmask=masks[0],
-            posmask=masks[1],
-            med_filt=med_filt,
-            med_sub=med_sub,
-            med_rat=med_ratio,
-            std_rat=std_ratio,
-            std=std,
-        )
+        return nccd, {
+            "negmask": masks[0],
+            "posmask": masks[1],
+            "med_filt": med_filt,
+            "med_sub": med_sub,
+            "med_rat": med_ratio,
+            "std_rat": std_ratio,
+            "std": std,
+        }
     else:
         return nccd

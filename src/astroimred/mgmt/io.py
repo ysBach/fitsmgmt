@@ -69,9 +69,9 @@ def get_size(obj, seen=None):
     return size
 
 
-# **************************************************************************************** #
-# *                                         PARSERS                                       * #
-# **************************************************************************************** #
+# ************************************************************************************ #
+# *                                         PARSERS                                  * #
+# ************************************************************************************ #
 def _parse_data_header(
     ccdlike, extension=None, parse_data=True, parse_header=True, copy=True
 ):
@@ -114,10 +114,7 @@ def _parse_data_header(
         data = None
         hdr = None
     elif isinstance(ccdlike, ASTROPY_CCD_TYPES):
-        if parse_data:
-            data = ccdlike.data.copy() if copy else ccdlike.data
-        else:
-            data = None
+        data = (ccdlike.data.copy() if copy else ccdlike.data) if parse_data else None
         if parse_header:
             hdr = ccdlike.header.copy() if copy else ccdlike.header
         else:
@@ -136,25 +133,16 @@ def _parse_data_header(
         else:
             hdr = None
     elif isinstance(ccdlike, (np.ndarray, list, tuple)):
-        if parse_data:
-            data = np.array(ccdlike, copy=copy)
-        else:
-            data = None
+        data = np.array(ccdlike, copy=copy) if parse_data else None
         hdr = None  # regardless of parse_header
     elif isinstance(ccdlike, fits.Header):
         data = None  # regardless of parse_data
-        if parse_header:
-            hdr = ccdlike.copy() if copy else ccdlike
-        else:
-            hdr = None
+        hdr = (ccdlike.copy() if copy else ccdlike) if parse_header else None
     elif HAS_FITSIO and isinstance(ccdlike, fitsio.FITSHDR):
         import copy
 
         data = None  # regardless of parse_data
-        if parse_header:
-            hdr = copy.deepcopy(ccdlike) if copy else ccdlike
-        else:
-            hdr = None
+        hdr = (copy.deepcopy(ccdlike) if copy else ccdlike) if parse_header else None
     else:
         try:
             data = float(ccdlike) if (parse_data or parse_header) else None
@@ -194,11 +182,11 @@ def _parse_data_header(
                         else:
                             data = fits.getdata(Path(ccdlike), extension)
                     hdr = None
-            except TypeError:
+            except TypeError as err:
                 raise TypeError(
                     f"ccdlike type ({type(ccdlike)}) is not acceptable "
                     + "to find header and data."
-                )
+                ) from err
 
     return data, hdr
 
@@ -305,7 +293,7 @@ def _parse_image(
         else:
             return hdu.data.copy() if copy else hdu.data
 
-    ccd_kw = dict(force_ccddata=force_ccddata, prefer_ccddata=prefer_ccddata)
+    ccd_kw = {"force_ccddata": force_ccddata, "prefer_ccddata": prefer_ccddata}
     has_no_name = name is None
     extension, extstr = __extract_extension(extension)
     imname = (
@@ -351,10 +339,10 @@ def _parse_image(
         except (ValueError, TypeError):
             try:
                 fpath = Path(ccdlike)
-            except TypeError:
+            except TypeError as err:
                 raise TypeError(
                     "input must be CCDData-like, ndarray, path-like (to FITS), or a number."
-                )
+                ) from err
 
             # If we are here, it is a path-like.
             imname = f"{str(fpath)}{extstr}" if has_no_name else name
@@ -516,10 +504,7 @@ def _parse_extension(*args, ext=None, extname=None, extver=None):
     elif ext is not None and (extname is not None or extver is not None):
         raise TypeError(err_msg)
     elif extname:
-        if extver:
-            ext = (extname, extver)
-        else:
-            ext = (extname, 1)
+        ext = (extname, extver) if extver else (extname, 1)
     elif extver and extname is None:
         raise TypeError("extver alone cannot specify an extension.")
 
@@ -617,11 +602,7 @@ def _read_fitsio_extension(hdul, ext, trimsec=None):
             else:
                 arr = hdul[ext].read()[sl]
         else:
-            if is_list_like(ext):
-                # length == 2 is already checked in _parse_extension.
-                arr = hdul[ext[0], ext[1]].read()
-            else:
-                arr = hdul[ext].read()
+            arr = hdul[ext[0], ext[1]].read() if is_list_like(ext) else hdul[ext].read()
         return arr
     except (OSError, ValueError) as e:
         logger.debug("Error reading extension: %s", e)
@@ -773,8 +754,8 @@ def load_ccd(
     """
     try:
         path = Path(path)
-    except TypeError:
-        raise TypeError(f"You must provide Path-like, not {type(path)}.")
+    except TypeError as err:
+        raise TypeError(f"You must provide Path-like, not {type(path)}.") from err
 
     extension = _parse_extension(extension)
 
@@ -975,10 +956,10 @@ def inputs2list(
         # is_list_like as it is iterable.
         try:
             outlist = list(inputs["file"])
-        except KeyError:
+        except KeyError as err:
             raise KeyError(
                 "If inputs is DataFrame convertible, it must have column named 'file'."
-            )
+            ) from err
     elif is_list_like(inputs):
         type_ref = type(inputs[0])
         outlist = []

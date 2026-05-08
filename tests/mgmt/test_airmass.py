@@ -24,28 +24,34 @@ class TestCalcAirmass:
     # Pre-calculated airmass values using Stetson (1988) formula with scale=750
     # Formula: X = sqrt((scale*cos(z))^2 + 2*scale + 1) - scale*cos(z)
 
-    @pytest.mark.parametrize("zd_deg, expected_airmass", [
-        (0.0, 1.0),                  # Zenith
-        (30.0, 1.154444393578),      # 30°
-        (45.0, 1.413273259971),      # 45°
-        (60.0, 1.996021199163),      # 60°
-        (70.0, 2.909255996897),      # 70°
-        # (75.0, 3.834005182956),    # 75° (Skipping to keep list short/relevant)
-        (80.0, 5.640466662971),      # 80°
-        (85.0, 10.618845962156),     # 85°
-    ])
+    @pytest.mark.parametrize(
+        "zd_deg, expected_airmass",
+        [
+            (0.0, 1.0),  # Zenith
+            (30.0, 1.154444393578),  # 30°
+            (45.0, 1.413273259971),  # 45°
+            (60.0, 1.996021199163),  # 60°
+            (70.0, 2.909255996897),  # 70°
+            # (75.0, 3.834005182956),    # 75° (Skipping to keep list short/relevant)
+            (80.0, 5.640466662971),  # 80°
+            (85.0, 10.618845962156),  # 85°
+        ],
+    )
     def test_airmass_zd_deg(self, zd_deg, expected_airmass):
         """Test airmass calculation with zenith distance in degrees."""
         result = airmass.calc_airmass(zd_deg=zd_deg, scale=750.0)
         np.testing.assert_allclose(result, expected_airmass, rtol=RTOL, atol=ATOL)
 
-    @pytest.mark.parametrize("cos_zd, expected_airmass", [
-        (1.0, 1.0),
-        (0.8660254037844387, 1.154444393578),  # cos(30°)
-        (0.7071067811865476, 1.413273259971),  # cos(45°)
-        (0.5, 1.996021199163),                 # cos(60°)
-        (0.0, 38.742741255621),                # cos(90°) horizon airmass
-    ])
+    @pytest.mark.parametrize(
+        "cos_zd, expected_airmass",
+        [
+            (1.0, 1.0),
+            (0.8660254037844387, 1.154444393578),  # cos(30°)
+            (0.7071067811865476, 1.413273259971),  # cos(45°)
+            (0.5, 1.996021199163),  # cos(60°)
+            (0.0, 38.742741255621),  # cos(90°) horizon airmass
+        ],
+    )
     def test_airmass_cos_zd(self, cos_zd, expected_airmass):
         """Test airmass calculation with cosine of zenith distance."""
         result = airmass.calc_airmass(cos_zd=cos_zd, scale=750.0)
@@ -83,7 +89,9 @@ class TestAirmassObs:
     @pytest.fixture
     def observatory(self):
         """Mauna Kea observatory location."""
-        return EarthLocation(lat=19.8207 * u.deg, lon=-155.4681 * u.deg, height=4205 * u.m)
+        return EarthLocation(
+            lat=19.8207 * u.deg, lon=-155.4681 * u.deg, height=4205 * u.m
+        )
 
     @pytest.fixture
     def target(self):
@@ -121,4 +129,3 @@ class TestAirmassObs:
         assert "az" in info_dict
         assert "zd" in info_dict
         assert "am" in info_dict
-

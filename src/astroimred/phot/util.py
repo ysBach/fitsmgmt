@@ -11,7 +11,7 @@ import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling.functional_models import Gaussian2D
 from astropy.stats import sigma_clip
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import ArrayLike
 
 __all__ = [
     "sample_std",
@@ -450,7 +450,7 @@ def Gaussian2D_correct(model, theta_lower=-np.pi / 2, theta_upper=np.pi / 2):
     return new_model
 
 
-def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
+def fit_astropy_model(data, model_init, sigma=None, fitter=None, **kwargs):
     """Fit an astropy model to 2D data.
 
     Parameters
@@ -477,17 +477,14 @@ def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **
         The fitter (maybe informative, e.g., ``fitter.fit_info``).
     """
     yy, xx = np.mgrid[: data.shape[0], : data.shape[1]]
-    if sigma is not None:
-        weights = 1 / sigma
-    else:
-        weights = None
+    weights = 1 / sigma if sigma is not None else None
+    if fitter is None:
+        fitter = LevMarLSQFitter()
     fitted = fitter(model_init, xx, yy, data, weights=weights, **kwargs)
     return fitted, fitter
 
 
-def fit_Gaussian2D(
-    data, model_init, correct=True, sigma=None, fitter=LevMarLSQFitter(), **kwargs
-):
+def fit_Gaussian2D(data, model_init, correct=True, sigma=None, fitter=None, **kwargs):
     """Identical to fit_astropy_model but for Gaussian2D correct.
 
     Notes
@@ -503,7 +500,6 @@ def fit_Gaussian2D(
 
 
 '''
-from warnings import warn
 from astropy.modeling import Fittable2DModel, Parameter
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling.models import CONSTRAINTS_DOC, Const2D, Moffat2D
@@ -589,8 +585,8 @@ def fit_2dmoffat(data, error=None, mask=None):
 
     if np.any(~np.isfinite(data)):
         data = np.ma.masked_invalid(data)
-        warn('Input data contains input values (e.g. NaNs or infs), '
-             'which were automatically masked.', AstropyUserWarning)
+        logger.warning('Input data contains input values (e.g. NaNs or infs), '
+                       'which were automatically masked.')
 
     if error is not None:
         error = np.ma.masked_invalid(error)

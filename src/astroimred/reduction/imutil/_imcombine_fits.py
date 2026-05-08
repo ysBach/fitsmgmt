@@ -16,9 +16,9 @@ from astropy.nddata import CCDData
 from astropy.table import Table
 from astropy.wcs import WCS
 
+from astroimred.logging import logger
 from astroimred.mgmt.headers import update_tlm
 from astroimred.mgmt.io import _parse_data_header, get_size, load_ccd, write2fits
-from astroimred.logging import logger
 
 from .util_comb import _set_combfunc, _set_gain_rdns, get_zsw
 
@@ -38,7 +38,10 @@ def _trimmed_shape(shape: Sequence[int], trimsec: str | None) -> tuple[int, ...]
     """Return the data shape after applying `trimsec` to an array shape."""
     _slices = _trim_slices(trimsec, shape)
     # shape produced by applying `slices` to an array shape:
-    return tuple(len(range(*sl.indices(int(size)))) for size, sl in zip(shape, _slices))
+    return tuple(
+        len(range(*sl.indices(int(size))))
+        for size, sl in zip(shape, _slices, strict=False)
+    )
 
 
 def _compose_trim_data_slices(
@@ -64,7 +67,9 @@ def _compose_trim_data_slices(
     """
     trim_slices = _trim_slices(trimsec, raw_shape)
     slices = []
-    for raw_size, trim_slice, data_slice in zip(raw_shape, trim_slices, data_slices):
+    for raw_size, trim_slice, data_slice in zip(
+        raw_shape, trim_slices, data_slices, strict=False
+    ):
         t_start, _t_stop, t_step = trim_slice.indices(int(raw_size))
         if t_step <= 0:
             raise ValueError("Negative-step trimsec is not supported in chunked load.")
@@ -186,13 +191,13 @@ def update_hdr(
         hdr: fits.Header, keybase: str, values: Sequence[Any] | np.ndarray
     ) -> None:
         for i in range(999):
-            if f"{keybase}{i+1:03d}" in hdr:
-                del hdr[f"{keybase}{i+1:03d}"]
+            if f"{keybase}{i + 1:03d}" in hdr:
+                del hdr[f"{keybase}{i + 1:03d}"]
             else:
                 break
 
         for i in range(min(999, len(values))):
-            hdr[f"{keybase}{i+1:03d}"] = values[i]
+            hdr[f"{keybase}{i + 1:03d}"] = values[i]
 
         return
 
@@ -202,13 +207,13 @@ def update_hdr(
         __rm_and_add(header, "IMCMB", imcmb_val)
         # remove header keyword IMCMBiii if it exists:
         for i in range(999):
-            if f"IMCMB{i+1:03d}" in header:
-                del header[f"IMCMB{i+1:03d}"]
+            if f"IMCMB{i + 1:03d}" in header:
+                del header[f"IMCMB{i + 1:03d}"]
             else:
                 break
 
         for i in range(min(999, len(imcmb_val))):
-            header[f"IMCMB{i+1:03d}"] = imcmb_val[i]
+            header[f"IMCMB{i + 1:03d}"] = imcmb_val[i]
 
     if offset_mode is not None:
         if offsets is None:
@@ -253,7 +258,7 @@ def init_log_table(
         return None, None
 
     logfile = Path(logfile)
-    table_dict = dict(file=[], filesize=[])
+    table_dict = {"file": [], "filesize": []}
     for item in items:
         try:
             fpath = Path(item)
@@ -350,7 +355,7 @@ def extract_stack_metadata(
     dict
         Metadata consumed by the full-stack and chunked loading paths.
     """
-    # == Extract header info ============================================================= #
+    # === Extract header info ======================================================== #
     # TODO: if offsets is None and `fsize_tot` << memlimit, why not
     # just load all data here?
     hdr0 = _parse_imc_data_header(items[0], extension=extension, parse_data=False)[1]
@@ -363,9 +368,13 @@ def extract_stack_metadata(
     extract_hdr = imcmb_key not in [None, "", "$I"]
 
     extract_exptime = False
-    if isinstance(scale, str):
-        if scale.lower() in ["exp", "expos", "exposure", "exptime"]:
-            extract_exptime = True
+    if isinstance(scale, str) and scale.lower() in [
+        "exp",
+        "expos",
+        "exposure",
+        "exptime",
+    ]:
+        extract_exptime = True
 
     # === 1. Determine which calibration keywords are needed for rejection ===
     if reject_fullname == "ccdclip":
@@ -463,22 +472,22 @@ def extract_stack_metadata(
             else:
                 shapes[i,] = data.shape
 
-    return dict(
-        hdr0=hdr0,
-        ndim=ndim,
-        shapes=shapes,
-        raw_shapes=raw_shapes,
-        offsets=offsets,
-        offset_mode=offset_mode,
-        use_wcs=use_wcs,
-        use_phy=use_phy,
-        imcmb_val=imcmb_val,
-        extract_exptime=extract_exptime,
-        scales=scales,
-        gns=gns,
-        rds=rds,
-        sns=sns,
-    )
+    return {
+        "hdr0": hdr0,
+        "ndim": ndim,
+        "shapes": shapes,
+        "raw_shapes": raw_shapes,
+        "offsets": offsets,
+        "offset_mode": offset_mode,
+        "use_wcs": use_wcs,
+        "use_phy": use_phy,
+        "imcmb_val": imcmb_val,
+        "extract_exptime": extract_exptime,
+        "scales": scales,
+        "gns": gns,
+        "rds": rds,
+        "sns": sns,
+    }
 
 
 def check_stack_memory(
@@ -698,7 +707,7 @@ def load_imcombine_item(
                 else np.asarray(item.uncertainty.array)[slices].copy()
             )
         else:
-            raise ValueError("Each item is not path-like or CCDData.")
+            raise ValueError("Each item is not path-like or CCDData.") from None
 
     return data, var, mask
 
@@ -721,9 +730,9 @@ def load_imcombine_item_region(
     section = _compose_trim_data_slices(trimsec, data_slices, raw_shape)
     try:
         path = Path(item)
-    except TypeError:
+    except TypeError as err:
         if not isinstance(item, CCDData):
-            raise ValueError("Each item is not path-like or CCDData.")
+            raise ValueError("Each item is not path-like or CCDData.") from err
         data = item.data[section].copy()
         if item.mask is None:
             mask = np.zeros(data.shape, dtype=bool)
@@ -789,18 +798,20 @@ def load_full_stack(
     arr_full = np.nan * np.zeros(shape=(ncombine, *sh_comb), dtype=dtype)
     mask_full = np.zeros(shape=(ncombine, *sh_comb), dtype=bool)
 
-    for i, (item, offset, shape) in enumerate(zip(items, offsets, shapes)):
-        # -- Set slice ------------------------------------------------------------------- #
+    for i, (item, offset, shape) in enumerate(
+        zip(items, offsets, shapes, strict=False)
+    ):
+        # --- Set slice -------------------------------------------------------------- #
         # offsets2slice is introduced much later than the code below was written,
         # so not used here..
         # offset & size at each j-th dimension axis
         insert_slices = tuple(
             slice(offset_j, offset_j + shape_j, None)
-            for offset_j, shape_j in zip(offset, shape)
+            for offset_j, shape_j in zip(offset, shape, strict=False)
         )
         slices = (i, *insert_slices)
 
-        # -- Load data ------------------------------------------------------------------- #
+        # --- Load data -------------------------------------------------------------- #
         data, var, item_mask = load_imcombine_item(
             item,
             trimsec=trimsec,
@@ -812,7 +823,7 @@ def load_full_stack(
         if mask is not None:
             item_mask |= mask[i,]
 
-        # -- zero and scale -------------------------------------------------------------- #
+        # --- zero and scale --------------------------------------------------------- #
         # better to calculate here than from full array, as the
         # latter may contain too many NaNs due to offest shifting.
         # TODO: let get_zsw to get functionals for zsw, so _set_calc_zsw
@@ -834,7 +845,7 @@ def load_full_stack(
         scales[i] = s_i[0]
         weights[i] = w_i[0]
 
-        # -- Insertion ------------------------------------------------------------------- #
+        # --- Insertion -------------------------------------------------------------- #
         arr_full[slices] = data
         mask_full[slices] = item_mask
         if var is not None and var_full is not None:
@@ -874,29 +885,29 @@ def load_stack_chunk(
     chunk_starts = np.array([sl.start for sl in chunk_slices])
     chunk_stops = np.array([sl.stop for sl in chunk_slices])
 
-    for i, (item, offset, shape, raw_shape) in enumerate(
-        zip(items, offsets, shapes, raw_shapes)
+    for _i, (item, _o, _s, _s0) in enumerate(
+        zip(items, offsets, shapes, raw_shapes, strict=False)
     ):
-        image_starts = offset
-        image_stops = offset + shape
+        image_starts = _o
+        image_stops = _o + _s
         starts = np.maximum(chunk_starts, image_starts)
         stops = np.minimum(chunk_stops, image_stops)
         if np.any(stops <= starts):
             continue
 
         data_slices = tuple(
-            slice(int(start - image_start), int(stop - image_start))
-            for start, stop, image_start in zip(starts, stops, image_starts)
+            slice(int(_a - _c), int(_b - _c))
+            for _a, _b, _c in zip(starts, stops, image_starts, strict=False)
         )
         insert_slices = tuple(
-            slice(int(start - chunk_start), int(stop - chunk_start))
-            for start, stop, chunk_start in zip(starts, stops, chunk_starts)
+            slice(int(_a - _c), int(_b - _c))
+            for _a, _b, _c in zip(starts, stops, chunk_starts, strict=False)
         )
 
         data, var, item_mask = load_imcombine_item_region(
             item=item,
             data_slices=data_slices,
-            raw_shape=raw_shape,
+            raw_shape=_s0,
             trimsec=trimsec,
             extension=extension,
             extension_mask=extension_mask,
@@ -904,9 +915,9 @@ def load_stack_chunk(
         )
 
         if mask is not None:
-            item_mask |= mask[i,][data_slices]
+            item_mask |= mask[_i,][data_slices]
 
-        full_insert_slices = (i, *insert_slices)
+        full_insert_slices = (_i, *insert_slices)
         arr_chunk[full_insert_slices] = data
         mask_chunk[full_insert_slices] = item_mask
         if var is not None and var_chunk is not None:
@@ -933,8 +944,8 @@ def log_zsw_table(
             "{:^45s}|{:^9s}|{:^9s}|{:^9s}".format("input", "zero", "scale", "weight")
         )
         logger.info("-" * 80)
-        for item, z, s, w in zip(items, zeros, scales, weights):
-            logger.info("{:>45s}|{:3e}|{:3e}|{:3e}".format(item[-45:], z, s, w))
+        for item, z, s, w in zip(items, zeros, scales, weights, strict=False):
+            logger.info(f"{item[-45:]:>45s}|{z:3e}|{s:3e}|{w:3e}")
         logger.info("-" * 80)
         logger.info("")
 
@@ -992,12 +1003,16 @@ def write_imcombine_outputs(
     ``output_mask`` stores the per-input total mask as an unsigned byte array
     because FITS image data cannot store booleans directly.
     """
-    write_kw = dict(output_verify=output_verify, overwrite=overwrite, checksum=checksum)
+    write_kw = {
+        "output_verify": output_verify,
+        "overwrite": overwrite,
+        "checksum": checksum,
+    }
     if output is not None:
         try:
             comb.write(output, **write_kw)
-        except VerifyError:
-            raise VerifyError("Use output_verify='fix'")
+        except VerifyError as err:
+            raise VerifyError("Use output_verify='fix'") from err
 
     if output_err is not None:
         if err is None:

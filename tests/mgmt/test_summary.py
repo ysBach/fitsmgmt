@@ -11,11 +11,7 @@ class TestSummary:
         """Test creating summary table from FITS files."""
         # Create files with headers
         keys = ["OBJECT", "FILTER", "EXPTIME"]
-        data = [
-            ("M1", "V", 10.0),
-            ("M1", "B", 20.0),
-            ("M2", "V", 10.0)
-        ]
+        data = [("M1", "V", 10.0), ("M1", "B", 20.0), ("M2", "V", 10.0)]
 
         paths = []
         for i, (obj, filt, exp) in enumerate(data):
@@ -28,11 +24,7 @@ class TestSummary:
             paths.append(str(p))
 
         # Run fits_summary
-        df = summary.fits_summary(
-            paths,
-            keywords=keys,
-            verbose=False
-        )
+        df = summary.fits_summary(paths, keywords=keys, verbose=False)
 
         assert len(df) == 3
         assert "file" in df.columns

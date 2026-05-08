@@ -89,8 +89,8 @@ def quantile_lh(
     try:
         lq = float(lq)
         hq = float(hq)
-    except TypeError:
-        raise TypeError("lq and hq must be floats, not array-like.")
+    except TypeError as err:
+        raise TypeError("lq and hq must be floats, not array-like.") from err
 
     if linterp == hinterp:
         out = qfunc(a, (lq, hq), axis=axis, interpolation=linterp)
@@ -125,10 +125,7 @@ def min_max_med_1d(arr):
     if arr.size < 1000:
         _a = np.sort(arr)
         mid = _a.size // 2
-        if _a.size % 2:
-            med = _a[mid]
-        else:
-            med = 0.5 * (_a[mid] + _a[mid - 1])
+        med = _a[mid] if _a.size % 2 else 0.5 * (_a[mid] + _a[mid - 1])
         return _a[0], _a[-1], med
     else:
         return np.min(arr), np.max(arr), np.median(arr)
@@ -276,8 +273,7 @@ def binning(
         if np.any(trim_shape == 0):
             axis = int(np.flatnonzero(trim_shape == 0)[0])
             raise ValueError(
-                f"factor for axis {axis} ({factors[axis]}) trims the axis "
-                "to length 0."
+                f"factor for axis {axis} ({factors[axis]}) trims the axis to length 0."
             )
         slices = tuple(slice(None, int(size)) for size in trim_shape)
         arr = arr[slices]

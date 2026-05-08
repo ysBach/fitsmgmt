@@ -163,12 +163,9 @@ def _reject_sigclip_pixel(
     # Iterate
     if (nkeep_val == 0) and (maxrej_val == n):
         # No nkeep/maxrej checks
-        for k in range(maxiters):
+        for _k in range(maxiters):
             # Compute center and std
-            if use_median:
-                cen = _nanmedian_1d(vals)
-            else:
-                cen = _nanmean_1d(vals)
+            cen = _nanmedian_1d(vals) if use_median else _nanmean_1d(vals)
             if ccdclip:
                 std = np.sqrt(
                     (1.0 + snoise_ref) * abs(cen + zero_ref) * scale_ref
@@ -198,12 +195,9 @@ def _reject_sigclip_pixel(
             nit += 1
     else:
         # With nkeep/maxrej checks
-        for k in range(maxiters):
+        for _k in range(maxiters):
             # Compute center and std
-            if use_median:
-                cen = _nanmedian_1d(vals)
-            else:
-                cen = _nanmean_1d(vals)
+            cen = _nanmedian_1d(vals) if use_median else _nanmean_1d(vals)
             if ccdclip:
                 std = np.sqrt(
                     (1.0 + snoise_ref) * abs(cen + zero_ref) * scale_ref
@@ -245,9 +239,12 @@ def _reject_sigclip_pixel(
     # Final mask: input mask OR out of bounds in original array (matching original _iter_rej logic)
     mask_final = np.zeros(n, dtype=np.bool_)
     for i in range(n):
-        if mask_in[i] or not np.isfinite(col[i]):
-            mask_final[i] = True
-        elif col[i] < low_new or col[i] > upp_new:
+        if (
+            mask_in[i]
+            or not np.isfinite(col[i])
+            or col[i] < low_new
+            or col[i] > upp_new
+        ):
             mask_final[i] = True
 
     # IRAF mode: restore based on residual (after final mask computed, matching original)
@@ -317,7 +314,7 @@ def reject_sigclip_3d(
 
     for i in prange(h):
         for j in range(w):
-            m, l, u, nit_val, code_val = _reject_sigclip_pixel(
+            m, low, upp, nit_val, code_val = _reject_sigclip_pixel(
                 arr[:, i, j],
                 mask_in[:, i, j],
                 sigma_lower,
@@ -335,8 +332,8 @@ def reject_sigclip_3d(
                 zero_ref,
             )
             mask_out[:, i, j] = m
-            low_out[i, j] = l
-            upp_out[i, j] = u
+            low_out[i, j] = low
+            upp_out[i, j] = upp
             nit_out[i, j] = nit_val
             code_out[i, j] = code_val
 
@@ -422,12 +419,12 @@ def reject_minmax_3d(arr, mask_in, q_low, q_upp, calc_low, calc_upp):
 
     for i in prange(h):
         for j in range(w):
-            m, l, u, code_val = _reject_minmax_pixel(
+            m, low, upp, code_val = _reject_minmax_pixel(
                 arr[:, i, j], mask_in[:, i, j], q_low, q_upp, calc_low, calc_upp
             )
             mask_out[:, i, j] = m
-            low_out[i, j] = l
-            upp_out[i, j] = u
+            low_out[i, j] = low
+            upp_out[i, j] = upp
             code_out[i, j] = code_val
 
     return mask_out, low_out, upp_out, code_out

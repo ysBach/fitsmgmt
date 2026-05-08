@@ -7,7 +7,7 @@ All expected values are analytically derived.
 import numpy as np
 from astropy.nddata import CCDData
 from numpy.testing import assert_allclose
-from photutils.aperture import CircularAperture, CircularAnnulus, aperture_photometry
+from photutils.aperture import CircularAnnulus, CircularAperture, aperture_photometry
 
 from astroimred.phot.apphot import apphot_annulus
 
@@ -35,19 +35,25 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd_uniform, ap, an, pandas=False)
 
         # Sky should be 100
-        assert_allclose(result['msky'][0], 100.0, rtol=1e-5)
+        assert_allclose(result["msky"][0], 100.0, rtol=1e-5)
 
         # Source sum should be ~0 (source - sky = 0)
-        assert_allclose(result['source_sum'][0], 0.0, atol=1.0)
+        assert_allclose(result["source_sum"][0], 0.0, atol=1.0)
 
-    def test_apphot_source_above_sky(self, gaussian_source_centered, gaussian_params_centered):
+    def test_apphot_source_above_sky(
+        self, gaussian_source_centered, gaussian_params_centered
+    ):
         """
         Test aperture photometry on Gaussian source.
 
         Gaussian at (50, 50) with amplitude=1000, sigma=3, background=100
         Small aperture should capture most of the source flux.
         """
-        ccd = CCDData(gaussian_source_centered, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 60})
+        ccd = CCDData(
+            gaussian_source_centered,
+            unit="adu",
+            header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 60},
+        )
 
         ap = CircularAperture((50, 50), r=10)  # r ~ 3*sigma captures >99%
         an = CircularAnnulus((50, 50), r_in=20, r_out=30)  # Far from source
@@ -55,10 +61,10 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd, ap, an, pandas=False)
 
         # Sky should be close to background (100)
-        assert_allclose(result['msky'][0], 100.0, atol=5.0)
+        assert_allclose(result["msky"][0], 100.0, atol=5.0)
 
         # Source sum should be positive and significant
-        assert result['source_sum'][0] > 1000  # Gaussian peak is 1000
+        assert result["source_sum"][0] > 1000  # Gaussian peak is 1000
 
     def test_apphot_aperture_area(self, ccd_uniform):
         """
@@ -73,7 +79,7 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd_uniform, ap, an, pandas=False)
 
         expected_area = np.pi * 49
-        assert_allclose(result['aparea'][0], expected_area, rtol=1e-3)
+        assert_allclose(result["aparea"][0], expected_area, rtol=1e-3)
 
     def test_apphot_magnitude(self, gaussian_source_centered):
         """
@@ -83,7 +89,11 @@ class TestApphotAnnulus:
 
         For positive source_sum, magnitude should be finite.
         """
-        ccd = CCDData(gaussian_source_centered, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 1})
+        ccd = CCDData(
+            gaussian_source_centered,
+            unit="adu",
+            header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 1},
+        )
 
         ap = CircularAperture((50, 50), r=10)
         an = CircularAnnulus((50, 50), r_in=20, r_out=30)
@@ -91,7 +101,7 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd, ap, an, pandas=False)
 
         # Magnitude should be finite and negative (bright source)
-        assert np.isfinite(result['mag'][0])
+        assert np.isfinite(result["mag"][0])
 
     def test_apphot_snr(self, gaussian_source_centered):
         """
@@ -99,7 +109,11 @@ class TestApphotAnnulus:
 
         SNR = source_sum / source_sum_err
         """
-        ccd = CCDData(gaussian_source_centered, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 60})
+        ccd = CCDData(
+            gaussian_source_centered,
+            unit="adu",
+            header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 60},
+        )
 
         ap = CircularAperture((50, 50), r=10)
         an = CircularAnnulus((50, 50), r_in=20, r_out=30)
@@ -107,11 +121,11 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd, ap, an, pandas=False)
 
         # SNR should be positive for bright source
-        assert result['snr'][0] > 0
+        assert result["snr"][0] > 0
 
         # Verify SNR = source_sum / source_sum_err
-        expected_snr = result['source_sum'][0] / result['source_sum_err'][0]
-        assert_allclose(result['snr'][0], expected_snr, rtol=1e-5)
+        expected_snr = result["source_sum"][0] / result["source_sum_err"][0]
+        assert_allclose(result["snr"][0], expected_snr, rtol=1e-5)
 
     def test_apphot_error_propagation(self, ccd_uniform):
         """
@@ -127,13 +141,11 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd_uniform, ap, an, pandas=False)
 
         # For uniform sky, ssky ≈ 0
-        assert_allclose(result['ssky'][0], 0.0, atol=1e-5)
+        assert_allclose(result["ssky"][0], 0.0, atol=1e-5)
 
         # source_sum_err should equal aperture_sum_err when ssky=0
         assert_allclose(
-            result['source_sum_err'][0],
-            result['aperture_sum_err'][0],
-            rtol=1e-5
+            result["source_sum_err"][0], result["aperture_sum_err"][0], rtol=1e-5
         )
 
     def test_apphot_pandas_output(self, ccd_uniform):
@@ -146,8 +158,8 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd_uniform, ap, an, pandas=True)
 
         assert isinstance(result, pd.DataFrame)
-        assert 'source_sum' in result.columns
-        assert 'mag' in result.columns
+        assert "source_sum" in result.columns
+        assert "mag" in result.columns
 
     def test_apphot_no_annulus(self, ccd_uniform):
         """
@@ -160,14 +172,10 @@ class TestApphotAnnulus:
         result = apphot_annulus(ccd_uniform, ap, annulus=None, pandas=False)
 
         # Sky should be 0
-        assert_allclose(result['msky'][0], 0.0, rtol=1e-10)
+        assert_allclose(result["msky"][0], 0.0, rtol=1e-10)
 
         # source_sum should equal aperture_sum
-        assert_allclose(
-            result['source_sum'][0],
-            result['aperture_sum'][0],
-            rtol=1e-10
-        )
+        assert_allclose(result["source_sum"][0], result["aperture_sum"][0], rtol=1e-10)
 
 
 # =============================================================================
@@ -191,7 +199,7 @@ class TestPhotometryAnalytical:
         result = aperture_photometry(data, ap)
 
         expected = value * np.pi * radius**2
-        assert_allclose(result['aperture_sum'][0], expected, rtol=0.01)
+        assert_allclose(result["aperture_sum"][0], expected, rtol=0.01)
 
     def test_source_sum_formula(self):
         """
@@ -203,7 +211,7 @@ class TestPhotometryAnalytical:
         data = np.full((100, 100), 100.0)  # sky = 100
         data[45:55, 45:55] = 200.0  # source region = 200
 
-        ccd = CCDData(data, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 60})
+        ccd = CCDData(data, unit="adu", header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 60})
 
         # Small aperture to capture source
         ap = CircularAperture((50, 50), r=4)
@@ -213,8 +221,8 @@ class TestPhotometryAnalytical:
         result = apphot_annulus(ccd, ap, an, pandas=False)
 
         # Verify formula: source_sum = aperture_sum - aparea * msky
-        calculated = result['aperture_sum'][0] - result['aparea'][0] * result['msky'][0]
-        assert_allclose(result['source_sum'][0], calculated, rtol=1e-5)
+        calculated = result["aperture_sum"][0] - result["aparea"][0] * result["msky"][0]
+        assert_allclose(result["source_sum"][0], calculated, rtol=1e-5)
 
     def test_magnitude_formula(self):
         """
@@ -226,7 +234,9 @@ class TestPhotometryAnalytical:
         data = np.full((100, 100), 10.0)  # background
         data[48:52, 48:52] = 1000.0  # bright source
 
-        ccd = CCDData(data, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 10.0})
+        ccd = CCDData(
+            data, unit="adu", header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 10.0}
+        )
 
         ap = CircularAperture((50, 50), r=3)
         an = CircularAnnulus((50, 50), r_in=10, r_out=15)
@@ -235,8 +245,8 @@ class TestPhotometryAnalytical:
 
         # Verify magnitude formula
         t_exp = 10.0
-        expected_mag = -2.5 * np.log10(result['source_sum'][0] / t_exp)
-        assert_allclose(result['mag'][0], expected_mag, rtol=1e-5)
+        expected_mag = -2.5 * np.log10(result["source_sum"][0] / t_exp)
+        assert_allclose(result["mag"][0], expected_mag, rtol=1e-5)
 
     def test_magnitude_error_formula(self):
         """
@@ -247,7 +257,7 @@ class TestPhotometryAnalytical:
         data = np.full((100, 100), 10.0)
         data[48:52, 48:52] = 1000.0
 
-        ccd = CCDData(data, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 60})
+        ccd = CCDData(data, unit="adu", header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 60})
 
         ap = CircularAperture((50, 50), r=3)
         an = CircularAnnulus((50, 50), r_in=10, r_out=15)
@@ -255,8 +265,8 @@ class TestPhotometryAnalytical:
         result = apphot_annulus(ccd, ap, an, pandas=False)
 
         # Verify magnitude error formula
-        expected_merr = 2.5 / np.log(10) * (1 / result['snr'][0])
-        assert_allclose(result['merr'][0], expected_merr, rtol=1e-5)
+        expected_merr = 2.5 / np.log(10) * (1 / result["snr"][0])
+        assert_allclose(result["merr"][0], expected_merr, rtol=1e-5)
 
 
 # =============================================================================
@@ -276,7 +286,7 @@ class TestApphotErrorHandling:
         result = apphot_annulus(ccd_uniform, ap, an, mask=mask, pandas=False)
 
         # Should still compute result
-        assert np.isfinite(result['source_sum'][0])
+        assert np.isfinite(result["source_sum"][0])
 
     def test_apphot_bad_pixel_flag(self):
         """Test bad pixel flagging."""
@@ -285,7 +295,9 @@ class TestApphotErrorHandling:
         # Mask several pixels in aperture
         mask[48:52, 48:52] = True
 
-        ccd = CCDData(data, unit='adu', header={'GAIN': 2, 'RDNOISE': 5, 'EXPTIME': 60}, mask=mask)
+        ccd = CCDData(
+            data, unit="adu", header={"GAIN": 2, "RDNOISE": 5, "EXPTIME": 60}, mask=mask
+        )
 
         ap = CircularAperture((50, 50), r=5)
         an = CircularAnnulus((50, 50), r_in=10, r_out=15)
@@ -293,7 +305,7 @@ class TestApphotErrorHandling:
         result = apphot_annulus(ccd, ap, an, npix_mask_ap=2, pandas=False)
 
         # Should flag as bad (>2 masked pixels in aperture)
-        assert result['bad'][0] == 1
+        assert result["bad"][0] == 1
 
     def test_apphot_ndarray_input(self, uniform_100x100):
         """Test apphot_annulus works with ndarray input."""
@@ -303,7 +315,7 @@ class TestApphotErrorHandling:
         # Should work with plain ndarray
         result = apphot_annulus(uniform_100x100, ap, an, pandas=False)
 
-        assert np.isfinite(result['source_sum'][0])
+        assert np.isfinite(result["source_sum"][0])
 
     def test_apphot_multiple_apertures(self, ccd_uniform):
         """Test apphot_annulus with multiple aperture radii."""
@@ -321,5 +333,5 @@ class TestApphotErrorHandling:
         assert len(result) == 3
 
         # Areas should be different
-        areas = result['aparea']
+        areas = result["aparea"]
         assert areas[0] < areas[1] < areas[2]

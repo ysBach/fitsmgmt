@@ -125,10 +125,14 @@ def get_zsw(
             # unwanted TypeError, so that `redo` is always `True`.
             elif zswstr in ["avg_sc", "average_sc", "mean_sc"]:
                 zsw_kw.pop("axis", None)  # if exist `axis`, remove it.
-                calcfun = lambda x, axis: sigma_clipped_stats(x, axis=None, **zsw_kw)[0]
+
+                def calcfun(x, axis):
+                    return sigma_clipped_stats(x, axis=None, **zsw_kw)[0]
             elif zswstr in ["med_sc", "medi_sc", "median_sc"]:
                 zsw_kw.pop("axis", None)  # if exist `axis`, remove it.
-                calcfun = lambda x, axis: sigma_clipped_stats(x, axis=None, **zsw_kw)[1]
+
+                def calcfun(x, axis):
+                    return sigma_clipped_stats(x, axis=None, **zsw_kw)[1]
             else:
                 raise ValueError(
                     f"zero/scale/weight ({zero_scale_weight}) not understood"

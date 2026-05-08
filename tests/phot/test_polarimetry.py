@@ -5,17 +5,16 @@ All expected values are analytically derived from polarimetry formulas.
 """
 
 import numpy as np
-import pytest
 from numpy.testing import assert_allclose
 
 from astroimred.phot.polarimetry import (
+    calc_pol,
+    calc_pol_r,
     calc_qu_4set,
+    calc_stokes,
     correct_eff,
     correct_off,
     correct_pa,
-    calc_pol,
-    calc_pol_r,
-    calc_stokes,
 )
 
 
@@ -179,9 +178,7 @@ class TestCorrectPa:
     def test_correct_pa_no_rotation(self):
         """Test with zero rotation (no correction)."""
         q, u = 0.1, 0.2
-        q_inst, u_inst, dq_inst, du_inst = correct_pa(
-            q, u, pa_off=0, pa_obs=0
-        )
+        q_inst, u_inst, dq_inst, du_inst = correct_pa(q, u, pa_off=0, pa_obs=0)
 
         assert_allclose(q_inst, q, rtol=1e-10)
         assert_allclose(u_inst, u, rtol=1e-10)
@@ -199,7 +196,7 @@ class TestCorrectPa:
         """
         q, u = 0.1, 0.2
         q_inst, u_inst, dq_inst, du_inst = correct_pa(
-            q, u, pa_off=np.pi/2, pa_obs=0, in_deg=False
+            q, u, pa_off=np.pi / 2, pa_obs=0, in_deg=False
         )
 
         assert_allclose(q_inst, -q, rtol=1e-10)
@@ -218,7 +215,7 @@ class TestCorrectPa:
         """
         q, u = 0.1, 0.2
         q_inst, u_inst, dq_inst, du_inst = correct_pa(
-            q, u, pa_off=np.pi/4, pa_obs=0, in_deg=False
+            q, u, pa_off=np.pi / 4, pa_obs=0, in_deg=False
         )
 
         assert_allclose(q_inst, u, rtol=1e-10)
@@ -273,7 +270,7 @@ class TestCalcPol:
         pol, thp, dpol, dthp = calc_pol(q, u)
 
         assert_allclose(pol, 0.5, rtol=1e-10)
-        assert_allclose(thp, np.pi/4, rtol=1e-10)
+        assert_allclose(thp, np.pi / 4, rtol=1e-10)
 
     def test_calc_pol_output_percentage(self):
         """Test output in percentage."""
@@ -325,7 +322,7 @@ class TestCalcPolR:
         theta_r = pi/4
         polr = pol * cos(2 * pi/4) = pol * cos(pi/2) = 0
         """
-        pol, thp = 0.1, np.pi/4
+        pol, thp = 0.1, np.pi / 4
         polr, thr, dpolr, dthr = calc_pol_r(pol, thp, suntargetpa=0)
 
         assert_allclose(polr, 0.0, atol=1e-10)
@@ -340,7 +337,7 @@ class TestCalcPolR:
         theta_r = pi/2
         polr = pol * cos(2 * pi/2) = pol * cos(pi) = -pol = -0.1
         """
-        pol, thp = 0.1, np.pi/2
+        pol, thp = 0.1, np.pi / 2
         polr, thr, dpolr, dthr = calc_pol_r(pol, thp, suntargetpa=0)
 
         assert_allclose(polr, -0.1, rtol=1e-10)
@@ -414,7 +411,7 @@ class TestPolarimetryAnalytical:
         q = (r_q - 1) / (r_q + 1)
 
         assert_allclose(r_q, 2.0, rtol=1e-10)
-        assert_allclose(q, 1.0/3.0, rtol=1e-10)
+        assert_allclose(q, 1.0 / 3.0, rtol=1e-10)
 
     def test_polarization_degree_formula(self):
         """
@@ -425,7 +422,7 @@ class TestPolarimetryAnalytical:
         For q = 3/5, u = 4/5:
         pol = sqrt(9/25 + 16/25) = sqrt(25/25) = 1
         """
-        q, u = 3.0/5.0, 4.0/5.0
+        q, u = 3.0 / 5.0, 4.0 / 5.0
         pol = np.sqrt(q**2 + u**2)
 
         assert_allclose(pol, 1.0, rtol=1e-10)

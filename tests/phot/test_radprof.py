@@ -5,17 +5,15 @@ All expected values are analytically derived.
 """
 
 import numpy as np
-import pytest
-from astropy.nddata import CCDData
 from numpy.testing import assert_allclose
 from photutils.aperture import CircularAnnulus
 
 from astroimred.phot.background import annul2values
 from astroimred.phot.radprof import (
-    gauss_r,
-    moffat_r,
     bivt_r,
     fwhm_r,
+    gauss_r,
+    moffat_r,
     radial_profile,
     radprof_pix,
 )
@@ -58,7 +56,7 @@ class TestGaussR:
         gauss_r(2*sig, amp, sig, const) = amp * exp(-2) + const
         """
         amp, sig, const = 100.0, 3.0, 10.0
-        result = gauss_r(r=2*sig, amp=amp, sig=sig, const=const)
+        result = gauss_r(r=2 * sig, amp=amp, sig=sig, const=const)
 
         expected = amp * np.exp(-2.0) + const
         assert_allclose(result, expected, rtol=1e-10)
@@ -80,7 +78,7 @@ class TestGaussR:
         r = np.array([0, 1, 2, 3])
         result = gauss_r(r=r, amp=amp, sig=sig, const=const)
 
-        expected = amp * np.exp(-0.5 * (r / sig)**2)
+        expected = amp * np.exp(-0.5 * (r / sig) ** 2)
         assert_allclose(result, expected, rtol=1e-10)
 
 
@@ -113,7 +111,7 @@ class TestMoffatR:
         amp, core, power, const = 100.0, 2.0, 2.5, 10.0
         result = moffat_r(r=core, amp=amp, core=core, power=power, const=const)
 
-        expected = amp * (2.0)**(-power) + const
+        expected = amp * (2.0) ** (-power) + const
         assert_allclose(result, expected, rtol=1e-10)
 
     def test_moffat_r_specific_values(self):
@@ -125,7 +123,7 @@ class TestMoffatR:
         """
         result = moffat_r(r=1, amp=100, core=1, power=2.5, const=0)
 
-        expected = 100 * (2.0)**(-2.5)  # 17.6776695...
+        expected = 100 * (2.0) ** (-2.5)  # 17.6776695...
         assert_allclose(result, expected, rtol=1e-10)
 
     def test_moffat_r_at_large_r(self):
@@ -215,7 +213,7 @@ class TestFwhmR:
 
         result = fwhm_r(popt, fun="moffat")
 
-        expected = 2 * 2.0 * np.sqrt(2**(1/2.5) - 1)
+        expected = 2 * 2.0 * np.sqrt(2 ** (1 / 2.5) - 1)
         assert_allclose(result, expected, rtol=1e-10)
 
 
@@ -237,10 +235,10 @@ class TestRadialProfile:
         )
 
         # All mean pixel values should be 10.0
-        assert_allclose(profs['mpix'].values, 10.0, rtol=1e-5)
+        assert_allclose(profs["mpix"].values, 10.0, rtol=1e-5)
 
         # Standard deviation should be 0
-        assert_allclose(profs['spix'].values, 0.0, atol=1e-10)
+        assert_allclose(profs["spix"].values, 0.0, atol=1e-10)
 
     def test_radial_profile_center_value(self, uniform_100x100):
         """Test center value is correctly returned."""
@@ -253,23 +251,29 @@ class TestRadialProfile:
     def test_radial_profile_with_add_center(self, uniform_100x100):
         """Test add_center option adds center pixel to profile."""
         profs, center_val = radial_profile(
-            uniform_100x100, center=(50, 50), radii=[5, 10], thickness=3,
-            add_center=True
+            uniform_100x100,
+            center=(50, 50),
+            radii=[5, 10],
+            thickness=3,
+            add_center=True,
         )
 
         # Should have 3 rows: r=0, r=5, r=10
         assert len(profs) == 3
-        assert profs['r'].iloc[0] == 0
+        assert profs["r"].iloc[0] == 0
 
     def test_radial_profile_normalized(self, uniform_100x100):
         """Test normalization by center value."""
         profs, center_val = radial_profile(
-            uniform_100x100, center=(50, 50), radii=[10], thickness=3,
-            norm_by_center=True
+            uniform_100x100,
+            center=(50, 50),
+            radii=[10],
+            thickness=3,
+            norm_by_center=True,
         )
 
         # mpix should be 1.0 (normalized)
-        assert_allclose(profs['mpix'].values, 1.0, rtol=1e-5)
+        assert_allclose(profs["mpix"].values, 1.0, rtol=1e-5)
 
 
 # =============================================================================
@@ -287,9 +291,7 @@ class TestRadprofPix:
 
     def test_radprof_pix_sorted(self, uniform_100x100):
         """Test radprof_pix with sort_dist=True."""
-        r, vals = radprof_pix(
-            uniform_100x100, pos=(50, 50), rmax=10, sort_dist=True
-        )
+        r, vals = radprof_pix(uniform_100x100, pos=(50, 50), rmax=10, sort_dist=True)
 
         # Radii should be sorted
         assert np.all(np.diff(r) >= 0)
@@ -336,7 +338,7 @@ class TestRadialProfileAnalytical:
         """
         amp, core, power = 100.0, 2.0, 2.5
 
-        r_halfmax = core * np.sqrt(2**(1/power) - 1)
+        r_halfmax = core * np.sqrt(2 ** (1 / power) - 1)
         value_at_halfmax = moffat_r(r_halfmax, amp=amp, core=core, power=power, const=0)
 
         expected_halfmax = amp / 2

@@ -9,7 +9,8 @@ from astropy.nddata import CCDData, Cutout2D
 from astropy.time import Time
 from astropy.wcs import WCS
 
-from ..mgmt import headers, io as _io
+from ..mgmt import headers
+from ..mgmt import io as _io
 from ..mgmt.io import inputs2list
 from ..mgmt.logging import logger
 from .mathutils import binning
@@ -41,7 +42,9 @@ def _normalize_ccd_binning_factors(data_shape, factors):
     # the reversed NumPy shape for header reporting.
     xyz_shape = tuple(data_shape[::-1])
     effective = []
-    for axis, (factor, axis_size) in enumerate(zip(raw_factors, xyz_shape)):
+    for axis, (factor, axis_size) in enumerate(
+        zip(raw_factors, xyz_shape, strict=False)
+    ):
         if factor is None:
             effective.append(int(axis_size))
             continue
@@ -100,10 +103,7 @@ def CCDData_astype(ccd, dtype="float32", uncertainty_dtype=None, copy=True):
     >>> ccd.uncertainty = np.sqrt(ccd.data)
     >>> ccd = air.CCDData_astype(ccd, dtype='int16', uncertainty_dtype='float32')
     """
-    if copy:
-        nccd = ccd.copy()
-    else:
-        nccd = ccd
+    nccd = ccd.copy() if copy else ccd
     nccd.data = nccd.data.astype(dtype)
 
     try:
@@ -129,7 +129,7 @@ def set_ccd_attribute(
     update_header=True,
     verbose=True,
     wrapper=None,
-    wrapper_kw={},
+    wrapper_kw=None,
 ):
     """Set CCDData attributes from explicit values or header keywords.
 
@@ -180,6 +180,8 @@ def set_ccd_attribute(
     Notes
     -----
     """
+    if wrapper_kw is None:
+        wrapper_kw = {}
     _t_start = Time.now()
     str_history = "From {}, {} = {} [unit = {}]"
     #                   value_from, name, value_Q.value, value_Q.unit
@@ -398,7 +400,7 @@ def imslice(
 
         hdr = nccd.header
         for i, ltv in enumerate(ltvs):
-            if (key := f"LTV{i+1}") in hdr:
+            if (key := f"LTV{i + 1}") in hdr:
                 hdr[key] += ltv
             else:
                 hdr[key] = ltv
@@ -406,9 +408,9 @@ def imslice(
         for i in range(ndim):
             for j in range(ndim):
                 if i == j:
-                    hdr[f"LTM{i+1}_{i+1}"] = hdr.get(f"LTM{i+1}", ltms[i])
+                    hdr[f"LTM{i + 1}_{i + 1}"] = hdr.get(f"LTM{i + 1}", ltms[i])
                 else:
-                    hdr.setdefault(f"LTM{i+1}_{j+1}", 0.0)
+                    hdr.setdefault(f"LTM{i + 1}_{j + 1}", 0.0)
 
         if trimsec is not None:
             infostr = [
@@ -648,10 +650,7 @@ def bin_ccd(
     if all(factor == 1 for factor in header_factors):
         return ccd
 
-    if copy:
-        _ccd = ccd.copy()
-    else:
-        _ccd = ccd
+    _ccd = ccd.copy() if copy else ccd
 
     _ccd.data = binning(
         _ccd.data,
@@ -717,9 +716,6 @@ def convert_bit(
         _ccd.header,
         "h",
         t_ref=_t,
-        s="[air.convert_bit] Converted {}-bit to {}-bit".format(
-            original_bit,
-            target_bit,
-        ),
+        s=f"[air.convert_bit] Converted {original_bit}-bit to {target_bit}-bit",
     )
     return _ccd

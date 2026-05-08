@@ -2,9 +2,16 @@
 
 import sys as _sys
 
-from .logging import logger, set_log_level, enable_console_logging
-from .mgmt import *
+from . import imops, mgmt
 from .imops import *
+from .imops import ccdutils, imstat, mathutils, pixels, viz
+from .imops.ccdutils import *
+from .imops.imstat import *
+from .imops.mathutils import *
+from .imops.pixels import *
+from .logging import enable_console_logging, logger, set_log_level
+from .mgmt import *
+from .mgmt import airmass, headers, io, logging, misc, paths, summary, wcstools
 from .mgmt.airmass import *
 from .mgmt.headers import *
 from .mgmt.io import *
@@ -12,23 +19,6 @@ from .mgmt.misc import *
 from .mgmt.paths import *
 from .mgmt.summary import *
 from .mgmt.wcstools import *
-from .imops.ccdutils import *
-from .imops.imstat import *
-from .imops.mathutils import *
-from .imops.pixels import *
-
-from .mgmt import (
-    airmass,
-    headers,
-    io,
-    logging,
-    misc,
-    paths,
-    summary,
-    wcstools,
-)
-from .imops import ccdutils, imstat, mathutils, pixels, viz
-from . import mgmt, imops
 
 _COMPAT_MODULES = {
     "airmass": airmass,

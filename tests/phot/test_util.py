@@ -10,17 +10,17 @@ from astropy.modeling.functional_models import Gaussian2D
 from numpy.testing import assert_allclose, assert_array_equal
 
 from astroimred.phot.util import (
+    Gaussian2D_correct,
+    bezel_mask,
+    convert_deg,
+    convert_pct,
+    err_prop,
+    gaussian_kernel,
+    magsum,
+    normalize,
     sample_std,
     sigma_clipper,
-    magsum,
     sqsum,
-    err_prop,
-    convert_pct,
-    convert_deg,
-    bezel_mask,
-    gaussian_kernel,
-    Gaussian2D_correct,
-    normalize,
 )
 
 
@@ -232,7 +232,9 @@ class TestConvertDeg:
 
     def test_multiple_angles(self):
         """0, pi/4, pi/2, pi -> 0, 45, 90, 180 degrees"""
-        result = convert_deg(0, np.pi/4, np.pi/2, np.pi, already=False, convert2unit=True)
+        result = convert_deg(
+            0, np.pi / 4, np.pi / 2, np.pi, already=False, convert2unit=True
+        )
         expected = [0.0, 45.0, 90.0, 180.0]
         assert_allclose(result, expected, rtol=1e-10)
 
@@ -245,9 +247,10 @@ class TestBezelMask:
         mask = bezel_mask(
             xvals=np.array([50]),
             yvals=np.array([50]),
-            nx=100, ny=100,
+            nx=100,
+            ny=100,
             bezel_x=[10, 10],
-            bezel_y=[10, 10]
+            bezel_y=[10, 10],
         )
         assert not mask[0]
 
@@ -256,9 +259,10 @@ class TestBezelMask:
         mask = bezel_mask(
             xvals=np.array([5]),  # x < bezel_x[0] + 0.5 = 10.5
             yvals=np.array([50]),
-            nx=100, ny=100,
+            nx=100,
+            ny=100,
             bezel_x=[10, 10],
-            bezel_y=[10, 10]
+            bezel_y=[10, 10],
         )
         assert mask[0]
 
@@ -268,9 +272,10 @@ class TestBezelMask:
         mask = bezel_mask(
             xvals=np.array([95]),
             yvals=np.array([50]),
-            nx=100, ny=100,
+            nx=100,
+            ny=100,
             bezel_x=[10, 10],
-            bezel_y=[10, 10]
+            bezel_y=[10, 10],
         )
         assert mask[0]
 
@@ -279,9 +284,10 @@ class TestBezelMask:
         mask = bezel_mask(
             xvals=np.array([5]),
             yvals=np.array([5]),
-            nx=100, ny=100,
+            nx=100,
+            ny=100,
             bezel_x=[10, 10],
-            bezel_y=[10, 10]
+            bezel_y=[10, 10],
         )
         assert mask[0]
 
@@ -289,7 +295,9 @@ class TestBezelMask:
         """Multiple points: some inside, some outside."""
         xvals = np.array([50, 5, 95, 50])
         yvals = np.array([50, 50, 50, 5])
-        mask = bezel_mask(xvals, yvals, nx=100, ny=100, bezel_x=[10, 10], bezel_y=[10, 10])
+        mask = bezel_mask(
+            xvals, yvals, nx=100, ny=100, bezel_x=[10, 10], bezel_y=[10, 10]
+        )
         expected = np.array([False, True, True, True])
         assert_array_equal(mask, expected)
 
@@ -391,7 +399,9 @@ class TestGaussian2DCorrect:
         """
         Theta should be normalized to [-pi/2, pi/2].
         """
-        g = Gaussian2D(amplitude=1, x_mean=0, y_mean=0, x_stddev=2, y_stddev=1, theta=5.0)
+        g = Gaussian2D(
+            amplitude=1, x_mean=0, y_mean=0, x_stddev=2, y_stddev=1, theta=5.0
+        )
         g_corrected = Gaussian2D_correct(g)
 
         assert -np.pi / 2 <= g_corrected.theta.value <= np.pi / 2
@@ -400,7 +410,9 @@ class TestGaussian2DCorrect:
         """
         Corrected Gaussian should produce identical output.
         """
-        g = Gaussian2D(amplitude=100, x_mean=5, y_mean=5, x_stddev=1, y_stddev=2, theta=0.5)
+        g = Gaussian2D(
+            amplitude=100, x_mean=5, y_mean=5, x_stddev=1, y_stddev=2, theta=0.5
+        )
         g_corrected = Gaussian2D_correct(g)
 
         yy, xx = np.mgrid[:10, :10]

@@ -1,7 +1,7 @@
 import numpy as np
 from astropy import units as u
-from astropy.nddata import Cutout2D
 from astropy.coordinates import SkyCoord
+from astropy.nddata import Cutout2D
 from photutils.aperture import (
     CircularAnnulus,
     CircularAperture,
@@ -10,11 +10,11 @@ from photutils.aperture import (
 )
 
 from .pillbox import (
-    PillBoxMaskMixin,
-    PillBoxAperture,
     PillBoxAnnulus,
-    SkyPillBoxAperture,
+    PillBoxAperture,
+    PillBoxMaskMixin,
     SkyPillBoxAnnulus,
+    SkyPillBoxAperture,
 )
 
 __all__ = [
@@ -79,7 +79,7 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
 
     bboxes = np.atleast_1d(ap.bbox)
     sizes = [bbox.shape for bbox in bboxes]
-    for pos, size in zip(positions, sizes):
+    for pos, size in zip(positions, sizes, strict=False):
         cut = Cutout2D(ccd.data, position=pos, size=size)
         if method != "bbox":
             cut.data = ap.to_mask(method, subpixels=subpixels).multiply(
@@ -127,8 +127,8 @@ def _sanitize_apsize(size=None, fwhm=None, factor=None, name="size", repeat=Fals
             fwhm = __repeat(fwhm, repeat=repeat, rep=2)
             factor = __repeat(factor, repeat=repeat, rep=2)
             return factor * fwhm
-        except TypeError:
-            raise ValueError(f"{name} is None; fwhm must be given.")
+        except TypeError as err:
+            raise ValueError(f"{name} is None; fwhm must be given.") from err
     else:
         size = __repeat(size, repeat=repeat, rep=2)
         return size
@@ -240,7 +240,7 @@ def ellip_ap_an(
         r_out, fwhm, factor=f_out, name="r_out", repeat=True
     )
 
-    pt = dict(positions=positions, theta=theta)
+    pt = {"positions": positions, "theta": theta}
 
     ap = EllipticalAperture(**pt, a=a_ap, b=b_ap)
     an = EllipticalAnnulus(**pt, a_in=a_in, a_out=a_out, b_in=b_in, b_out=b_out)
@@ -390,11 +390,11 @@ def pa2xytheta(pa, wcs, location="crpix", step_pix=0.1):
         try:
             location = np.array((wcs.wcs.crpix[0] - 1, wcs.wcs.crpix[1] - 1))
             # coo = SkyCoord(*wcs.wcs.crval, unit="deg")
-        except AttributeError:
+        except AttributeError as err:
             raise AttributeError(
                 "The WCS object does not have CRPIX and/or CRVAL. "
                 + "Try with, e.g., `location`='center'."
-            )
+            ) from err
     elif location == "center":
         location = np.array(wcs._naxis) / 2
         # coo = SkyCoord(*wcs.wcs_pix2world(*location, 0), unit="deg")

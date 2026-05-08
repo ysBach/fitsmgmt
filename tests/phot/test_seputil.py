@@ -7,9 +7,7 @@ Note: These tests require the sep package, which is a core dependency.
 """
 
 import numpy as np
-import pytest
 from numpy.testing import assert_allclose
-from astropy.nddata import CCDData
 
 from astroimred.phot.seputil import sep_back, sep_extract, sep_flux_auto
 
@@ -91,7 +89,9 @@ class TestSepBack:
 class TestSepExtract:
     """Tests for sep_extract function (source extraction)."""
 
-    def test_sep_extract_single_source(self, gaussian_source_centered, gaussian_params_centered):
+    def test_sep_extract_single_source(
+        self, gaussian_source_centered, gaussian_params_centered
+    ):
         """
         Test sep_extract finds single Gaussian source.
 
@@ -111,11 +111,11 @@ class TestSepExtract:
         if len(obj) > 1:
             obj = obj.iloc[[0]]  # First one (sorted by distance or flux)
 
-        x_true = gaussian_params_centered['x_mean']
-        y_true = gaussian_params_centered['y_mean']
+        x_true = gaussian_params_centered["x_mean"]
+        y_true = gaussian_params_centered["y_mean"]
 
-        assert_allclose(obj['x'].iloc[0], x_true, atol=1.0)
-        assert_allclose(obj['y'].iloc[0], y_true, atol=1.0)
+        assert_allclose(obj["x"].iloc[0], x_true, atol=1.0)
+        assert_allclose(obj["y"].iloc[0], y_true, atol=1.0)
 
     def test_sep_extract_no_source(self, uniform_100x100):
         """Test sep_extract finds no sources in uniform image."""
@@ -128,9 +128,7 @@ class TestSepExtract:
         """Test sep_extract returns segmentation map."""
         bkg = sep_back(gaussian_source_centered)
 
-        obj, segm = sep_extract(
-            gaussian_source_centered, thresh=50, bkg=bkg
-        )
+        obj, segm = sep_extract(gaussian_source_centered, thresh=50, bkg=bkg)
 
         # Segmentation map should have same shape as input
         assert segm.shape == gaussian_source_centered.shape
@@ -145,14 +143,16 @@ class TestSepExtract:
 
         # Without bezel
         obj1, _ = sep_extract(
-            gaussian_source_centered, thresh=50, bkg=bkg,
-            bezel_x=[0, 0], bezel_y=[0, 0]
+            gaussian_source_centered, thresh=50, bkg=bkg, bezel_x=[0, 0], bezel_y=[0, 0]
         )
 
         # With large bezel (source at 50,50 should still be found)
         obj2, _ = sep_extract(
-            gaussian_source_centered, thresh=50, bkg=bkg,
-            bezel_x=[10, 10], bezel_y=[10, 10]
+            gaussian_source_centered,
+            thresh=50,
+            bkg=bkg,
+            bezel_x=[10, 10],
+            bezel_y=[10, 10],
         )
 
         # Both should find the central source
@@ -181,24 +181,23 @@ class TestSepExtract:
         bkg = sep_back(gaussian_source_centered)
 
         obj, _ = sep_extract(
-            gaussian_source_centered, thresh=50, bkg=bkg,
-            pos_ref=(50, 50)
+            gaussian_source_centered, thresh=50, bkg=bkg, pos_ref=(50, 50)
         )
 
         # Should have dist_ref column
-        assert 'dist_ref' in obj.columns
+        assert "dist_ref" in obj.columns
 
         # Distance should be small for source at (50, 50)
         if len(obj) > 0:
-            assert obj['dist_ref'].iloc[0] < 5.0
+            assert obj["dist_ref"].iloc[0] < 5.0
 
     def test_sep_extract_pos_ref_sorts_by_distance_by_default(self):
         """Test sep_extract sorts by dist_ref when pos_ref is given."""
         yy, xx = np.mgrid[:100, :100]
         data = (
             100.0
-            + 1000.0 * np.exp(-((xx - 25.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
-            + 1000.0 * np.exp(-((xx - 75.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
+            + 1000.0 * np.exp(-((xx - 25.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0**2))
+            + 1000.0 * np.exp(-((xx - 75.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0**2))
         )
         bkg = sep_back(data)
 
@@ -213,14 +212,18 @@ class TestSepExtract:
         yy, xx = np.mgrid[:100, :100]
         data = (
             100.0
-            + 1000.0 * np.exp(-((xx - 25.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
-            + 100.0 * np.exp(-((xx - 75.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0 ** 2))
+            + 1000.0 * np.exp(-((xx - 25.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0**2))
+            + 100.0 * np.exp(-((xx - 75.0) ** 2 + (yy - 50.0) ** 2) / (2 * 3.0**2))
         )
         bkg = sep_back(data)
 
         obj, _ = sep_extract(
-            data, thresh=20, bkg=bkg, pos_ref=(75, 50), sort_by="flux",
-            sort_ascending=False
+            data,
+            thresh=20,
+            bkg=bkg,
+            pos_ref=(75, 50),
+            sort_by="flux",
+            sort_ascending=False,
         )
 
         assert len(obj) >= 2
@@ -273,7 +276,9 @@ class TestSepFluxAuto:
 class TestSepAnalytical:
     """Analytical tests for SEP functionality."""
 
-    def test_background_subtraction(self, gaussian_source_centered, gaussian_params_centered):
+    def test_background_subtraction(
+        self, gaussian_source_centered, gaussian_params_centered
+    ):
         """
         Test background subtraction preserves source.
 
@@ -284,12 +289,14 @@ class TestSepAnalytical:
 
         # Peak in subtracted image should be close to amplitude
         peak = np.max(data_skysub)
-        expected_peak = gaussian_params_centered['amplitude']
+        expected_peak = gaussian_params_centered["amplitude"]
 
         # Allow some tolerance for background estimation error
         assert_allclose(peak, expected_peak, rtol=0.1)
 
-    def test_source_position_accuracy(self, gaussian_source_centered, gaussian_params_centered):
+    def test_source_position_accuracy(
+        self, gaussian_source_centered, gaussian_params_centered
+    ):
         """
         Test source position accuracy.
 
@@ -297,15 +304,13 @@ class TestSepAnalytical:
         """
         bkg = sep_back(gaussian_source_centered)
 
-        obj, _ = sep_extract(
-            gaussian_source_centered, thresh=50, bkg=bkg
-        )
+        obj, _ = sep_extract(gaussian_source_centered, thresh=50, bkg=bkg)
 
         if len(obj) > 0:
-            x_meas = obj['x'].iloc[0]
-            y_meas = obj['y'].iloc[0]
-            x_true = gaussian_params_centered['x_mean']
-            y_true = gaussian_params_centered['y_mean']
+            x_meas = obj["x"].iloc[0]
+            y_meas = obj["y"].iloc[0]
+            x_true = gaussian_params_centered["x_mean"]
+            y_true = gaussian_params_centered["y_mean"]
 
             assert abs(x_meas - x_true) < 0.5
             assert abs(y_meas - y_true) < 0.5
@@ -350,7 +355,7 @@ class TestSepEdgeCases:
     def test_sep_byte_order(self, uniform_100x100):
         """Test sep handles different byte orders."""
         # Create big-endian array
-        data_be = uniform_100x100.astype('>f4')
+        data_be = uniform_100x100.astype(">f4")
 
         bkg = sep_back(data_be)
 
@@ -369,9 +374,7 @@ class TestSepIntegration:
         bkg = sep_back(gaussian_source_centered)
 
         # 2. Extract sources
-        obj, segm = sep_extract(
-            gaussian_source_centered, thresh=50, bkg=bkg
-        )
+        obj, segm = sep_extract(gaussian_source_centered, thresh=50, bkg=bkg)
 
         assert len(obj) >= 1
 

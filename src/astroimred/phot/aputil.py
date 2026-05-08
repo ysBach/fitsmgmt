@@ -8,7 +8,6 @@ going through `aperture_photometry`.
 
 import math
 
-import numpy as np
 from photutils.geometry import circular_overlap_grid, elliptical_overlap_grid
 
 __all__ = [

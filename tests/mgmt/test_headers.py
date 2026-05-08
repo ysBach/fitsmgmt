@@ -1,8 +1,8 @@
 """Tests for FITS header editing and accessor helpers."""
 
+import pytest
 from astropy import units as u
 from astropy.io import fits
-import pytest
 
 import astroimred as air
 from astroimred import headers, misc

@@ -25,16 +25,16 @@ __all__ = [
 ]
 
 # Pill-Box aperture related str (base descriptions):
-_PBSTRS = dict(
-    w="trailed distance of the pillbox",
-    a="semimajor axis of ellipse part (parallel to the trail direction)",
-    b="semiminor axis of ellipse part (perpendicular to the trail direction)",
-    theta_pix=(
+_PBSTRS = {
+    "w": "trailed distance of the pillbox",
+    "a": "semimajor axis of ellipse part (parallel to the trail direction)",
+    "b": "semiminor axis of ellipse part (perpendicular to the trail direction)",
+    "theta_pix": (
         "The counterclockwise rotation angle as an angular Quantity or value in "
         + "radians from the positive x axis."
     ),
-    theta_sky="The position angle in angular units of the trail direction.",
-)
+    "theta_sky": "The position angle in angular units of the trail direction.",
+}
 
 
 class PillBoxMaskMixin:
@@ -62,7 +62,6 @@ class PillBoxMaskMixin:
             np.concatenate([outer_path.codes, inner_codes]),
         )
 
-    @property
     def _set_aperture_elements(self):
         """Set internal aperture elements.
         ``self._ap_rect``, ``self.ap_el_1``, ``self.ap_el_2`` and their ``_in``
@@ -175,7 +174,7 @@ class PillBoxMaskMixin:
 
         bbox_shape = bbox.shape
 
-        mask_kw = dict(method=method, subpixels=subpixels)
+        mask_kw = {"method": method, "subpixels": subpixels}
         mask_r = aps[0].to_mask(**mask_kw).to_image(bbox_shape)
         mask_1 = aps[1].to_mask(**mask_kw).to_image(bbox_shape)
         mask_2 = aps[2].to_mask(**mask_kw).to_image(bbox_shape)
@@ -239,10 +238,10 @@ class PillBoxMaskMixin:
         min_mask = min(1.0e-6, 1 / (subpixels**2))
         masks = []
         bboxes = np.atleast_1d(self.bbox)
-        is_annulus = True if hasattr(self, "a_in") else False
+        is_annulus = bool(hasattr(self, "a_in"))
 
         for i, (bbox, ap_r, ap_1, ap_2) in enumerate(
-            zip(bboxes, self._ap_rect, self._ap_el_1, self._ap_el_2)
+            zip(bboxes, self._ap_rect, self._ap_el_1, self._ap_el_2, strict=False)
         ):
             mask = self._prepare_mask(
                 bbox,
@@ -324,7 +323,7 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         self.b = b
         self.h = 2 * b
         self.theta = theta
-        self._set_aperture_elements
+        self._set_aperture_elements()
 
     @property
     def _xy_extents(self):
@@ -406,7 +405,7 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         self.h_out = self.b_out * 2
         self.h_in = self.b_in * 2
         self.theta = theta
-        self._set_aperture_elements
+        self._set_aperture_elements()
 
     @property
     def _xy_extents(self):
@@ -547,7 +546,7 @@ class SkyPillBoxAnnulus(SkyAperture):
             == b_out.unit.physical_type
         ):
             raise ValueError(
-                "'w', 'a_in', 'a_out', and 'b_out' should all be " "angles or in pixels"
+                "'w', 'a_in', 'a_out', and 'b_out' should all be angles or in pixels"
             )
 
         self.positions = positions

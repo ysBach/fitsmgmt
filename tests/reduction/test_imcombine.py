@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from astropy.io import fits
 from astropy.nddata import CCDData
-from astropy import units as u
 
 import astroimred.reduction as imred
 from astroimred.reduction.imutil.util_comb import get_zsw
@@ -54,7 +53,7 @@ def _offset_stack(images, raw_offsets):
     shapes = np.array([im.shape for im in images], dtype=int)
     out_shape = tuple(np.max(origins + shapes, axis=0))
     stack = np.full((len(images), *out_shape), np.nan)
-    for i, (image, origin) in enumerate(zip(images, origins)):
+    for i, (image, origin) in enumerate(zip(images, origins, strict=False)):
         y0, x0 = origin
         y1, x1 = origin + image.shape
         stack[i, y0:y1, x0:x1] = image
@@ -70,7 +69,7 @@ def _normalized_zs(nimage, zero=None, scale=None):
 def _apply_zs(stack, zero=None, scale=None):
     zeros, scales = _normalized_zs(stack.shape[0], zero=zero, scale=scale)
     out = stack.copy()
-    for i, (z, s) in enumerate(zip(zeros, scales)):
+    for i, (z, s) in enumerate(zip(zeros, scales, strict=False)):
         out[i] = (out[i] - z) / s
     return out
 
@@ -104,18 +103,18 @@ def _expected_no_reject(images, raw_offsets, combine="average", zero=None, scale
     mask = np.zeros(stack.shape, dtype=bool)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        return dict(
-            comb=_combine_expected(stack, combine),
-            err=np.nanstd(stack, axis=0, ddof=1),
-            low=np.nanmin(stack, axis=0),
-            upp=np.nanmax(stack, axis=0),
-            mask_total=mask,
-            mask_rej=mask.copy(),
-            mask_thresh=mask.copy(),
-            nit=None,
-            rejcode=None,
-            out_shape=out_shape,
-        )
+        return {
+            "comb": _combine_expected(stack, combine),
+            "err": np.nanstd(stack, axis=0, ddof=1),
+            "low": np.nanmin(stack, axis=0),
+            "upp": np.nanmax(stack, axis=0),
+            "mask_total": mask,
+            "mask_rej": mask.copy(),
+            "mask_thresh": mask.copy(),
+            "nit": None,
+            "rejcode": None,
+            "out_shape": out_shape,
+        }
 
 
 def _assert_imcombine_full(result, expected):
@@ -137,7 +136,9 @@ def _assert_imcombine_full(result, expected):
     if expected["nit"] is None:
         assert result["nit"] is None
     else:
-        nit = np.asarray(result["nit"]) + np.zeros(expected["out_shape"], dtype=np.uint8)
+        nit = np.asarray(result["nit"]) + np.zeros(
+            expected["out_shape"], dtype=np.uint8
+        )
         np.testing.assert_array_equal(nit, expected["nit"])
 
     if expected["rejcode"] is None:
@@ -225,11 +226,7 @@ class TestNDCombine:
 
         # combine="average", reject="sigclip", sigma=[3, 3]
         combined = imred.ndcombine(
-            arr,
-            combine="average",
-            reject="sigclip",
-            sigma=[1.0, 1.0],
-            verbose=False
+            arr, combine="average", reject="sigclip", sigma=[1.0, 1.0], verbose=False
         )
 
         # Should reject 1000.0 and average the rest (10.0).
@@ -245,10 +242,7 @@ class TestNDCombine:
 
         # nlow=1, nhigh=1 -> reject lowest and highest.
         combined = imred.ndcombine(
-            arr,
-            combine="average",
-            reject="minmax",
-            n_minmax=[1, 1]
+            arr, combine="average", reject="minmax", n_minmax=[1, 1]
         )
 
         # Remaining: 10, 10, 10 -> Average 10.
@@ -286,9 +280,7 @@ class TestNDCombine:
         np.testing.assert_allclose(low, base + 10.0, rtol=1e-6)
         np.testing.assert_allclose(upp, base + 10.0, rtol=1e-6)
         np.testing.assert_array_equal(nit, 2 * np.ones(base.shape, dtype=np.uint8))
-        np.testing.assert_array_equal(
-            rejcode, 2 * np.ones(base.shape, dtype=np.uint8)
-        )
+        np.testing.assert_array_equal(rejcode, 2 * np.ones(base.shape, dtype=np.uint8))
 
 
 class TestImCombine:
@@ -308,12 +300,7 @@ class TestImCombine:
         # Combine
         outpath = tmp_path / "combined.fits"
 
-        res = imred.imcombine(
-            paths,
-            output=outpath,
-            combine="average",
-            reject="none"
-        )
+        res = imred.imcombine(paths, output=outpath, combine="average", reject="none")
 
         # Check result object
         np.testing.assert_allclose(res.data, 20.0, rtol=1e-6)
@@ -360,14 +347,14 @@ class TestImCombine:
             paths.append(p)
 
         offsets = np.array([[0, 2], [2, 0], [1, 1]])
-        common = dict(
-            offsets=offsets,
-            combine="average",
-            reject="none",
-            full=True,
-            return_dict=True,
-            dtype="float32",
-        )
+        common = {
+            "offsets": offsets,
+            "combine": "average",
+            "reject": "none",
+            "full": True,
+            "return_dict": True,
+            "dtype": "float32",
+        }
         full = imred.imcombine(paths, memlimit=1e9, **common)
         chunked = imred.imcombine(paths, memlimit=500, **common)
 
@@ -426,7 +413,7 @@ class TestImCombine:
         images = [yy * 10.0 + xx + 100.0 * i for i in range(3)]
         raw_offsets = np.array([[0, 0], [1, 2], [2, 1]])
         paths = []
-        for i, (image, raw_offset) in enumerate(zip(images, raw_offsets)):
+        for i, (image, raw_offset) in enumerate(zip(images, raw_offsets, strict=False)):
             p = tmp_path / f"wcs_offset_{i}.fits"
             _write_fits(p, image, _wcs_header_for_offset(raw_offset, image.shape))
             paths.append(p)
@@ -450,7 +437,7 @@ class TestImCombine:
         images = [yy * 10.0 + xx + 50.0 * i for i in range(3)]
         raw_offsets = np.array([[0, 0], [2, 1], [1, 3]])
         paths = []
-        for i, (image, raw_offset) in enumerate(zip(images, raw_offsets)):
+        for i, (image, raw_offset) in enumerate(zip(images, raw_offsets, strict=False)):
             p = tmp_path / f"physical_offset_{i}.fits"
             _write_fits(p, image, _physical_header_for_offset(raw_offset, image.shape))
             paths.append(p)
@@ -504,18 +491,18 @@ class TestImCombine:
         expected_mask = np.zeros((4, *base.shape), dtype=bool)
         expected_mask[0] = True
         expected_mask[3] = True
-        expected = dict(
-            comb=comb_expected(base),
-            err=np.sqrt(50.0) * np.ones_like(base),
-            low=base,
-            upp=base + 100.0,
-            mask_total=expected_mask,
-            mask_rej=expected_mask.copy(),
-            mask_thresh=np.zeros_like(expected_mask),
-            nit=np.ones(base.shape, dtype=np.uint8),
-            rejcode=np.zeros(base.shape, dtype=np.uint8),
-            out_shape=base.shape,
-        )
+        expected = {
+            "comb": comb_expected(base),
+            "err": np.sqrt(50.0) * np.ones_like(base),
+            "low": base,
+            "upp": base + 100.0,
+            "mask_total": expected_mask,
+            "mask_rej": expected_mask.copy(),
+            "mask_thresh": np.zeros_like(expected_mask),
+            "nit": np.ones(base.shape, dtype=np.uint8),
+            "rejcode": np.zeros(base.shape, dtype=np.uint8),
+            "out_shape": base.shape,
+        }
         _assert_imcombine_full(result, expected)
 
     def test_sigclip_rejection_aux_analytical(self, tmp_path):
@@ -546,16 +533,16 @@ class TestImCombine:
 
         expected_mask = np.zeros((4, *base.shape), dtype=bool)
         expected_mask[3] = True
-        expected = dict(
-            comb=base + 10.0,
-            err=np.zeros_like(base),
-            low=base + 10.0,
-            upp=base + 10.0,
-            mask_total=expected_mask,
-            mask_rej=expected_mask.copy(),
-            mask_thresh=np.zeros_like(expected_mask),
-            nit=2 * np.ones(base.shape, dtype=np.uint8),
-            rejcode=2 * np.ones(base.shape, dtype=np.uint8),
-            out_shape=base.shape,
-        )
+        expected = {
+            "comb": base + 10.0,
+            "err": np.zeros_like(base),
+            "low": base + 10.0,
+            "upp": base + 10.0,
+            "mask_total": expected_mask,
+            "mask_rej": expected_mask.copy(),
+            "mask_thresh": np.zeros_like(expected_mask),
+            "nit": 2 * np.ones(base.shape, dtype=np.uint8),
+            "rejcode": 2 * np.ones(base.shape, dtype=np.uint8),
+            "out_shape": base.shape,
+        }
         _assert_imcombine_full(result, expected)

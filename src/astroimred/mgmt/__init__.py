@@ -3,7 +3,8 @@
 import sys as _sys
 
 from .. import logging as logging
-from ..logging import logger, set_log_level, enable_console_logging
+from ..logging import enable_console_logging, logger, set_log_level
+from . import airmass, headers, io, misc, paths, summary, wcstools
 from .airmass import *
 from .headers import *
 from .io import *
@@ -11,8 +12,6 @@ from .misc import *
 from .paths import *
 from .summary import *
 from .wcstools import *
-
-from . import airmass, headers, io, misc, paths, summary, wcstools
 
 _sys.modules[f"{__name__}.logging"] = logging
 

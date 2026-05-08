@@ -5,7 +5,8 @@ from astro_ndslice import bezel2slice
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from ..mgmt import headers, io as _io
+from ..mgmt import headers
+from ..mgmt import io as _io
 
 __all__ = [
     "fixpix",
@@ -95,7 +96,7 @@ def fixpix(
     ndim = data.ndim
 
     if priority is None:
-        priority = tuple([i for i in range(ndim)][::-1])
+        priority = tuple(list(range(ndim))[::-1])
     elif len(priority) != ndim:
         raise ValueError(
             "len(priority) and ccd.ndim must be the same; "
@@ -139,7 +140,7 @@ def fixpix(
         # The label of this position in each axis
         label_pos = [lab.item(*pos) for lab in labels]
         # number of pixels of the same label for each direction
-        n_ax = [_n_ax[lab] for _n_ax, lab in zip(n_axs, label_pos)]
+        n_ax = [_n_ax[lab] for _n_ax, lab in zip(n_axs, label_pos, strict=False)]
 
         # The shortest axis along which the interpolation will happen,
         # OR, if 1+ directions having same minimum length, select this axis
@@ -291,7 +292,7 @@ def find_extpix(
             maskname = "User-provided mask"
 
     exts = []
-    for npix, sign, minmaxval in zip(npixs, [1, -1], [np.inf, -np.inf]):
+    for npix, sign, minmaxval in zip(npixs, [1, -1], [np.inf, -np.inf], strict=False):
         if npix is None:
             exts.append(None)
             continue
@@ -306,11 +307,11 @@ def find_extpix(
         exts.append(extvals)
 
     if update_header:
-        for ext, mm in zip(exts, ["min", "max"]):
+        for ext, mm in zip(exts, ["min", "max"], strict=False):
             if ext is not None:
                 for i, extval in enumerate(ext):
                     ccd.header.set(
-                        f"{mm.upper()}V{i+1:03d}", extval, f"{mm} pixel value"
+                        f"{mm.upper()}V{i + 1:03d}", extval, f"{mm} pixel value"
                     )
         bezstr = ""
         if bezels is not None:

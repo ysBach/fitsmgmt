@@ -13,7 +13,6 @@ from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData
 
-
 # Strict numerical tolerance for physics-based calculations
 RTOL = 1e-6
 ATOL = 1e-8

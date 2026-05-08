@@ -4,9 +4,8 @@ from itertools import repeat
 
 import numpy as np
 import pandas as pd
-from astropy.nddata import CCDData, Cutout2D
+from astropy.nddata import CCDData
 from photutils.aperture import CircularAnnulus
-from scipy.ndimage import center_of_mass
 
 from .aputil import fast_circ_apmask
 from .background import sky_fit
@@ -81,7 +80,7 @@ def fwhm_r(popt, fun):
         # 2*sig*np.sqrt((nu-2)*(2**(2/(nu+2)) - 1))
         return 2 * popt[2] * np.sqrt(popt[1] * (2 ** (2 / (popt[1] + 4)) - 1))
     else:
-        raise ValueError("Unknown function: {}".format(fun))
+        raise ValueError(f"Unknown function: {fun}")
 
 
 def radial_profile(
@@ -130,7 +129,7 @@ def radial_profile(
     Example
     -------
     >>> profs, center_val = radial_profile(im, center=(50, 50), radii=np.arange(1, 11), thickness=2)
-    >>> print(profs)
+    >>> profs
          r      mpix      spix  npix    spix_n
     0   0.0  1500.0000   0.0000     1   0.000000
     1   1.0   1450.1234  10.5678   12   3.045678
@@ -155,7 +154,7 @@ def radial_profile(
         profs = [{"r": 0, "msky": center_val, "ssky": 0, "nsky": 1, "nrej": 0}]
     else:
         profs = []
-    for r, _thick in zip(radii, thickness):
+    for r, _thick in zip(radii, thickness, strict=False):
         an = CircularAnnulus(
             center, r_in=max(0.01, r - _thick / 2), r_out=r + _thick / 2
         )
@@ -323,10 +322,7 @@ def ee_radius(im, center, fraction=0.5, r_min=0.5, r_max=None, sum_is_unity=Fals
     r : float
         The radius (in pixels) encircling the given flux fraction.
     """
-    if sum_is_unity:
-        target = fraction
-    else:
-        target = fraction * np.sum(im)
+    target = fraction if sum_is_unity else fraction * np.sum(im)
 
     if r_max is None:
         r_max = min(im.shape) / 2.0
@@ -415,7 +411,7 @@ def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None, ref
             )
             # assuming the user gave ~ (2-3)x FWHM, and we want sigma ~ 0.4xFWHM
         else:
-            raise ValueError("Unknown function: {}".format(fitfunc))
+            raise ValueError(f"Unknown function: {fitfunc}")
 
         popt, _ = curve_fit(fitter, _r, _i, p0=p0, bounds=bounds)
         if refit is not None:

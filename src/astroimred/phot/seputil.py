@@ -29,10 +29,10 @@ to +0.5. Simple test code::
     # y: [7.66666667]
 """
 
-from astropy.nddata import support_nddata
 import numpy as np
 import pandas as pd
 import sep
+from astropy.nddata import support_nddata
 
 from .util import bezel_mask, gaussian_kernel
 
@@ -142,15 +142,15 @@ def sep_back(
     if len(filter_size) == 1:
         filter_size = np.repeat(filter_size, 2)
 
-    kw = dict(
-        mask=mask,
-        bw=box_size[1],
-        bh=box_size[0],
-        fw=filter_size[1],
-        fh=filter_size[0],
-        maskthresh=maskthresh,
-        fthresh=filter_threshold,
-    )
+    kw = {
+        "mask": mask,
+        "bw": box_size[1],
+        "bh": box_size[0],
+        "fw": filter_size[1],
+        "fh": filter_size[0],
+        "maskthresh": maskthresh,
+        "fthresh": filter_threshold,
+    }
     try:
         bkg = sep.Background(data, **kw)
     except ValueError:  # Non-native byte order
@@ -600,16 +600,13 @@ def sep_extract_iterative(
 
     # running source mask (starts empty, grows each iteration)
     src_mask = np.zeros(np.asarray(data).shape, dtype=bool)
-    if mask is not None:
-        base_mask = np.asarray(mask, dtype=bool)
-    else:
-        base_mask = None
+    base_mask = np.asarray(mask, dtype=bool) if mask is not None else None
 
     bkg = None
     obj = None
     segm = None
 
-    for i in range(n_iter):
+    for _i in range(n_iter):
         # combine user mask with sources found so far
         combined_mask = src_mask if base_mask is None else (base_mask | src_mask)
 
@@ -773,9 +770,6 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #         _arr = np.array(ccd)
 #         _mask = None
 #         update_header = False  # override
-#         if update_header and verbose:
-#             warn("Given array, not CCDData. Header will not be updated.")
-
 #     if _mask is None:
 #         _mask = np.zeros_like(_arr, dtype=bool)
 

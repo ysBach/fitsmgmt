@@ -5,11 +5,9 @@ Objects that are
 """
 
 import numpy as np
-from astro_ndslice import listify
+from astro_ndslice import listify as listify  # noqa: F401
 from astropy import units as u
 from astropy.time import Time
-
-from ..logging import logger
 
 try:
     import numba as nb
@@ -44,29 +42,29 @@ __all__ = [
 ]
 
 
-MEDCOMB_KEYS_INT = dict(
-    dtype="int16",
-    combine_method="median",
-    reject_method=None,
-    unit=u.adu,
-    combine_uncertainty_function=None,
-)
+MEDCOMB_KEYS_INT = {
+    "dtype": "int16",
+    "combine_method": "median",
+    "reject_method": None,
+    "unit": u.adu,
+    "combine_uncertainty_function": None,
+}
 
-SUMCOMB_KEYS_INT = dict(
-    dtype="int16",
-    combine_method="sum",
-    reject_method=None,
-    unit=u.adu,
-    combine_uncertainty_function=None,
-)
+SUMCOMB_KEYS_INT = {
+    "dtype": "int16",
+    "combine_method": "sum",
+    "reject_method": None,
+    "unit": u.adu,
+    "combine_uncertainty_function": None,
+}
 
-MEDCOMB_KEYS_FLT32 = dict(
-    dtype="float32",
-    combine_method="median",
-    reject_method=None,
-    unit=u.adu,
-    combine_uncertainty_function=None,
-)
+MEDCOMB_KEYS_FLT32 = {
+    "dtype": "float32",
+    "combine_method": "median",
+    "reject_method": None,
+    "unit": u.adu,
+    "combine_uncertainty_function": None,
+}
 
 
 # !FIXME: not finished
@@ -91,9 +89,12 @@ def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
     if cenfunc == "wvg":
         from ..imops.mathutils import weighted_avg
 
-        cenfunc = lambda val, err: weighted_avg(val, err)[0]
+        def cenfunc(val, err):
+            return weighted_avg(val, err)[0]
     elif cenfunc in ["avg", "average", "mean"]:
-        cenfunc = lambda val, err: np.mean(val)[0]  # err is dummy
+
+        def cenfunc(val, err):
+            return np.mean(val)[0]  # err is dummy
     else:
         raise ValueError(f"cenfunc={cenfunc} is not implemented yet.")
 
@@ -102,7 +103,7 @@ def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
     err_clipped = err[val.mask]
     cen = cenfunc(val_clipped, err_clipped)
 
-    for i in range(maxiters):
+    for _i in range(maxiters):
         # calculate deviation for all (even masked) elements:
         deviation = np.abs(val.data - cen)
         mask = deviation > sigma * err
@@ -247,7 +248,7 @@ def circular_mask_2d(
         radii = np.atleast_1d(radius)
         if radii.size == 1:
             radii = np.repeat(radii, len(centers))
-        for c, r in zip(centers, radii):
+        for c, r in zip(centers, radii, strict=False):
             apmask2d |= (xx - c[0]) ** 2 + (yy - c[1]) ** 2 < r**2
         return apmask2d
 
@@ -259,14 +260,16 @@ def circular_mask_2d(
         apmasks = apertures.to_mask(method=method, subpixels=subpixels)
         if not isinstance(apmasks, list):
             apmasks = [apmasks]
-    except ValueError:
+    except ValueError as err:
         # multiple radii and "ValueError: 'r' must be a positive scalar" happens.
         if center.shape[0] != np.size(radius):
             raise ValueError(
                 "If `radius` is an array-like, it must have the same length as `center`; "
                 f"({center.shape[0] = }) != ({np.size(radius)} = )."
-            )
-        apertures = [CircularAperture(c, r=r) for c, r in zip(center, radius)]
+            ) from err
+        apertures = [
+            CircularAperture(c, r=r) for c, r in zip(center, radius, strict=False)
+        ]
         apmasks = [ap.to_mask(method=method, subpixels=subpixels) for ap in apertures]
 
     apmask2d = np.zeros(shape, dtype=bool)
@@ -455,10 +458,10 @@ def change_to_quantity(x, desired="", to_value=False):
             ux = _copy(x)
     except TypeError:
         ux = _copy(x)
-    except u.UnitConversionError:
+    except u.UnitConversionError as err:
         raise ValueError(
             "If you use astropy.Quantity, you should use unit convertible to `desired`."
             + f'\nYou gave "{x.unit}", unconvertible with "{desired}".'
-        )
+        ) from err
 
     return ux

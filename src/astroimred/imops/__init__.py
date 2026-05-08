@@ -1,12 +1,11 @@
 """Image and CCDData operations."""
 
+from . import ccdutils, imstat, mathutils, pixels, viz
 from .ccdutils import *
 from .imstat import *
 from .mathutils import *
 from .pixels import *
 from .viz import *
-
-from . import ccdutils, imstat, mathutils, pixels, viz
 
 __all__ = [
     "ccdutils",

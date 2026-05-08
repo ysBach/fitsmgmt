@@ -466,9 +466,8 @@ def pixel_scale(header=None, wcs=None, unit=u.arcsec, position=None):
     if position is None:
         x, y = nx / 2 - 0.5, ny / 2 - 0.5
     elif position == "physical":
-        x, y = nx / 2 - 0.5 - float(header.get("LTV1", 0)), ny / 2 - 0.5 - float(
-            header.get("LTV2", 0)
-        )
+        x = nx / 2 - 0.5 - float(header.get("LTV1", 0))
+        y = ny / 2 - 0.5 - float(header.get("LTV2", 0))
     else:
         x, y = position
 

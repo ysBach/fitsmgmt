@@ -1,11 +1,10 @@
 import bottleneck as bn
 import numpy as np
 
-from astroimred.mgmt.logging import logger
+from astroimred.logging import logger
 
-from . import docstrings
+from . import config, docstrings
 from .numba_reject import reject_minmax_numba, reject_sigclip_numba
-from . import config
 from .util_comb import (
     _get_dtype_limits,
     _set_cenfunc,
@@ -74,7 +73,8 @@ def _iter_rej(
                 )
             else:
                 std = np.sqrt(
-                    (1 + snoise_ref) * np.abs(cen + zero_ref) * scale_ref + rdnoise_ref**2
+                    (1 + snoise_ref) * np.abs(cen + zero_ref) * scale_ref
+                    + rdnoise_ref**2
                 )
         else:
             std = bn.nanstd(_arr, axis=0, ddof=ddof)
@@ -217,9 +217,9 @@ def _iter_rej(
 
 
 # TODO: let `cenfunc` be function object...?
-# **************************************************************************************** #
-# *                                    SIGMA-CLIPPING                                    * #
-# **************************************************************************************** #
+# ************************************************************************************ #
+# *                                    SIGMA-CLIPPING                                * #
+# ************************************************************************************ #
 def sigclip_mask(
     arr,
     mask=None,
@@ -261,8 +261,21 @@ def sigclip_mask(
     # )
     if config.IMUTIL_USE_NUMBA and arr.ndim == 3:
         result = reject_sigclip_numba(
-            arr, mask, sigma_lower, sigma_upper, maxiters, ddof, nkeep, maxrej, cenfunc, irafmode,
-            ccdclip=False, rdnoise_ref=0.0, snoise_ref=0.0, scale_ref=1.0, zero_ref=0.0
+            arr,
+            mask,
+            sigma_lower,
+            sigma_upper,
+            maxiters,
+            ddof,
+            nkeep,
+            maxrej,
+            cenfunc,
+            irafmode,
+            ccdclip=False,
+            rdnoise_ref=0.0,
+            snoise_ref=0.0,
+            scale_ref=1.0,
+            zero_ref=0.0,
         )
         if result is not None:
             o_mask, o_low, o_upp, o_nit, o_code = result
@@ -300,7 +313,7 @@ def sigclip_mask(
         return o_mask
 
 
-sigclip_mask.__doc__ = """ Finds masks of `arr` by sigma-clipping.
+sigclip_mask.__doc__ = f""" Finds masks of `arr` by sigma-clipping.
 
     Parameters
     ----------
@@ -308,23 +321,19 @@ sigclip_mask.__doc__ = """ Finds masks of `arr` by sigma-clipping.
         The array to be subjected for masking. `arr` and `mask` must
         have the identical shape.
 
-    {}
-    {}
+    {docstrings.REJECT_PARAMETERS_COMMON(indent=4)}
+    {docstrings.REJECT_PARAMETERS_SIGMA(indent=4)}
 
     Returns
     -------
-    {}
+    {docstrings.REJECT_RETURNS_SIGMA(indent=4)}
 
-    """.format(
-    docstrings.REJECT_PARAMETERS_COMMON(indent=4),
-    docstrings.REJECT_PARAMETERS_SIGMA(indent=4),
-    docstrings.REJECT_RETURNS_SIGMA(indent=4),
-)
+    """
 
 
-# **************************************************************************************** #
-# *                                    MINMAX CLIPPING                                   * #
-# **************************************************************************************** #
+# ************************************************************************************ #
+# *                                    MINMAX CLIPPING                               * #
+# ************************************************************************************ #
 def _minmax(arr, mask=None, q_low=0, q_upp=0, calc_low=True, calc_upp=True):
     # General setup (nkeep and maxrej as dummy)
     _arr, _masks, _, _, _nvals, _lowupp = _setup_reject(
@@ -378,7 +387,9 @@ def minmax_mask(arr, mask=None, n_minmax=None, full=True):
     #     arr, mask=mask, q_low=q_low, q_upp=q_upp, calc_low=full, calc_upp=full
     # )
     if config.IMUTIL_USE_NUMBA and arr.ndim == 3:
-        result = reject_minmax_numba(arr, mask, q_low, q_upp, calc_low=full, calc_upp=full)
+        result = reject_minmax_numba(
+            arr, mask, q_low, q_upp, calc_low=full, calc_upp=full
+        )
         if result is not None:
             o_mask, o_low, o_upp, code = result
             o_nit = np.ones(arr.shape[1:], dtype=np.uint8)  # minmax always 1 iteration
@@ -397,7 +408,7 @@ def minmax_mask(arr, mask=None, n_minmax=None, full=True):
         return o_mask
 
 
-minmax_mask.__doc__ = """ Finds masks of `arr` after rejecting `n_minmax` pixels.
+minmax_mask.__doc__ = f""" Finds masks of `arr` after rejecting `n_minmax` pixels.
 
     Parameters
     ----------
@@ -405,27 +416,23 @@ minmax_mask.__doc__ = """ Finds masks of `arr` after rejecting `n_minmax` pixels
         The array to be subjected for masking. `arr` and `mask` must have the
         identical shape. It must be in DN, i.e., **not** gain corrected.
 
-    {}
-    {}
+    {docstrings.REJECT_PARAMETERS_COMMON(indent=4)}
+    {docstrings.REJECT_PARAMETERS_SIGMA(indent=4)}
 
     Returns
     -------
-    {}
+    {docstrings.REJECT_RETURNS_SIGMA(indent=4)}
 
-    """.format(
-    docstrings.REJECT_PARAMETERS_COMMON(indent=4),
-    docstrings.REJECT_PARAMETERS_SIGMA(indent=4),
-    docstrings.REJECT_RETURNS_SIGMA(indent=4),
-)
+    """
 
-# **************************************************************************************** #
-# *                              PERCENTILE CLIPPING (PCLIP)                             * #
-# **************************************************************************************** #
+# ************************************************************************************ #
+# *                              PERCENTILE CLIPPING (PCLIP)                         * #
+# ************************************************************************************ #
 
 
-# **************************************************************************************** #
-# *                          CCD NOISE MODEL CLIPPING (CCDCLIP)                          * #
-# **************************************************************************************** #
+# ************************************************************************************ #
+# *                          CCD NOISE MODEL CLIPPING (CCDCLIP)                      * #
+# ************************************************************************************ #
 def ccdclip_mask(
     arr,
     mask=None,
@@ -486,8 +493,21 @@ def ccdclip_mask(
     snoise_mean = np.mean(sns)
     if config.IMUTIL_USE_NUMBA and arr.ndim == 3:
         result = reject_sigclip_numba(
-            arr, mask, sigma_lower, sigma_upper, maxiters, ddof, nkeep, maxrej, cenfunc, irafmode,
-            ccdclip=True, rdnoise_ref=rdnoise_mean, snoise_ref=snoise_mean, scale_ref=scale_ref, zero_ref=zero_ref
+            arr,
+            mask,
+            sigma_lower,
+            sigma_upper,
+            maxiters,
+            ddof,
+            nkeep,
+            maxrej,
+            cenfunc,
+            irafmode,
+            ccdclip=True,
+            rdnoise_ref=rdnoise_mean,
+            snoise_ref=snoise_mean,
+            scale_ref=scale_ref,
+            zero_ref=zero_ref,
         )
         if result is not None:
             o_mask, o_low, o_upp, o_nit, o_code = result
@@ -537,7 +557,7 @@ def ccdclip_mask(
         return o_mask
 
 
-ccdclip_mask.__doc__ = """ Finds masks of `arr` by CCD noise model.
+ccdclip_mask.__doc__ = f""" Finds masks of `arr` by CCD noise model.
 
     Parameters
     ----------
@@ -545,15 +565,11 @@ ccdclip_mask.__doc__ = """ Finds masks of `arr` by CCD noise model.
         The array to be subjected for masking. `arr` and `mask` must have the
         identical shape. It must be in DN, i.e., **not** gain corrected.
 
-    {}
-    {}
+    {docstrings.REJECT_PARAMETERS_COMMON(indent=4)}
+    {docstrings.REJECT_PARAMETERS_SIGMA(indent=4)}
 
     Returns
     -------
-    {}
+    {docstrings.REJECT_RETURNS_SIGMA(indent=4)}
 
-    """.format(
-    docstrings.REJECT_PARAMETERS_COMMON(indent=4),
-    docstrings.REJECT_PARAMETERS_SIGMA(indent=4),
-    docstrings.REJECT_RETURNS_SIGMA(indent=4),
-)
+    """

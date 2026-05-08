@@ -8,15 +8,9 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from astroimred import (
-    ccdutils,
-    headers,
-    io,
-    logging as airlogging,
-    mathutils,
-    misc,
-    summary,
-)
+from astroimred import ccdutils, headers, io
+from astroimred import logging as airlogging
+from astroimred import mathutils, misc, summary
 
 
 def test_canonical_subpackages_match_compatibility_wrappers():
@@ -44,18 +38,20 @@ def temp_env():
     yield tmpdir
     shutil.rmtree(tmpdir)
 
+
 @pytest.fixture
 def dummy_fits(temp_env):
     """Fixture to create a dummy FITS file."""
     hdr = fits.Header()
-    hdr['NAXIS'] = 2
-    hdr['EXPTIME'] = 10.0
+    hdr["NAXIS"] = 2
+    hdr["EXPTIME"] = 10.0
     data = np.zeros((10, 10))
     data[2:5, 2:5] = 100
     hdu = fits.PrimaryHDU(data=data, header=hdr)
     fpath = temp_env / "test.fits"
     hdu.writeto(fpath)
     return fpath
+
 
 def test_logging():
     """Test logging configuration."""
@@ -70,22 +66,26 @@ def test_logging():
         ):
             airlogging.logger.removeHandler(handler)
 
+
 def test_listify():
     """Test listify utility."""
     assert misc.listify(1) == [1]
     assert misc.listify([1, 2]) == [1, 2]
     assert misc.listify("abc") == ["abc"]
 
+
 def test_str_now():
     """Test str_now."""
     assert len(misc.str_now()) > 0
+
 
 def test_change_to_quantity():
     """Test quantity conversion."""
     q1 = misc.change_to_quantity(10, "km")
     assert q1.value == 10.0 and q1.unit == u.km
-    q2 = misc.change_to_quantity(10*u.m, "km")
+    q2 = misc.change_to_quantity(10 * u.m, "km")
     assert q2.value == 0.01 and q2.unit == u.km
+
 
 def test_binning():
     """Test array binning."""
@@ -94,12 +94,13 @@ def test_binning():
     expected_bin = np.array([[2.5, 4.5], [10.5, 12.5]])
     assert np.allclose(binned, expected_bin)
 
+
 def test_header_utils(dummy_fits):
     """Test header utilities."""
     hdr = fits.getheader(dummy_fits)
 
     # cmt2hdr
-    headers.cmt2hdr(hdr, 'h', "Test history")
+    headers.cmt2hdr(hdr, "h", "Test history")
     assert "Test history" in str(hdr.get("HISTORY"))
 
     # update_process
@@ -110,6 +111,7 @@ def test_header_utils(dummy_fits):
     headers.update_tlm(hdr)
     assert "FITS-TLM" in hdr
 
+
 def test_images_io(dummy_fits):
     """Test image loading and saving."""
     ccd = io.load_ccd(dummy_fits)
@@ -117,12 +119,13 @@ def test_images_io(dummy_fits):
 
     # Test inputs2list
     inputs = io.inputs2list(str(dummy_fits.parent / "*.fits"))
-    assert [Path(p).name for p in inputs] == ['test.fits']
+    assert [Path(p).name for p in inputs] == ["test.fits"]
 
     # Test write2fits
     outpath = dummy_fits.parent / "out.fits"
     io.write2fits(ccd.data, ccd.header, outpath)
     assert outpath.exists()
+
 
 def test_image_process(dummy_fits):
     """Test image processing."""
@@ -142,6 +145,7 @@ def test_image_process(dummy_fits):
     assert "XBINNING" in binccd.header
     assert "YBINNING" in binccd.header
 
+
 def test_header_edits(dummy_fits):
     """Test header edits via headers module."""
     # hedit
@@ -152,16 +156,18 @@ def test_header_edits(dummy_fits):
 
     # key_remover
     hdr = fits.getheader(dummy_fits)
-    hdr['TEMP'] = 123
-    hdr = headers.key_remover(hdr, ['TEMP'])
+    hdr["TEMP"] = 123
+    hdr = headers.key_remover(hdr, ["TEMP"])
     assert "TEMP" not in hdr
+
 
 def test_ccd_attributes(dummy_fits):
     """Test CCDData attribute setting."""
     ccd = io.load_ccd(dummy_fits)
-    ccdutils.set_ccd_attribute(ccd, 'gain', 2.0, unit='electron/adu')
+    ccdutils.set_ccd_attribute(ccd, "gain", 2.0, unit="electron/adu")
     assert ccd.gain.value == 2.0
     assert ccd.gain.unit == u.electron / u.adu
+
 
 def test_files_summary(dummy_fits):
     """Test summary generation."""
@@ -170,12 +176,12 @@ def test_files_summary(dummy_fits):
     headers.hedit(
         dummy_fits, "OBJECT", "TestObj", overwrite=True, add=True, output=dummy_fits
     )
-    io.write2fits(np.zeros((10,10)), fits.Header(), outpath)
+    io.write2fits(np.zeros((10, 10)), fits.Header(), outpath)
 
-    df = summary.fits_summary([dummy_fits, outpath], keywords=['OBJECT', 'NAXIS'])
-    df = df.sort_values('file').reset_index(drop=True)
+    df = summary.fits_summary([dummy_fits, outpath], keywords=["OBJECT", "NAXIS"])
+    df = df.sort_values("file").reset_index(drop=True)
 
     # out.fits (no object)
-    assert df.iloc[0]['OBJECT'] is None
+    assert df.iloc[0]["OBJECT"] is None
     # test.fits (object=TestObj)
-    assert df.iloc[1]['OBJECT'] == "TestObj"
+    assert df.iloc[1]["OBJECT"] == "TestObj"

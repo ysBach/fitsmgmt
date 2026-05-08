@@ -12,7 +12,6 @@ Output: tests/reduction/data/ndcombine_regression.pkl, tests/reduction/data/comp
 
 from __future__ import annotations
 
-import itertools
 import pickle
 from importlib import import_module
 from pathlib import Path
@@ -24,6 +23,7 @@ try:
     import astroimred.reduction as imred
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
     import astroimred.reduction as imred
 
@@ -64,18 +64,18 @@ def make_stack(shape, seed=DEFAULT_SEED, dtype=np.float32):
 
 
 def _ndcombine_default_params():
-    return dict(
-        copy=True,
-        blank=np.nan,
-        offsets=None,
-        zero_kw={"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
-        scale_kw={"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
-        zero_section=None,
-        scale_section=None,
-        dtype="float32",
-        memlimit=2.5e9,
-        verbose=False,
-    )
+    return {
+        "copy": True,
+        "blank": np.nan,
+        "offsets": None,
+        "zero_kw": {"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
+        "scale_kw": {"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
+        "zero_section": None,
+        "scale_section": None,
+        "dtype": "float32",
+        "memlimit": 2.5e9,
+        "verbose": False,
+    }
 
 
 def build_ndcombine_param_grid():
@@ -83,7 +83,6 @@ def build_ndcombine_param_grid():
     base = _ndcombine_default_params()
     # Parameter names and list of values (to be combined in meaningful subsets)
     combine_vals = ["average", "median", "sum", "min", "max", "lmedian"]
-    reject_vals = [None, "sigclip", "minmax", "ccdclip"]
     zero_vals = [None, "mean", "median"]
     scale_vals = [None, "mean", "median"]
     weight_vals = [None, "mean", "median"]
@@ -96,10 +95,8 @@ def build_ndcombine_param_grid():
     nkeep_vals = [1, 2]
     maxrej_vals = [None, 2]
     n_minmax_vals = [[1, 1], [2, 2]]
-    cenfunc_vals = ["median", "mean", "lmedian"]
     irafmode_vals = [True, False]
     full_vals = [True, False]
-    return_variance_vals = [True, False]
 
     cases = []
 
@@ -253,7 +250,13 @@ def run_ndcombine_case(shape, seed, params):
     try:
         out = ndcombine(arr, **p)
     except Exception as e:
-        return {"params": p, "shape": shape, "seed": seed, "error": str(e), "output": None}
+        return {
+            "params": p,
+            "shape": shape,
+            "seed": seed,
+            "error": str(e),
+            "output": None,
+        }
     if full:
         comb, err, mask_rej, mask_thresh, low, upp, nit, rejcode = out
         output = {
@@ -308,18 +311,28 @@ def build_component_param_grids():
             for weight in [None, "mean"]:
                 for zero_to_0th in [True, False]:
                     for scale_to_0th in [True, False]:
-                        get_zsw_cases.append({
-                            "arr": arr_small.copy(),
-                            "zero": zero,
-                            "scale": scale,
-                            "weight": weight,
-                            "zero_kw": {"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
-                            "scale_kw": {"cenfunc": "median", "stdfunc": "std", "std_ddof": 1},
-                            "zero_to_0th": zero_to_0th,
-                            "scale_to_0th": scale_to_0th,
-                            "zero_section": None,
-                            "scale_section": None,
-                        })
+                        get_zsw_cases.append(
+                            {
+                                "arr": arr_small.copy(),
+                                "zero": zero,
+                                "scale": scale,
+                                "weight": weight,
+                                "zero_kw": {
+                                    "cenfunc": "median",
+                                    "stdfunc": "std",
+                                    "std_ddof": 1,
+                                },
+                                "scale_kw": {
+                                    "cenfunc": "median",
+                                    "stdfunc": "std",
+                                    "std_ddof": 1,
+                                },
+                                "zero_to_0th": zero_to_0th,
+                                "scale_to_0th": scale_to_0th,
+                                "zero_section": None,
+                                "scale_section": None,
+                            }
+                        )
 
     do_zs_cases = []
     for _ in range(10):
@@ -336,84 +349,118 @@ def build_component_param_grids():
             for cenfunc in ["median", "mean"]:
                 for irafmode in [True, False]:
                     for full in [True, False]:
-                        sigclip_cases.append({
-                            "arr": arr5.copy(),
-                            "mask": None,
-                            "sigma": sigma[0] if sigma[0] == sigma[1] else sigma,
-                            "sigma_lower": sigma[0],
-                            "sigma_upper": sigma[1],
-                            "maxiters": maxiters,
-                            "ddof": 1,
-                            "nkeep": 1,
-                            "maxrej": None,
-                            "cenfunc": cenfunc,
-                            "irafmode": irafmode,
-                            "axis": 0,
-                            "full": full,
-                        })
+                        sigclip_cases.append(
+                            {
+                                "arr": arr5.copy(),
+                                "mask": None,
+                                "sigma": sigma[0] if sigma[0] == sigma[1] else sigma,
+                                "sigma_lower": sigma[0],
+                                "sigma_upper": sigma[1],
+                                "maxiters": maxiters,
+                                "ddof": 1,
+                                "nkeep": 1,
+                                "maxrej": None,
+                                "cenfunc": cenfunc,
+                                "irafmode": irafmode,
+                                "axis": 0,
+                                "full": full,
+                            }
+                        )
 
     minmax_cases = []
     for n_minmax in [[1, 1], [2, 2], [0, 1]]:
         for full in [True, False]:
-            minmax_cases.append({
-                "arr": arr5.copy(),
-                "mask": None,
-                "n_minmax": n_minmax,
-                "full": full,
-            })
+            minmax_cases.append(
+                {
+                    "arr": arr5.copy(),
+                    "mask": None,
+                    "n_minmax": n_minmax,
+                    "full": full,
+                }
+            )
 
     ccdclip_cases = []
     for sigma in [3.0, [2.0, 4.0]]:
         for full in [True, False]:
-            ccdclip_cases.append({
-                "arr": arr5.copy(),
-                "mask": None,
-                "sigma": sigma,
-                "maxiters": 2,
-                "gain": 1.0,
-                "rdnoise": 5.0,
-                "snoise": 0.0,
-                "scale_ref": 1.0,
-                "zero_ref": 0.0,
-                "full": full,
-            })
+            ccdclip_cases.append(
+                {
+                    "arr": arr5.copy(),
+                    "mask": None,
+                    "sigma": sigma,
+                    "maxiters": 2,
+                    "gain": 1.0,
+                    "rdnoise": 5.0,
+                    "snoise": 0.0,
+                    "scale_ref": 1.0,
+                    "zero_ref": 0.0,
+                    "full": full,
+                }
+            )
 
     # _set_* / _get_dtype_limits grids (exhaustive small param sets)
     arr_set = rng.normal(10.0, 2.0, (5, 4, 4)).astype(np.float32)
-    set_int_dtype_cases = [{"ncombine": n} for n in [1, 10, 255, 256, 1000, 65535, 65536, 100000]]
+    set_int_dtype_cases = [
+        {"ncombine": n} for n in [1, 10, 255, 256, 1000, 65535, 65536, 100000]
+    ]
     set_sigma_cases = []
     for sigma in [3.0, [3.0, 3.0], [2.0, 4.0], np.array([1.5])]:
         for sl in [None, 1.0]:
             for su in [None, 5.0]:
-                set_sigma_cases.append({"sigma": sigma, "sigma_lower": sl, "sigma_upper": su})
+                set_sigma_cases.append(
+                    {"sigma": sigma, "sigma_lower": sl, "sigma_upper": su}
+                )
     set_keeprej_cases = []
     for nkeep in [None, 1, 2, 0.5]:
         for maxrej in [None, 1, 2, 0.5]:
-            set_keeprej_cases.append({"arr": arr_set.copy(), "nkeep": nkeep, "maxrej": maxrej, "axis": 0})
+            set_keeprej_cases.append(
+                {"arr": arr_set.copy(), "nkeep": nkeep, "maxrej": maxrej, "axis": 0}
+            )
     set_minmax_cases = []
     for n_minmax in [[1, 1], [2, 2], [0, 1], [1], 0.1]:
-        set_minmax_cases.append({"arr": arr_set.copy(), "n_minmax": n_minmax, "axis": 0})
+        set_minmax_cases.append(
+            {"arr": arr_set.copy(), "n_minmax": n_minmax, "axis": 0}
+        )
     set_thresh_mask_cases = []
     for thresh in [[-np.inf, np.inf], [0, 100], [-1, 1], [50, 50]]:
         for update in [True, False]:
             mask = np.zeros_like(arr_set, dtype=bool)
-            set_thresh_mask_cases.append({"arr": arr_set.copy(), "mask": mask.copy(), "thresholds": thresh, "update_mask": update})
+            set_thresh_mask_cases.append(
+                {
+                    "arr": arr_set.copy(),
+                    "mask": mask.copy(),
+                    "thresholds": thresh,
+                    "update_mask": update,
+                }
+            )
     set_gain_rdns_cases = []
     for val in ["header", 1.0, 5.0, np.array([1.0, 2.0, 3.0, 4.0, 5.0])]:
-        set_gain_rdns_cases.append({"gain_or_rdnoise": val, "ncombine": 5, "dtype": "float32"})
+        set_gain_rdns_cases.append(
+            {"gain_or_rdnoise": val, "ncombine": 5, "dtype": "float32"}
+        )
     set_cenfunc_cases = []
     for cf in [None, "median", "med", "mean", "avg", "lmedian", "lmd"]:
         for shorten in [True, False]:
-            set_cenfunc_cases.append({"cenfunc": cf, "shorten": shorten, "nameonly": True, "nan": True})
+            set_cenfunc_cases.append(
+                {"cenfunc": cf, "shorten": shorten, "nameonly": True, "nan": True}
+            )
     set_combfunc_cases = []
     for cf in [None, "median", "average", "sum", "min", "max", "lmedian", "and", "or"]:
-        set_combfunc_cases.append({"combfunc": cf, "shorten": False, "nameonly": True, "nan": True})
-    set_reject_name_cases = [{"reject": r} for r in [None, "sigclip", "sig", "minmax", "mm", "ccdclip", "ccd", "pclip"]]
+        set_combfunc_cases.append(
+            {"combfunc": cf, "shorten": False, "nameonly": True, "nan": True}
+        )
+    set_reject_name_cases = [
+        {"reject": r}
+        for r in [None, "sigclip", "sig", "minmax", "mm", "ccdclip", "ccd", "pclip"]
+    ]
     set_mask_cases = []
     set_mask_cases.append({"arr": arr_set.copy(), "mask": None})
-    set_mask_cases.append({"arr": arr_set.copy(), "mask": np.zeros_like(arr_set, dtype=bool)})
+    set_mask_cases.append(
+        {"arr": arr_set.copy(), "mask": np.zeros_like(arr_set, dtype=bool)}
+    )
     set_mask_cases.append({"arr": arr_set.copy(), "mask": (arr_set > 12).astype(bool)})
-    get_dtype_limits_cases = [{"dtype": d} for d in [np.uint8, np.int32, np.float32, np.float64]]
+    get_dtype_limits_cases = [
+        {"dtype": d} for d in [np.uint8, np.int32, np.float32, np.float64]
+    ]
 
     return {
         "get_zsw": get_zsw_cases,
@@ -442,7 +489,7 @@ def run_component_cases():
 
     # get_zsw
     out["get_zsw"] = []
-    for i, g in enumerate(grids["get_zsw"]):
+    for _i, g in enumerate(grids["get_zsw"]):
         g = dict(g)
         arr = g.pop("arr")
         z, s, w = get_zsw(
@@ -457,21 +504,33 @@ def run_component_cases():
             zero_section=g["zero_section"],
             scale_section=g["scale_section"],
         )
-        out["get_zsw"].append({
-            "params": {"arr": arr.copy(), **g},
-            "output": (np.asarray(z).copy(), np.asarray(s).copy(), np.asarray(w).copy()),
-        })
+        out["get_zsw"].append(
+            {
+                "params": {"arr": arr.copy(), **g},
+                "output": (
+                    np.asarray(z).copy(),
+                    np.asarray(s).copy(),
+                    np.asarray(w).copy(),
+                ),
+            }
+        )
 
     # do_zs (do_zs mutates arr in place; store original arr in params, result in output)
     out["do_zs"] = []
-    for i, g in enumerate(grids["do_zs"]):
+    for _i, g in enumerate(grids["do_zs"]):
         arr_original = g["arr"].copy()
         arr_work = arr_original.copy()
         result = do_zs(arr_work, zeros=g["zeros"], scales=g["scales"], copy=False)
-        out["do_zs"].append({
-            "params": {"arr": arr_original, "zeros": g["zeros"].copy(), "scales": g["scales"].copy()},
-            "output": np.asarray(result).copy(),
-        })
+        out["do_zs"].append(
+            {
+                "params": {
+                    "arr": arr_original,
+                    "zeros": g["zeros"].copy(),
+                    "scales": g["scales"].copy(),
+                },
+                "output": np.asarray(result).copy(),
+            }
+        )
 
     # sigclip_mask
     out["sigclip_mask"] = []
@@ -499,9 +558,22 @@ def run_component_cases():
             full=g["full"],
         )
         if g["full"]:
-            out["sigclip_mask"].append({"params": {"arr": arr.copy(), **g}, "output": (np.asarray(r[0]).copy(), np.asarray(r[1]).copy(), np.asarray(r[2]).copy(), np.asarray(r[3]).copy(), np.asarray(r[4]).copy())})
+            out["sigclip_mask"].append(
+                {
+                    "params": {"arr": arr.copy(), **g},
+                    "output": (
+                        np.asarray(r[0]).copy(),
+                        np.asarray(r[1]).copy(),
+                        np.asarray(r[2]).copy(),
+                        np.asarray(r[3]).copy(),
+                        np.asarray(r[4]).copy(),
+                    ),
+                }
+            )
         else:
-            out["sigclip_mask"].append({"params": {"arr": arr.copy(), **g}, "output": np.asarray(r).copy()})
+            out["sigclip_mask"].append(
+                {"params": {"arr": arr.copy(), **g}, "output": np.asarray(r).copy()}
+            )
 
     # minmax_mask
     out["minmax_mask"] = []
@@ -510,9 +582,16 @@ def run_component_cases():
         arr = g.pop("arr")
         r = minmax_mask(arr, mask=g.get("mask"), n_minmax=g["n_minmax"], full=g["full"])
         if g["full"]:
-            out["minmax_mask"].append({"params": {"arr": arr.copy(), **g}, "output": tuple(np.asarray(x).copy() for x in r)})
+            out["minmax_mask"].append(
+                {
+                    "params": {"arr": arr.copy(), **g},
+                    "output": tuple(np.asarray(x).copy() for x in r),
+                }
+            )
         else:
-            out["minmax_mask"].append({"params": {"arr": arr.copy(), **g}, "output": np.asarray(r).copy()})
+            out["minmax_mask"].append(
+                {"params": {"arr": arr.copy(), **g}, "output": np.asarray(r).copy()}
+            )
 
     # ccdclip_mask
     out["ccdclip_mask"] = []
@@ -532,9 +611,16 @@ def run_component_cases():
             full=g["full"],
         )
         if g["full"]:
-            out["ccdclip_mask"].append({"params": {"arr": arr.copy(), **g}, "output": tuple(np.asarray(x).copy() for x in r)})
+            out["ccdclip_mask"].append(
+                {
+                    "params": {"arr": arr.copy(), **g},
+                    "output": tuple(np.asarray(x).copy() for x in r),
+                }
+            )
         else:
-            out["ccdclip_mask"].append({"params": {"arr": arr.copy(), **g}, "output": np.asarray(r).copy()})
+            out["ccdclip_mask"].append(
+                {"params": {"arr": arr.copy(), **g}, "output": np.asarray(r).copy()}
+            )
 
     # _set_* and _get_dtype_limits
     def _run_setter(name, run_fn, cases_list):
@@ -566,36 +652,62 @@ def run_component_cases():
         g_ = dict(g)
         try:
             r = _set_sigma(**g_)
-            out.setdefault("set_sigma", []).append({"params": g_, "output": (float(r[0]), float(r[1]))})
+            out.setdefault("set_sigma", []).append(
+                {"params": g_, "output": (float(r[0]), float(r[1]))}
+            )
         except Exception as e:
-            out.setdefault("set_sigma", []).append({"params": g_, "output": None, "error": str(e)})
+            out.setdefault("set_sigma", []).append(
+                {"params": g_, "output": None, "error": str(e)}
+            )
     for g in grids["set_keeprej"]:
         g_ = dict(g)
         arr = g_.pop("arr")
         r = _set_keeprej(arr, **g_)
-        out.setdefault("set_keeprej", []).append({"params": {"arr_shape": arr.shape, **g_}, "output": (int(r[0]), int(r[1]))})
+        out.setdefault("set_keeprej", []).append(
+            {"params": {"arr_shape": arr.shape, **g_}, "output": (int(r[0]), int(r[1]))}
+        )
     for g in grids["set_minmax"]:
         g_ = dict(g)
         arr = g_.pop("arr")
         try:
             r = _set_minmax(arr, **g_)
-            out.setdefault("set_minmax", []).append({"params": {"arr_shape": arr.shape, **g_}, "output": (float(r[0]), float(r[1]))})
+            out.setdefault("set_minmax", []).append(
+                {
+                    "params": {"arr_shape": arr.shape, **g_},
+                    "output": (float(r[0]), float(r[1])),
+                }
+            )
         except Exception as e:
-            out.setdefault("set_minmax", []).append({"params": {"arr_shape": arr.shape, **g_}, "output": None, "error": str(e)})
+            out.setdefault("set_minmax", []).append(
+                {
+                    "params": {"arr_shape": arr.shape, **g_},
+                    "output": None,
+                    "error": str(e),
+                }
+            )
     for g in grids["set_thresh_mask"]:
         g_ = dict(g)
         arr = g_.pop("arr")
         mask = g_.pop("mask")
         mask_orig = mask.copy()
         r = _set_thresh_mask(arr, mask, **g_)
-        out.setdefault("set_thresh_mask", []).append({"params": {"arr": arr.copy(), "mask": mask_orig, **g_}, "output": np.asarray(r).copy()})
+        out.setdefault("set_thresh_mask", []).append(
+            {
+                "params": {"arr": arr.copy(), "mask": mask_orig, **g_},
+                "output": np.asarray(r).copy(),
+            }
+        )
     for g in grids["set_gain_rdns"]:
         g_ = dict(g)
         try:
             r = _set_gain_rdns(**g_)
-            out.setdefault("set_gain_rdns", []).append({"params": g_, "output": (r[0], np.asarray(r[1]).copy())})
+            out.setdefault("set_gain_rdns", []).append(
+                {"params": g_, "output": (r[0], np.asarray(r[1]).copy())}
+            )
         except Exception as e:
-            out.setdefault("set_gain_rdns", []).append({"params": g_, "output": None, "error": str(e)})
+            out.setdefault("set_gain_rdns", []).append(
+                {"params": g_, "output": None, "error": str(e)}
+            )
     for g in grids["set_cenfunc"]:
         g_ = dict(g)
         r = _set_cenfunc(**g_)
@@ -606,7 +718,9 @@ def run_component_cases():
             r = _set_combfunc(**g_)
             out.setdefault("set_combfunc", []).append({"params": g_, "output": r})
         except Exception as e:
-            out.setdefault("set_combfunc", []).append({"params": g_, "output": None, "error": str(e)})
+            out.setdefault("set_combfunc", []).append(
+                {"params": g_, "output": None, "error": str(e)}
+            )
     for g in grids["set_reject_name"]:
         g_ = dict(g)
         r = _set_reject_name(**g_)
@@ -616,14 +730,21 @@ def run_component_cases():
         arr = g_.pop("arr")
         mask = g_.pop("mask")
         r = _set_mask(arr, mask)
-        out.setdefault("set_mask", []).append({
-            "params": {"arr": arr.copy(), "mask": mask.copy() if mask is not None else None},
-            "output": np.asarray(r).copy(),
-        })
+        out.setdefault("set_mask", []).append(
+            {
+                "params": {
+                    "arr": arr.copy(),
+                    "mask": mask.copy() if mask is not None else None,
+                },
+                "output": np.asarray(r).copy(),
+            }
+        )
     for g in grids["get_dtype_limits"]:
         g_ = dict(g)
         r = _get_dtype_limits(**g_)
-        out.setdefault("get_dtype_limits", []).append({"params": g_, "output": (r[0], r[1])})
+        out.setdefault("get_dtype_limits", []).append(
+            {"params": g_, "output": (r[0], r[1])}
+        )
 
     return out
 

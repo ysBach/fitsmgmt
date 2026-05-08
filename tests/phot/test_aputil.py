@@ -24,24 +24,26 @@ from numpy.testing import assert_allclose
 from astroimred.phot.aputil import (
     _circ_bbox,
     _ellip_bbox,
-    fast_circ_apmask,
     fast_circ_anmask,
     fast_circ_apanmask,
-    fast_ellip_apmask,
+    fast_circ_apmask,
     fast_ellip_anmask,
+    fast_ellip_apmask,
 )
-
 
 # =============================================================================
 # _bbox
 # =============================================================================
+
 
 class TestBbox:
     """Tests for the private _bbox helper."""
 
     def test_centered_at_origin(self):
         """r=5 centered at (0,0): verify ixmin, nx, and that ixmax=ixmin+nx."""
-        ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(0.0, 0.0, 5.0)
+        ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(
+            0.0, 0.0, 5.0
+        )
         # ixmin = floor(0-5+0.5) = floor(-4.5) = -5
         assert ixmin == -5
         # ixmax = ceil(0+5+0.5) = ceil(5.5) = 6  (exclusive upper bound)
@@ -53,7 +55,9 @@ class TestBbox:
 
     def test_subpixel_offsets_centered(self):
         """For center at (0,0), r=5: xmin=ixmin-0.5-x, xmax=ixmax-0.5-x."""
-        ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(0.0, 0.0, 5.0)
+        ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(
+            0.0, 0.0, 5.0
+        )
         assert_allclose(xmin, ixmin - 0.5)
         assert_allclose(xmax, ixmax - 0.5)
         assert_allclose(ymin, iymin - 0.5)
@@ -61,7 +65,9 @@ class TestBbox:
 
     def test_offset_center(self):
         """r=3 at (10.5, 20.5): ixmin=8, ixmax=14, nx=6."""
-        ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(10.5, 20.5, 3.0)
+        ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(
+            10.5, 20.5, 3.0
+        )
         assert ixmin == 8
         assert ixmax == 14
         assert iymin == 18
@@ -89,6 +95,7 @@ class TestBbox:
 # _ellip_bbox
 # =============================================================================
 
+
 class TestEllipBbox:
     """Tests for the private _ellip_bbox helper."""
 
@@ -99,9 +106,9 @@ class TestEllipBbox:
             0.0, 0.0, 6.0, 4.0, 0.0
         )
         assert ixmin == -6
-        assert ixmax == 7   # ceil(6.5) = 7
+        assert ixmax == 7  # ceil(6.5) = 7
         assert iymin == -4
-        assert iymax == 5   # ceil(4.5) = 5
+        assert iymax == 5  # ceil(4.5) = 5
         assert nx == 13
         assert ny == 9
 
@@ -172,6 +179,7 @@ class TestEllipBbox:
 # fast_circ_apmask
 # =============================================================================
 
+
 class TestFastCircApmask:
     """Tests for fast_circ_apmask."""
 
@@ -233,6 +241,7 @@ class TestFastCircApmask:
 # =============================================================================
 # fast_circ_anmask
 # =============================================================================
+
 
 class TestFastCircAnmask:
     """Tests for fast_circ_anmask."""
@@ -296,6 +305,7 @@ class TestFastCircAnmask:
 # fast_circ_apanmask
 # =============================================================================
 
+
 class TestFastCircApanmask:
     """Tests for fast_circ_apanmask."""
 
@@ -349,6 +359,7 @@ class TestFastCircApanmask:
 # fast_ellip_apmask
 # =============================================================================
 
+
 class TestFastEllipApmask:
     """Tests for fast_ellip_apmask."""
 
@@ -382,7 +393,9 @@ class TestFastEllipApmask:
         mask, _ = fast_ellip_apmask(0.0, 0.0, rx, ry, 0.0, use_exact=1)
         assert_allclose(mask.sum(), np.pi * rx * ry, atol=1.0)
 
-    @pytest.mark.parametrize("theta", [0.0, math.pi / 6, math.pi / 4, math.pi / 3, math.pi / 2])
+    @pytest.mark.parametrize(
+        "theta", [0.0, math.pi / 6, math.pi / 4, math.pi / 3, math.pi / 2]
+    )
     def test_exact_sum_invariant_to_theta(self, theta):
         """Area is invariant to rotation: sum ≈ pi*rx*ry for any theta."""
         rx, ry = 8.0, 5.0
@@ -431,6 +444,7 @@ class TestFastEllipApmask:
 # fast_ellip_anmask
 # =============================================================================
 
+
 class TestFastEllipAnmask:
     """Tests for fast_ellip_anmask."""
 
@@ -467,7 +481,9 @@ class TestFastEllipAnmask:
         expected = np.pi * (rx_out * ry_out - rx_in * ry_in)
         assert_allclose(mask.sum(), expected, atol=1.5)
 
-    @pytest.mark.parametrize("theta", [0.0, math.pi / 6, math.pi / 4, math.pi / 3, math.pi / 2])
+    @pytest.mark.parametrize(
+        "theta", [0.0, math.pi / 6, math.pi / 4, math.pi / 3, math.pi / 2]
+    )
     def test_exact_sum_invariant_to_theta(self, theta):
         """Annulus area is invariant to rotation."""
         rx_in, ry_in, rx_out, ry_out = 3.0, 2.0, 7.0, 5.0
@@ -523,7 +539,9 @@ class TestFastEllipAnmask:
     def test_circle_annulus_matches_circ_anmask(self):
         """rx_in=ry_in=r_in, rx_out=ry_out=r_out: matches fast_circ_anmask."""
         r_in, r_out = 3.0, 7.0
-        mask_e, _ = fast_ellip_anmask(0.0, 0.0, r_in, r_in, r_out, r_out, 0.0, use_exact=1)
+        mask_e, _ = fast_ellip_anmask(
+            0.0, 0.0, r_in, r_in, r_out, r_out, 0.0, use_exact=1
+        )
         mask_c, _ = fast_circ_anmask(0.0, 0.0, r_in, r_out, use_exact=1)
         assert_allclose(mask_e.sum(), mask_c.sum(), atol=0.5)
 

@@ -1,9 +1,12 @@
-from .crrej import *
+import sys
+import types
+
 from .combutil import *
-from .preproc import *
+from .crrej import *
 from .imutil import *
 from .imutil import IMUTIL_USE_NUMBA
 from .imutil import config as imutil_config
+from .preproc import *
 
 
 def set_imutil_use_numba(value):
@@ -15,12 +18,6 @@ def set_imutil_use_numba(value):
         # Or directly: imred.IMUTIL_USE_NUMBA = True
     """
     imutil_config.IMUTIL_USE_NUMBA = bool(value)
-
-
-# Intercept assignment to IMUTIL_USE_NUMBA by using a custom module class
-# This must be done after all imports to avoid breaking module loading
-import sys
-import types
 
 
 class _NumbaModule(types.ModuleType):

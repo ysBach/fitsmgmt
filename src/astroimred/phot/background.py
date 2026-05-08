@@ -148,7 +148,9 @@ def sky_fit(
         skys = annul2values(ccd, annulus, mask=mask)
 
     if sky_clipper is None:
-        sky_clipper = lambda x, **kwargs: x[~np.isnan(x)]
+
+        def sky_clipper(x, **kwargs):
+            return x[~np.isnan(x)]
 
     for _, sky in enumerate(skys):
         skydict = {}
@@ -389,7 +391,6 @@ def mmm_dao(
     sky = np.array(sky)
     if (nsky := sky.size) < min_nsky:
         sigma = -1.0
-        skew = 0.0
         raise ValueError(f"Input vector must contain at least {min_nsky = } elements.")
 
     # do the MMM sky estimation similar to DAOPHOT (MMM.pro of https://idlastro.gsfc.nasa.gov/ftp/pro/idlphot/mmm.pro)
@@ -401,9 +402,8 @@ def mmm_dao(
     cut2 = skymid + cut1
     cut1 = skymid - cut1
     goodmask = (cut1 <= sky) & (sky <= cut2)
-    if (ngood := np.count_nonzero(goodmask)) == 0:
+    if np.count_nonzero(goodmask) == 0:
         sigma = -1.0
-        skew = 0.0
         raise ValueError(f"No sky values survived: {cut1:.4f}<=sky<={cut2:.4f}")
 
     skydelta = sky[goodmask] - skymid
@@ -422,10 +422,7 @@ def mmm_dao(
     sigma = np.sqrt(deltasumsq / (max_idx - min_idx) - skymn**2)
     skymn = skymn + skymid
 
-    if skymed < skymn:
-        skymod = 3 * skymed - 2 * skymn
-    else:
-        skymod = skymn
+    skymod = 3 * skymed - 2 * skymn if skymed < skymn else skymn
 
     # Rejection and recomputation loop
     niter = 0
@@ -437,12 +434,10 @@ def mmm_dao(
         niter += 1
         if niter > maxiter:
             sigma = -1.0
-            skew = 0.0
             raise ValueError(f"Too many ({maxiter}) iterations, unable to compute sky.")
 
         if max_idx - min_idx < min_nsky:
             sigma = -1.0
-            skew = 0.0
             # raise ValueError(f"Too few ({max_idx - min_idx}) valid sky elements.")
             # It seems robust to just return the current estimate
             break
@@ -521,7 +516,6 @@ def mmm_dao(
         nsky_curr = max_idx - min_idx
         if nsky_curr < min_nsky:
             sigma = -1.0
-            skew = 0.0
             # raise ValueError("Outlier rejection left too few sky elements.")
             break
 
@@ -541,7 +535,7 @@ def mmm_dao(
             R = 0.25 * readnoise
             while (
                 (J > 0)
-                and (K < nsky - 1)
+                and (nsky - 1 > K)
                 and ((sky[L] - sky[J] < R) or (sky[K] - sky[M] < R))
             ):
                 J -= 1
@@ -549,10 +543,7 @@ def mmm_dao(
 
         skymed = np.sum(sky[J : K + 1]) / (K - J + 1)
 
-        if skymed < skymn:
-            dmod = 3 * skymed - 2 * skymn - skymod
-        else:
-            dmod = skymn - skymod
+        dmod = 3 * skymed - 2 * skymn - skymod if skymed < skymn else skymn - skymod
 
         if dmod * old < 0:
             clamp = 0.5 * clamp

@@ -1,8 +1,3 @@
-import pytest
-
-pytest.importorskip("photutils")
-pytest.importorskip("sep")
-
 """
 Shared pytest fixtures for astroimred.phot tests.
 
@@ -14,9 +9,11 @@ in pyproject.toml under [tool.pytest.ini_options].
 
 import numpy as np
 import pytest
-from astropy.nddata import CCDData
 from astropy.modeling.functional_models import Gaussian2D
+from astropy.nddata import CCDData
 
+pytest.importorskip("photutils")
+pytest.importorskip("sep")
 
 # =============================================================================
 # Constants for reproducibility
@@ -51,8 +48,9 @@ def uniform_200x200():
 # =============================================================================
 # Gaussian 2D Sources - known amplitude, position, sigma
 # =============================================================================
-def make_gaussian_2d(shape, x_mean, y_mean, amplitude, x_stddev, y_stddev=None,
-                     theta=0, background=0):
+def make_gaussian_2d(
+    shape, x_mean, y_mean, amplitude, x_stddev, y_stddev=None, theta=0, background=0
+):
     """
     Create a 2D Gaussian array with known parameters.
 
@@ -79,14 +77,14 @@ def make_gaussian_2d(shape, x_mean, y_mean, amplitude, x_stddev, y_stddev=None,
     if y_stddev is None:
         y_stddev = x_stddev
 
-    yy, xx = np.mgrid[:shape[0], :shape[1]]
+    yy, xx = np.mgrid[: shape[0], : shape[1]]
     gauss = Gaussian2D(
         amplitude=amplitude,
         x_mean=x_mean,
         y_mean=y_mean,
         x_stddev=x_stddev,
         y_stddev=y_stddev,
-        theta=theta
+        theta=theta,
     )
     return gauss(xx, yy) + background
 
@@ -108,7 +106,7 @@ def gaussian_source_centered():
         y_mean=50.0,
         amplitude=1000.0,
         x_stddev=3.0,
-        background=100.0
+        background=100.0,
     )
 
 
@@ -130,7 +128,7 @@ def gaussian_source_offset():
         y_mean=50.7,
         amplitude=1000.0,
         x_stddev=3.0,
-        background=100.0
+        background=100.0,
     )
 
 
@@ -138,12 +136,12 @@ def gaussian_source_offset():
 def gaussian_params_centered():
     """Parameters dict for gaussian_source_centered"""
     return {
-        'amplitude': 1000.0,
-        'x_mean': 50.0,
-        'y_mean': 50.0,
-        'x_stddev': 3.0,
-        'y_stddev': 3.0,
-        'background': 100.0
+        "amplitude": 1000.0,
+        "x_mean": 50.0,
+        "y_mean": 50.0,
+        "x_stddev": 3.0,
+        "y_stddev": 3.0,
+        "background": 100.0,
     }
 
 
@@ -151,12 +149,12 @@ def gaussian_params_centered():
 def gaussian_params_offset():
     """Parameters dict for gaussian_source_offset"""
     return {
-        'amplitude': 1000.0,
-        'x_mean': 50.3,
-        'y_mean': 50.7,
-        'x_stddev': 3.0,
-        'y_stddev': 3.0,
-        'background': 100.0
+        "amplitude": 1000.0,
+        "x_mean": 50.3,
+        "y_mean": 50.7,
+        "x_stddev": 3.0,
+        "y_stddev": 3.0,
+        "background": 100.0,
     }
 
 
@@ -175,11 +173,11 @@ def ccd_uniform():
     """
     data = np.full(SHAPE_MEDIUM, 100.0, dtype=np.float64)
     header = {
-        'GAIN': 2.0,
-        'RDNOISE': 5.0,
-        'EXPTIME': 60.0,
+        "GAIN": 2.0,
+        "RDNOISE": 5.0,
+        "EXPTIME": 60.0,
     }
-    return CCDData(data=data, unit='adu', header=header)
+    return CCDData(data=data, unit="adu", header=header)
 
 
 @pytest.fixture
@@ -190,11 +188,11 @@ def ccd_with_source(gaussian_source_centered):
     Source at (50, 50), amplitude=1000, sigma=3, background=100
     """
     header = {
-        'GAIN': 2.0,
-        'RDNOISE': 5.0,
-        'EXPTIME': 60.0,
+        "GAIN": 2.0,
+        "RDNOISE": 5.0,
+        "EXPTIME": 60.0,
     }
-    return CCDData(data=gaussian_source_centered, unit='adu', header=header)
+    return CCDData(data=gaussian_source_centered, unit="adu", header=header)
 
 
 @pytest.fixture
@@ -203,11 +201,11 @@ def ccd_with_source_offset(gaussian_source_offset):
     CCDData with Gaussian source at offset position (50.3, 50.7).
     """
     header = {
-        'GAIN': 2.0,
-        'RDNOISE': 5.0,
-        'EXPTIME': 60.0,
+        "GAIN": 2.0,
+        "RDNOISE": 5.0,
+        "EXPTIME": 60.0,
     }
-    return CCDData(data=gaussian_source_offset, unit='adu', header=header)
+    return CCDData(data=gaussian_source_offset, unit="adu", header=header)
 
 
 # =============================================================================
@@ -249,10 +247,14 @@ def polarimetry_unpolarized():
     Expected: q = 0, u = 0
     """
     return {
-        'o_000': 1000.0, 'e_000': 1000.0,
-        'o_450': 1000.0, 'e_450': 1000.0,
-        'o_225': 1000.0, 'e_225': 1000.0,
-        'o_675': 1000.0, 'e_675': 1000.0,
+        "o_000": 1000.0,
+        "e_000": 1000.0,
+        "o_450": 1000.0,
+        "e_450": 1000.0,
+        "o_225": 1000.0,
+        "e_225": 1000.0,
+        "o_675": 1000.0,
+        "e_675": 1000.0,
     }
 
 
@@ -268,10 +270,14 @@ def polarimetry_q_only():
     For u=0: e_225/o_225 = e_675/o_675
     """
     return {
-        'o_000': 1000.0, 'e_000': 2000.0,  # ratio = 2
-        'o_450': 1000.0, 'e_450': 500.0,   # ratio = 0.5
-        'o_225': 1000.0, 'e_225': 1000.0,  # ratio = 1
-        'o_675': 1000.0, 'e_675': 1000.0,  # ratio = 1
+        "o_000": 1000.0,
+        "e_000": 2000.0,  # ratio = 2
+        "o_450": 1000.0,
+        "e_450": 500.0,  # ratio = 0.5
+        "o_225": 1000.0,
+        "e_225": 1000.0,  # ratio = 1
+        "o_675": 1000.0,
+        "e_675": 1000.0,  # ratio = 1
     }
 
 
@@ -287,10 +293,14 @@ def polarimetry_qu_known():
            u = (2-1)/(2+1) = 1/3
     """
     return {
-        'o_000': 1000.0, 'e_000': 2000.0,
-        'o_450': 1000.0, 'e_450': 500.0,
-        'o_225': 1000.0, 'e_225': 2000.0,
-        'o_675': 1000.0, 'e_675': 500.0,
+        "o_000": 1000.0,
+        "e_000": 2000.0,
+        "o_450": 1000.0,
+        "e_450": 500.0,
+        "o_225": 1000.0,
+        "e_225": 2000.0,
+        "o_675": 1000.0,
+        "e_675": 500.0,
     }
 
 

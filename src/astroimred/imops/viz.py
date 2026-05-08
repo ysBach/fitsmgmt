@@ -72,7 +72,7 @@ def astropy_stretch(name: str) -> BaseStretch:
 
 def znorm(
     image: ImageLike,
-    stretch: BaseStretch = LinearStretch(),
+    stretch: BaseStretch | None = None,
     **kwargs: Any,
 ) -> ImageNormalize:
     """Create an ImageNormalize object using ZScale interval.
@@ -91,13 +91,15 @@ def znorm(
     norm : `~astropy.visualization.ImageNormalize`
         The normalization object suitable for use with `imshow`.
     """
+    if stretch is None:
+        stretch = LinearStretch()
     return ImageNormalize(image, interval=ZScaleInterval(**kwargs), stretch=stretch)
 
 
 def zimshow(
     ax,
     image: ImageLike,
-    stretch: BaseStretch = LinearStretch(),
+    stretch: BaseStretch | None = None,
     cmap: Any = None,
     origin: str = "lower",
     zscale_kw: dict[str, Any] | None = None,

@@ -6,13 +6,10 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from astroimred.imops.ccdutils import (
-    CCDData_astype,
-    imslice,
-)
+from astroimred.imops.ccdutils import CCDData_astype, imslice
+from astroimred.logging import logger
 from astroimred.mgmt.headers import cmt2hdr, update_tlm
 from astroimred.mgmt.io import _has_header, _parse_extension, _parse_image
-from astroimred.logging import logger
 
 from ._imcombine_fits import _get_image_hdu
 
@@ -76,9 +73,11 @@ def _replace_nan(res, header, replace=None):
 def _make_primary_hdu(data, header):
     header = fits.Header(header)
     for key in list(header):
-        if key in {"SIMPLE", "XTENSION", "BITPIX", "NAXIS", "PCOUNT", "GCOUNT"}:
-            del header[key]
-        elif key.startswith("NAXIS") and key[5:].isdigit():
+        if (
+            key in {"SIMPLE", "XTENSION", "BITPIX", "NAXIS", "PCOUNT", "GCOUNT"}
+            or key.startswith("NAXIS")
+            and key[5:].isdigit()
+        ):
             del header[key]
     return fits.PrimaryHDU(data=data, header=header)
 
@@ -109,8 +108,10 @@ def _load_im_name_hdr(
             im_has_hdr = True
         except TypeError:  # im is not a path-like
             im_has_hdr = _has_header(im, extension)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"im is path-like but doesn't exist at {im}")
+        except FileNotFoundError as err:
+            raise FileNotFoundError(
+                f"im is path-like but doesn't exist at {im}"
+            ) from err
         return im, name, im_has_hdr
 
     im1, name1, im1_has_hdr = __check_if_has_header(im1, name1, extension1)
@@ -120,10 +121,7 @@ def _load_im_name_hdr(
     else:
         # load to HDUList if path-like
         im2, name2, im2_has_hdr = __check_if_has_header(im2, name2, extension2)
-        if im2_has_hdr:
-            hdr_ref = im2.header
-        else:
-            hdr_ref = None
+        hdr_ref = im2.header if im2_has_hdr else None
 
     if (
         offsets is not None
@@ -136,10 +134,10 @@ def _load_im_name_hdr(
         )  # CCDLIKE or path-like
         try:
             shapes = [im1.data.shape, im2.data.shape]
-        except AttributeError:
+        except AttributeError as err:
             raise ValueError(
                 "If offsets is used, im must be CCDData-like or path-like (header needed)"
-            )
+            ) from err
 
         if offsets.lower() in ["phy", "phys", "physical"]:
             offsets_name = "Physical"

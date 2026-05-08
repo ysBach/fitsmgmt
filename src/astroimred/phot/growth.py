@@ -128,7 +128,15 @@ def dmag(r1, r2, airmass, a, b, c, width=1, power=1, sigma=1, r0=1):
         The scaled length (``DR_i``) of the exponential profile.
         Default is ``1``.
     """
-    params = dict(a=a, b=b, c=c, width=width, power=power, sigma=sigma, r0=r0)
+    params = {
+        "a": a,
+        "b": b,
+        "c": c,
+        "width": width,
+        "power": power,
+        "sigma": sigma,
+        "r0": r0,
+    }
     prof1 = profile(r1, airmass, **params)
     prof2 = profile(r2, airmass, **params)
     delta_mag = -2.5 * np.log10(prof2 / prof1)  # = m1 - m2

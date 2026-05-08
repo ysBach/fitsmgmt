@@ -8,13 +8,7 @@ import numpy as np
 import pytest
 from astropy.nddata import CCDData, Cutout2D
 from numpy.testing import assert_allclose
-from photutils.aperture import (
-    CircularAnnulus,
-    CircularAperture,
-    EllipticalAnnulus,
-    EllipticalAperture,
-    RectangularAperture,
-)
+from photutils.aperture import CircularAperture, EllipticalAperture
 
 from astroimred.phot.aperture import (
     PillBoxAnnulus,
@@ -30,10 +24,10 @@ from astroimred.phot.aperture import (
 )
 from astroimred.phot.pillbox import PillBoxAperture as DirectPillBoxAperture
 
-
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _uniform_ccd(shape=(100, 100), value=10.0):
     return CCDData(np.full(shape, value, dtype=np.float64), unit="adu")
@@ -56,6 +50,7 @@ def _make_wcs(naxis1=100, naxis2=100, cdelt=-0.5 / 3600, flip_ra=True):
 # =============================================================================
 # circ_ap_an
 # =============================================================================
+
 
 class TestCircApAn:
     """Tests for circ_ap_an."""
@@ -108,12 +103,15 @@ class TestCircApAn:
 # ellip_ap_an
 # =============================================================================
 
+
 class TestEllipApAn:
     """Tests for ellip_ap_an."""
 
     def test_fwhm_symmetric_factors(self):
         """Symmetric f_ap=(1.5,1.5) → a=b=1.5*fwhm."""
-        ap, an = ellip_ap_an((50, 50), fwhm=10, f_ap=(1.5, 1.5), f_in=(4.0, 4.0), f_out=(6.0, 6.0))
+        ap, an = ellip_ap_an(
+            (50, 50), fwhm=10, f_ap=(1.5, 1.5), f_in=(4.0, 4.0), f_out=(6.0, 6.0)
+        )
         assert_allclose(ap.a, 15.0)
         assert_allclose(ap.b, 15.0)
         assert_allclose(an.a_in, 40.0)
@@ -121,7 +119,9 @@ class TestEllipApAn:
 
     def test_fwhm_asymmetric_factors(self):
         """Asymmetric f_ap=(2.0,1.0) → a=20, b=10."""
-        ap, _ = ellip_ap_an((50, 50), fwhm=10, f_ap=(2.0, 1.0), f_in=(4.0, 4.0), f_out=(6.0, 6.0))
+        ap, _ = ellip_ap_an(
+            (50, 50), fwhm=10, f_ap=(2.0, 1.0), f_in=(4.0, 4.0), f_out=(6.0, 6.0)
+        )
         assert_allclose(ap.a, 20.0)
         assert_allclose(ap.b, 10.0)
 
@@ -145,6 +145,7 @@ class TestEllipApAn:
     def test_theta_stored(self):
         """theta is stored correctly (as Quantity in rad)."""
         import astropy.units as u
+
         theta = np.pi / 4
         ap, an = ellip_ap_an((50, 50), r_ap=10, r_in=20, r_out=30, theta=theta)
         assert_allclose(ap.theta.to_value(u.rad), theta)
@@ -160,6 +161,7 @@ class TestEllipApAn:
 # =============================================================================
 # PillBoxAperture
 # =============================================================================
+
 
 class TestPillBoxAperture:
     """Tests for PillBoxAperture geometry and mask."""
@@ -190,6 +192,7 @@ class TestPillBoxAperture:
     def test_theta_stored(self):
         """theta stored correctly (as Quantity in rad)."""
         import astropy.units as u
+
         theta = np.pi / 6
         pb = PillBoxAperture((50, 50), w=10, a=5, b=3, theta=theta)
         assert_allclose(pb.theta.to_value(u.rad), theta)
@@ -210,6 +213,7 @@ class TestPillBoxAperture:
     def test_to_mask_returns_aperturemask(self):
         """to_mask returns ApertureMask for scalar aperture."""
         from photutils.aperture import ApertureMask
+
         pb = PillBoxAperture((50, 50), w=10, a=5, b=3, theta=0)
         msk = pb.to_mask(method="center")
         assert isinstance(msk, ApertureMask)
@@ -232,6 +236,7 @@ class TestPillBoxAperture:
     def test_to_mask_multi_returns_list(self):
         """Multi-position → list of ApertureMask."""
         from photutils.aperture import ApertureMask
+
         pb = PillBoxAperture([(10, 20), (30, 40)], w=5, a=3, b=2, theta=0)
         masks = pb.to_mask(method="center")
         assert isinstance(masks, list)
@@ -256,8 +261,10 @@ class TestPillBoxAperture:
     def test_to_patch_returns_patch(self):
         """_to_patch returns a matplotlib PathPatch."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.patches as mpatches
+
         pb = PillBoxAperture((50, 50), w=10, a=5, b=3, theta=0)
         patch = pb._to_patch()
         assert isinstance(patch, mpatches.PathPatch)
@@ -265,8 +272,9 @@ class TestPillBoxAperture:
     def test_to_patch_multi_returns_list(self):
         """Multi-position _to_patch returns list of PathPatch."""
         import matplotlib
+
         matplotlib.use("Agg")
-        import matplotlib.patches as mpatches
+
         pb = PillBoxAperture([(10, 20), (30, 40)], w=5, a=3, b=2, theta=0)
         patches = pb._to_patch()
         assert isinstance(patches, list)
@@ -276,6 +284,7 @@ class TestPillBoxAperture:
 # =============================================================================
 # PillBoxAnnulus
 # =============================================================================
+
 
 class TestPillBoxAnnulus:
     """Tests for PillBoxAnnulus geometry and mask."""
@@ -302,7 +311,9 @@ class TestPillBoxAnnulus:
 
     def test_area_thin_annulus(self):
         """Very thin annulus: a_in close to a_out → area is small but positive."""
-        pba = PillBoxAnnulus((50, 50), w=0.001, a_in=5.0, a_out=5.001, b_out=3.0, theta=0)
+        pba = PillBoxAnnulus(
+            (50, 50), w=0.001, a_in=5.0, a_out=5.001, b_out=3.0, theta=0
+        )
         assert pba.area >= 0
 
     def test_positions_stored(self):
@@ -314,13 +325,16 @@ class TestPillBoxAnnulus:
     def test_theta_stored(self):
         """theta stored correctly (as Quantity in rad)."""
         import astropy.units as u
+
         theta = np.pi / 3
         pba = PillBoxAnnulus((50, 50), w=10, a_in=3, a_out=6, b_out=4, theta=theta)
         assert_allclose(pba.theta.to_value(u.rad), theta)
 
     def test_multi_position(self):
         """Multiple positions accepted."""
-        pba = PillBoxAnnulus([(10, 20), (30, 40)], w=5, a_in=2, a_out=4, b_out=3, theta=0)
+        pba = PillBoxAnnulus(
+            [(10, 20), (30, 40)], w=5, a_in=2, a_out=4, b_out=3, theta=0
+        )
         assert np.atleast_2d(pba.positions).shape == (2, 2)
         assert not pba.isscalar
 
@@ -329,6 +343,7 @@ class TestPillBoxAnnulus:
     def test_to_mask_returns_aperturemask(self):
         """to_mask returns ApertureMask for scalar annulus."""
         from photutils.aperture import ApertureMask
+
         pba = PillBoxAnnulus((50, 50), w=10, a_in=3, a_out=6, b_out=4, theta=0)
         msk = pba.to_mask(method="center")
         assert isinstance(msk, ApertureMask)
@@ -359,8 +374,10 @@ class TestPillBoxAnnulus:
 
     def test_to_mask_multi_returns_list(self):
         """Multi-position → list of ApertureMask."""
-        from photutils.aperture import ApertureMask
-        pba = PillBoxAnnulus([(10, 20), (30, 40)], w=5, a_in=2, a_out=4, b_out=3, theta=0)
+
+        pba = PillBoxAnnulus(
+            [(10, 20), (30, 40)], w=5, a_in=2, a_out=4, b_out=3, theta=0
+        )
         masks = pba.to_mask(method="center")
         assert isinstance(masks, list)
         assert len(masks) == 2
@@ -370,8 +387,10 @@ class TestPillBoxAnnulus:
     def test_to_patch_returns_patch(self):
         """_to_patch returns a matplotlib PathPatch."""
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.patches as mpatches
+
         pba = PillBoxAnnulus((50, 50), w=10, a_in=3, a_out=6, b_out=4, theta=0)
         patch = pba._to_patch()
         assert isinstance(patch, mpatches.PathPatch)
@@ -379,9 +398,12 @@ class TestPillBoxAnnulus:
     def test_to_patch_multi_returns_list(self):
         """Multi-position _to_patch returns list."""
         import matplotlib
+
         matplotlib.use("Agg")
-        import matplotlib.patches as mpatches
-        pba = PillBoxAnnulus([(10, 20), (30, 40)], w=5, a_in=2, a_out=4, b_out=3, theta=0)
+
+        pba = PillBoxAnnulus(
+            [(10, 20), (30, 40)], w=5, a_in=2, a_out=4, b_out=3, theta=0
+        )
         patches = pba._to_patch()
         assert isinstance(patches, list)
         assert len(patches) == 2
@@ -390,6 +412,7 @@ class TestPillBoxAnnulus:
 # =============================================================================
 # pill_ap_an convenience function
 # =============================================================================
+
 
 class TestPillApAn:
     """Tests for pill_ap_an."""
@@ -417,8 +440,13 @@ class TestPillApAn:
     def test_annulus_dimensions(self):
         """fwhm=5, f_in=(4,4), f_out=(6,6): a_in=20, a_out=30."""
         _, an = pill_ap_an(
-            (50, 50), fwhm=5, trail=10,
-            f_ap=(1.5, 1.5), f_in=(4.0, 4.0), f_out=(6.0, 6.0), f_w=1.0
+            (50, 50),
+            fwhm=5,
+            trail=10,
+            f_ap=(1.5, 1.5),
+            f_in=(4.0, 4.0),
+            f_out=(6.0, 6.0),
+            f_w=1.0,
         )
         assert_allclose(an.a_in, 20.0)
         assert_allclose(an.a_out, 30.0)
@@ -432,6 +460,7 @@ class TestPillApAn:
     def test_theta_passed_through(self):
         """theta is forwarded to both aperture and annulus."""
         import astropy.units as u
+
         theta = np.pi / 4
         ap, an = pill_ap_an((50, 50), fwhm=5, trail=10, theta=theta)
         assert_allclose(ap.theta.to_value(u.rad), theta)
@@ -447,6 +476,7 @@ class TestPillApAn:
 # =============================================================================
 # to_sky / to_pixel round-trip (photutils 2.x compatibility)
 # =============================================================================
+
 
 class TestPillBoxSkyPixelRoundTrip:
     """
@@ -492,7 +522,9 @@ class TestPillBoxSkyPixelRoundTrip:
         pb = PillBoxAperture(pos, w=10, a=5, b=3, theta=0)
         sky_ap = pb.to_sky(wcs)
         pix_ap = sky_ap.to_pixel(wcs)
-        assert_allclose(np.atleast_2d(pix_ap.positions), np.atleast_2d(pb.positions), atol=1e-6)
+        assert_allclose(
+            np.atleast_2d(pix_ap.positions), np.atleast_2d(pb.positions), atol=1e-6
+        )
 
     def test_annulus_roundtrip_position(self, wcs):
         """Pixel → sky → pixel position round-trip is self-consistent."""
@@ -500,12 +532,15 @@ class TestPillBoxSkyPixelRoundTrip:
         pba = PillBoxAnnulus(pos, w=10, a_in=3, a_out=6, b_out=4, theta=0)
         sky_an = pba.to_sky(wcs)
         pix_an = sky_an.to_pixel(wcs)
-        assert_allclose(np.atleast_2d(pix_an.positions), np.atleast_2d(pba.positions), atol=1e-6)
+        assert_allclose(
+            np.atleast_2d(pix_an.positions), np.atleast_2d(pba.positions), atol=1e-6
+        )
 
 
 # =============================================================================
 # cutout_from_ap
 # =============================================================================
+
 
 class TestCutoutFromAp:
     """Tests for cutout_from_ap."""
@@ -570,6 +605,7 @@ class TestCutoutFromAp:
 # ap_to_cutout_position
 # =============================================================================
 
+
 class TestApToCutoutPosition:
     """Tests for ap_to_cutout_position."""
 
@@ -614,6 +650,7 @@ class TestApToCutoutPosition:
 # =============================================================================
 # pa2xytheta
 # =============================================================================
+
 
 class TestPa2XyTheta:
     """Tests for pa2xytheta.
@@ -675,6 +712,7 @@ class TestPa2XyTheta:
 # =============================================================================
 # Photometric consistency: aperture sum on uniform image
 # =============================================================================
+
 
 class TestAperturePhotometry:
     """Verify aperture sums on analytically known images."""

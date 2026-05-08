@@ -44,10 +44,10 @@ class TestCircularMask:
         assert mask.shape == (10, 10)
         assert mask.dtype == bool
         # Center should be inside the circle
-        assert mask[5, 5] == True
+        assert mask[5, 5]
         # Corners should be outside
-        assert mask[0, 0] == False
-        assert mask[9, 9] == False
+        assert not mask[0, 0]
+        assert not mask[9, 9]
 
     def test_mask_sum_known(self):
         """Test that mask sum matches expected count."""
@@ -61,7 +61,7 @@ class TestCircularMask:
         """Test that default center is image center."""
         mask = misc.circular_mask(shape=(10, 10), radius=2)
         # Default center should be (5, 5) for a 10x10 image
-        assert mask[5, 5] == True
+        assert mask[5, 5]
 
 
 class TestCircularMask2D:
@@ -73,20 +73,20 @@ class TestCircularMask2D:
         assert mask.shape == (100, 100)
         assert mask.dtype == bool
         # Center should be inside
-        assert mask[50, 50] == True
+        assert mask[50, 50]
 
-    @pytest.mark.parametrize("radius,expected_sum", [
-        (1.0, 1),
-        (5.0, 69),
-        (10.0, 305),
-    ])
+    @pytest.mark.parametrize(
+        "radius,expected_sum",
+        [
+            (1.0, 1),
+            (5.0, 69),
+            (10.0, 305),
+        ],
+    )
     def test_mask_sum_by_radius(self, radius, expected_sum):
         """Test mask pixel count for various radii."""
         mask = misc.circular_mask_2d(
-            shape=(100, 100),
-            center=(50, 50),
-            radius=radius,
-            method="center"
+            shape=(100, 100), center=(50, 50), radius=radius, method="center"
         )
         assert np.sum(mask) == expected_sum
 
@@ -116,6 +116,7 @@ class TestChangeToQuantity:
     def test_float_to_quantity(self):
         """Test converting `float` to `~astropy.units.Quantity`."""
         from astropy import units as u
+
         result = misc.change_to_quantity(5.0, u.m, to_value=False)
         assert hasattr(result, "unit")
         assert result.value == 5.0
@@ -123,6 +124,7 @@ class TestChangeToQuantity:
     def test_quantity_passthrough(self):
         """Test that `~astropy.units.Quantity` is passed through."""
         from astropy import units as u
+
         q = 5.0 * u.m
         result = misc.change_to_quantity(q, u.m, to_value=False)
         assert result.value == 5.0
@@ -131,5 +133,6 @@ class TestChangeToQuantity:
     def test_to_value_true(self):
         """Test extracting value from `~astropy.units.Quantity`."""
         from astropy import units as u
+
         result = misc.change_to_quantity(5.0 * u.km, u.m, to_value=True)
         np.testing.assert_allclose(result, 5000.0, rtol=RTOL, atol=ATOL)

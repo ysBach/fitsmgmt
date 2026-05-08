@@ -1,3 +1,4 @@
+import contextlib
 from pathlib import Path
 
 import ccdproc
@@ -9,18 +10,11 @@ from astropy.table import Table
 from astropy.time import Time
 from ccdproc import combine
 
-from astroimred.mgmt.summary import fits_summary
-from astroimred.imops.ccdutils import (
-    CCDData_astype,
-    imslice,
-)
-from astroimred.mgmt.io import (
-    inputs2list,
-    load_ccd,
-)
-from astroimred.mgmt.headers import chk_keyval, cmt2hdr
-from astroimred.mgmt.io import _parse_extension
+from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.logging import logger
+from astroimred.mgmt.headers import chk_keyval, cmt2hdr
+from astroimred.mgmt.io import _parse_extension, inputs2list, load_ccd
+from astroimred.mgmt.summary import fits_summary
 
 __all__ = [
     "sstd",
@@ -235,7 +229,7 @@ def select_fits(
 
     def _check_mismatch(row, keys, values):
         mismatch = False
-        for k, v in zip(keys, values):
+        for k, v in zip(keys, values, strict=False):
             hdr_val = _parse_val(row[k])
             parse_v = _parse_val(v)
             if hdr_val != parse_v:
@@ -272,7 +266,7 @@ def select_fits(
     #         raise TypeError("If regex is not bool, it must be list of bool.")
 
     # Setting whether we have to select a subset from the list
-    selecting = True if len(type_key) > 0 else False
+    selecting = len(type_key) > 0
 
     if verbose:
         logger.info("Analyzing FITS...")
@@ -306,31 +300,27 @@ def select_fits(
             summary_table = None
 
     if summary_table is not None:
-        try:
+        with contextlib.suppress(ValueError):
             summary_table.reset_index(inplace=True, drop=True)
-        except ValueError:
-            pass
 
     if verbose:
         logger.info("Done.")
 
-    # ************************************************************************************ #
-    # *                             SELECT AND LOAD TO MATCHED                           * #
-    # ************************************************************************************ #
-    # == Do regex matching if type_val[i] is string ====================================== #
+    # ******************************************************************************** #
+    # *                             SELECT AND LOAD TO MATCHED                       * #
+    # ******************************************************************************** #
+    # == Do regex matching if type_val[i] is string ================================== #
     _type_key = []
     _type_val = []
     if selecting:
-        for k, v in zip(type_key, type_val):
+        for k, v in zip(type_key, type_val, strict=False):
             if isinstance(v, str):
                 match_mask = summary_table[k].str.match(v)
                 summary_table = summary_table[match_mask]
                 fitslist = np.array(fitslist)[match_mask].tolist()
                 # NOTE: Is there a better way to do this?
-                try:
+                with contextlib.suppress(ValueError):
                     summary_table.reset_index(inplace=True, drop=True)
-                except ValueError:
-                    pass
             else:  # not used as regex
                 _type_key.append(k)
                 _type_val.append(v)
@@ -338,7 +328,7 @@ def select_fits(
 
     matched = []
     if selecting:
-        # == Select FITS based on type_key and type_val ================================== #
+        # == Select FITS based on type_key and type_val ============================== #
         for i, row in summary_table.iterrows():
             # I intentionally used iterrows instead of making mask, because for
             # some cases the keyword (e.g., an angle) can contain both str and
@@ -375,7 +365,7 @@ def select_fits(
                     else:
                         matched.append(fpath)
     else:
-        # == Use all item in fitslist ==================================================== #
+        # == Use all item in fitslist ================================================ #
         # summary_table is not used.
         for item in fitslist:
             if isinstance(item, CCDData):
@@ -396,9 +386,9 @@ def select_fits(
                     else:
                         matched.append(Path(item))
 
-    # ************************************************************************************ #
-    # *                           PRINT INFO MESSAGE OR WARNING                          * #
-    # ************************************************************************************ #
+    # ******************************************************************************** #
+    # *                           PRINT INFO MESSAGE OR WARNING                      * #
+    # ******************************************************************************** #
     if len(matched) == 0:
         if selecting:
             logger.warning(
@@ -641,31 +631,32 @@ def combine_ccd(
 
     # If fitslist
     if fitslist is not None:
-        # == a single CCDData ============================================================ #
+        # === a single CCDData ======================================================= #
         if isinstance(fitslist, CCDData):
             fitslist = [fitslist]
         else:
-            # == a single path-like ====================================================== #
+            # === a single path-like ================================================= #
             try:
                 fitslist = [Path(fitslist)]
             except TypeError:
-                # == a list of path-like or CCDData ====================================== #
+                # === a list of path-like or CCDData ================================= #
                 try:
                     fitslist = list(fitslist)
-                except TypeError:
+                except TypeError as err:
                     raise TypeError(
                         f"fitslist must be list-like. It's now {type(fitslist)}."
-                    )
+                    ) from err
 
     # If summary_table
-    if summary_table is not None:
-        if (not isinstance(summary_table, Table)) and (
-            not isinstance(summary_table, pd.DataFrame)
-        ):
-            raise TypeError(
-                "summary_table must be an astropy Table or Pandas DataFrame. "
-                + f"It's now {type(summary_table)}."
-            )
+    if (
+        summary_table is not None
+        and (not isinstance(summary_table, Table))
+        and (not isinstance(summary_table, pd.DataFrame))
+    ):
+        raise TypeError(
+            "summary_table must be an astropy Table or Pandas DataFrame. "
+            + f"It's now {type(summary_table)}."
+        )
 
     # Check for type_key and type_val
     if (type_key is None) ^ (type_val is None):

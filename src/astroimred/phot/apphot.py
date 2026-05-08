@@ -1,14 +1,11 @@
-from warnings import warn
-
 import numpy as np
 from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.table import QTable
 from photutils.aperture import Aperture, aperture_photometry
-import sep
 
-from .background import sky_fit
 from ..logging import logger
+from .background import sky_fit
 
 __all__ = ["apphot_annulus"]
 
@@ -168,7 +165,7 @@ def apphot_annulus(
             except (KeyError, IndexError):
                 t_exposure = 1
                 if verbose:
-                    warn(
+                    logger.warning(
                         "The exposure time info not given and not found from the header"
                         + f" ({exposure_key}). Setting it to 1 sec."
                     )
@@ -179,7 +176,7 @@ def apphot_annulus(
         if t_exposure is None:
             t_exposure = 1
             if verbose:
-                warn("The exposure time info not given. Setting it to 1 sec.")
+                logger.warning("The exposure time info not given. Setting it to 1 sec.")
 
     # [multi-position, same radius] case results in ONE `~photutils.aperture.Aperture` object with
     # multiple positions.
@@ -222,8 +219,6 @@ def apphot_annulus(
         try:
             err = _ccd.uncertainty.array
         except AttributeError:
-            # if verbose:
-            #     warn("Uncertainty extension not found in ccd. Will not calculate errors.")
             gn = float(_ccd.header.get(gain, 1) if isinstance(gain, str) else gain)
             rd = float(
                 _ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise
@@ -297,7 +292,7 @@ def apphot_annulus(
         aperrs = []
         phot = QTable(meta=_phot.meta)
 
-        for i, c in enumerate(_phot.colnames):
+        for _i, c in enumerate(_phot.colnames):
             if not c.startswith("aperture"):  # all other columns
                 phot[c] = [_phot[c][0]] * n
             elif c.startswith("aperture_sum_err"):  # aperture_sum_err_xx
@@ -390,7 +385,7 @@ def apphot_ellip_sep(
                 t_exposure = _ccd.header[exposure_key]
             except (KeyError, IndexError):
                 t_exposure = 1
-                warn(
+                logger.warning(
                     "The exposure time info not given and not found from the"
                     + f"header({exposure_key}). Setting it to 1 sec."
                 )
@@ -399,7 +394,7 @@ def apphot_ellip_sep(
         _mask = None
         if t_exposure is None:
             t_exposure = 1
-            warn("The exposure time info not given. Setting it to 1 sec.")
+            logger.warning("The exposure time info not given. Setting it to 1 sec.")
 
     if _mask is None:
         _mask = np.zeros_like(_arr).astype(bool)
@@ -420,7 +415,7 @@ def apphot_ellip_sep(
             err = _ccd.uncertainty.array
         except AttributeError:
             if verbose:
-                warn(
+                logger.warning(
                     "Couldn't find Uncertainty extension in ccd. "
                     + "Will not calculate errors."
                 )
@@ -428,12 +423,11 @@ def apphot_ellip_sep(
 
     x = np.atleast_1d(x)
     y = np.atleast_1d(y)
-    multipos = False
 
     if x.size != y.size:
         raise ValueError("x and y must be the same size")
     elif x.size > 1:
-        multipos = True
+        pass
 
     a = np.atleast_1d(a)
     bpa = np.atleast_1d(bpa)
@@ -445,7 +439,7 @@ def apphot_ellip_sep(
     a = np.repeat(a, num_apertures)
     bpa = np.repeat(bpa, num_apertures)
     theta = np.repeat(theta, num_apertures)
-    b = a * bpa
+    a * bpa
 
     a_in = np.atleast_1d(a_in)
     a_out = np.atleast_1d(a_out)

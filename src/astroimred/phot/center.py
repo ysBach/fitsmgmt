@@ -1,17 +1,16 @@
-from warnings import warn
+import contextlib
 
 import numpy as np
-import pandas as pd
 from astropy.modeling import Fittable2DModel, Parameter
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling.models import Const2D, Gaussian2D
-from astropy.nddata import CCDData, Cutout2D, support_nddata
+from astropy.nddata import CCDData, Cutout2D
 from photutils.centroids import centroid_com
 from scipy import ndimage
 from scipy.optimize import curve_fit
 
-from .background import sky_fit
 from ..logging import logger
+from .background import sky_fit
 from .seputil import _sanitize_byteorder, _sep_extract, sep_default_kernel, sep_extract
 from .util import Gaussian2D_correct
 
@@ -28,7 +27,7 @@ def circular_slice(shape, pos, radius, return_offset=False):
     offset = np.array([max(0, _p - radius) for _p in pos])
     slices = [
         slice(int(_o), min(_n, int(_p + radius) + 1))
-        for _o, _p, _n in zip(offset[::-1], pos[::-1], shape)
+        for _o, _p, _n in zip(offset[::-1], pos[::-1], shape, strict=False)
     ]
     #         flooring by `int`, ceiling by "`int` and +1"
     if return_offset:
@@ -52,7 +51,10 @@ def circular_bbox_cut(img, pos, radius, return_dists=False):
     if return_dists:
         grids = np.meshgrid(*[np.arange(_n) for _n in cut.shape])
         dists = np.sqrt(
-            np.sum([(g - p) ** 2 for g, p in zip(grids, pos_cut[::-1])], axis=0)
+            np.sum(
+                [(g - p) ** 2 for g, p in zip(grids, pos_cut[::-1], strict=False)],
+                axis=0,
+            )
         ).T
         return cut, pos_cut, offset, dists
     return cut, pos_cut, offset
@@ -138,11 +140,11 @@ def _background(data, bkg="min"):
     else:  # it must be sep.Background
         try:
             return bkg.back()
-        except AttributeError:
+        except AttributeError as err:
             raise TypeError(
                 "bkg must be one of 'min', 'mean', 'median', "
                 + "float, array_like, or sep.Background."
-            )
+            ) from err
 
 
 def resample_psf(
@@ -287,8 +289,6 @@ def _center_sep(
         f"\t{n_circ} / {cut.size} pixels used for SEP, {n_src} pixels "
         "identified as the source."
     )
-
-    overflow = True if n_src > n_circ else False
 
     if full:
         return pos_new, shift, obj, seg
@@ -446,14 +446,12 @@ def center_sep(
         else:
             logger.info(f"\tBackground: {bkg} (sep.Background)")
 
-    try:
+    with contextlib.suppress(AttributeError):
         bkg = bkg.back()  # convert to ndarray
-    except AttributeError:
-        pass
 
     for i_iter in range(maxiters):
         if verbose >= 2:
-            logger.debug(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.debug(f"Iteration {i_iter + 1:d} / {maxiters:d}: ")
 
         pos, d, obj, seg = _center_sep(
             data,
@@ -488,7 +486,7 @@ def center_sep(
             )
         if d < tol_shift:
             if verbose >= 2:
-                logger.debug(f"*** Finished at iteration {i_iter+1}. ***")
+                logger.debug(f"*** Finished at iteration {i_iter + 1}. ***")
             break
 
     # `pos` is the final position
@@ -504,7 +502,7 @@ def center_sep(
         logger.info(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
-        warn(
+        logger.warning(
             f"Object with initial position ({positions[0]}) "
             + f"shifted larger than {max_shift} ({total:.2f})."
         )
@@ -586,7 +584,7 @@ def _centroiding_iteration(
     """
 
     # x_init, y_init = position_xy
-    _cutkw = dict(position=position_xy, size=cbox_size)
+    _cutkw = {"position": position_xy, "size": cbox_size}
     cutccd = Cutout2D(ccd.data, **_cutkw)
 
     _mindata = np.min(cutccd.data)  # TODO: use np.nanmin?
@@ -691,10 +689,9 @@ def _fit_2dgaussian(data, error=None, mask=None):
 
     if np.any(~np.isfinite(data)):
         data = np.ma.masked_invalid(data)
-        warn(
+        logger.warning(
             "Input data contains non-finite values (e.g., NaN or infs) that were "
-            + "automatically masked.",
-            UserWarning,
+            + "automatically masked."
         )
 
     if error is not None:
@@ -1025,7 +1022,7 @@ def find_center_2dg(
         xy_old = positions[-1]
 
         if verbose:
-            logger.debug(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.debug(f"Iteration {i_iter + 1:d} / {maxiters:d}: ")
 
         res = _center_2dg_iteration(
             ccd=_ccd,
@@ -1048,7 +1045,7 @@ def find_center_2dg(
         positions.append(newpos)
 
         if full:
-            for k, v in zip(g_fit.param_names, g_fit.parameters):
+            for k, v in zip(g_fit.param_names, g_fit.parameters, strict=False):
                 fit_params[k].append(v)
             shift.append(d)
             mods.append(g_fit)
@@ -1069,32 +1066,32 @@ def find_center_2dg(
         )
 
     if total_shift > max_shift:
-        warn(
+        logger.warning(
             f"Object with initial position {position_xy} "
             + f"shifted larger than {max_shift = } ({total_shift:.2f})."
         )
 
     if full:
         if full_history:
-            fulldict = dict(
-                positions=np.atleast_2d(positions),
-                shifts=np.atleast_1d(shift),
-                fit_models=mods,
-                fit_params=fit_params,
-                cuts=cuts,
-                e_cuts=e_cuts,
-                fits=fits,
-            )
+            fulldict = {
+                "positions": np.atleast_2d(positions),
+                "shifts": np.atleast_1d(shift),
+                "fit_models": mods,
+                "fit_params": fit_params,
+                "cuts": cuts,
+                "e_cuts": e_cuts,
+                "fits": fits,
+            }
         else:
-            fulldict = dict(
-                positions=np.atleast_2d(positions),
-                shifts=np.atleast_1d(shift),
-                fit_models=mods[-1],
-                fit_params=fit_params,
-                cuts=cuts[-1],
-                e_cuts=e_cuts[-1],
-                fits=fits[-1],
-            )
+            fulldict = {
+                "positions": np.atleast_2d(positions),
+                "shifts": np.atleast_1d(shift),
+                "fit_models": mods[-1],
+                "fit_params": fit_params,
+                "cuts": cuts[-1],
+                "e_cuts": e_cuts[-1],
+                "fits": fits[-1],
+            }
         return positions[-1], total_shift, fulldict
 
     return positions[-1], total_shift
@@ -1222,7 +1219,7 @@ def find_centroid(
 
     for i_iter in range(maxiters):
         if verbose >= 2:
-            logger.debug(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.debug(f"Iteration {i_iter + 1:d} / {maxiters:d}: ")
         (x, y), d = _centroiding_iteration(
             ccd=_ccd,
             position_xy=(x, y),
@@ -1259,20 +1256,10 @@ def find_centroid(
         logger.info(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
-        warn(
+        logger.warning(
             f"Object with initial position ({xc_iter[-1]}, {yc_iter[-1]}) "
             + f"shifted larger than {max_shift} ({total:.2f})."
         )
-
-    # if verbose:
-    #     print('Found centroid after {} iterations'.format(i_iter))
-    #     print('Initially {}'.format(position_xy))
-    #     print('Converged ({}, {})'.format(xc_iter[i_iter], yc_iter[i_iter]))
-    #     shift = position_xy - np.array([xc_iter[i_iter], yc_iter[i_iter]])
-    #     print('(Python/C-like indexing, not IRAF/FITS/Fortran)')
-    #     print()
-    #     print('Shifted to {}'.format(shift))
-    #     print('\tShift tolerance was {}'.format(tol_shift))
 
     # if full:
     #     original_cut = Cutout2D(data=ccd.data,
@@ -1352,8 +1339,7 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
     com_xy : list
         The iteratively found centroid position.
     '''
-    warn("DEPRECATED -- use find_centroid or find_center_2dg",
-         AstropyDeprecationWarning)
+    logger.warning("DEPRECATED -- use find_centroid or find_center_2dg")
 
     def _centroiding_iteration(ccd, position_xy, centroider=centroid_com,
                                cbox_size=5., csigma=3.,
@@ -1384,9 +1370,11 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
         if verbose:
             n_all = np.size(mask)
             n_rej = np.count_nonzero(mask.astype(int))
-            print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
-                  + f"from min ({np.min(cutccd.data):.3f}) "
-                  + f"+ csigma ({csigma}) * ssky ({ssky:.3f})]")
+            logger.info(
+                f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
+                + f"from min ({np.min(cutccd.data):.3f}) "
+                + f"+ csigma ({csigma}) * ssky ({ssky:.3f})]"
+            )
 
         if ccd.mask is not None:
             mask += ccd.mask
@@ -1420,13 +1408,13 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
     shift = []
     d = 0
     if verbose:
-        print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]")
-        print(f"\t(max iteration {maxiters:d}, shift tolerance {tol_shift})")
+        logger.info(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]")
+        logger.info(f"\t(max iteration {maxiters:d}, shift tolerance {tol_shift})")
 
     for i_iter in range(maxiters):
         xy_old = (xc_iter[-1], yc_iter[-1])
         if verbose:
-            print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.info(f"Iteration {i_iter + 1:d} / {maxiters:d}: ")
         (x, y), d = _centroiding_iteration(ccd=_ccd,
                                            position_xy=xy_old,
                                            cbox_size=cbox_size,
@@ -1439,10 +1427,10 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
         shift.append(d)
         if d < tol_shift:
             if verbose:
-                print(f"Finishing iteration (shift {d:.5f} < tol_shift).")
+                logger.info(f"Finishing iteration (shift {d:.5f} < tol_shift).")
             break
         if verbose:
-            print(f"\t({x:.2f}, {y:.2f}), shifted {d:.2f}")
+            logger.info(f"\t({x:.2f}, {y:.2f}), shifted {d:.2f}")
 
     newpos = [xc_iter[-1], yc_iter[-1]]
     dx = x - position_xy[0]
@@ -1450,21 +1438,13 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
     total = np.sqrt(dx**2 + dy**2)
 
     if verbose:
-        print(f"Final shift: dx={dx:+.2f}, dy={dy:+.2f}, total={total:.2f}")
+        logger.info(f"Final shift: dx={dx:+.2f}, dy={dy:+.2f}, total={total:.2f}")
 
     if total > max_shift:
-        warn(f"Object with initial position ({xc_iter[-1]}, {yc_iter[-1]}) "
-             + f"shifted larger than {max_shift} ({total:.2f}).")
-
-    # if verbose:
-    #     print('Found centroid after {} iterations'.format(i_iter))
-    #     print('Initially {}'.format(position_xy))
-    #     print('Converged ({}, {})'.format(xc_iter[i_iter], yc_iter[i_iter]))
-    #     shift = position_xy - np.array([xc_iter[i_iter], yc_iter[i_iter]])
-    #     print('(Python/C-like indexing, not IRAF/FITS/Fortran)')
-    #     print()
-    #     print('Shifted to {}'.format(shift))
-    #     print('\tShift tolerance was {}'.format(tol_shift))
+        logger.warning(
+            f"Object with initial position ({xc_iter[-1]}, {yc_iter[-1]}) "
+            + f"shifted larger than {max_shift} ({total:.2f})."
+        )
 
     # if full:
     #     original_cut = Cutout2D(data=ccd.data,

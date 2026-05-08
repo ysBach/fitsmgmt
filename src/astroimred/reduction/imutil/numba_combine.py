@@ -119,9 +119,8 @@ def _nanmin_1d(vals):
     out = np.nan
     for i in range(len(vals)):
         x = vals[i]
-        if np.isfinite(x):
-            if np.isnan(out) or x < out:
-                out = x
+        if np.isfinite(x) and (np.isnan(out) or x < out):
+            out = x
     return out
 
 
@@ -131,9 +130,8 @@ def _nanmax_1d(vals):
     out = np.nan
     for i in range(len(vals)):
         x = vals[i]
-        if np.isfinite(x):
-            if np.isnan(out) or x > out:
-                out = x
+        if np.isfinite(x) and (np.isnan(out) or x > out):
+            out = x
     return out
 
 

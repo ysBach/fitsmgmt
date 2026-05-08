@@ -9,8 +9,8 @@ from astropy.io import fits
 from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
 
-from .io import _parse_extension, inputs2list
 from ..logging import logger
+from .io import _parse_extension, inputs2list
 
 __all__ = [
     "fits_summary",
@@ -200,7 +200,7 @@ def fits_summary(
         )
         if verbose:
             logger.info("Unique keys that will be removed:")
-        for key in summ.keys():
+        for key in list(summ.columns):
             if keywords is not None and key in keywords:
                 continue
             if len(_uniq := summ[key].unique()) == 1:
@@ -279,8 +279,8 @@ def fits_summary(
         for i in range(num_hkeys):
             try:
                 key_i = hdr0.cards[i][0]
-            except VerifyError:
-                raise VerifyError("Use verify_fix=True.")
+            except VerifyError as err:
+                raise VerifyError("Use verify_fix=True.") from err
             if key_i in skip_keys:
                 continue
             elif key_i in keywords:
@@ -299,7 +299,7 @@ def fits_summary(
             )
 
     # Initialize
-    summarytab = dict(file=[], filesize=[])
+    summarytab = {"file": [], "filesize": []}
     missing_keys = set()
     for k in keywords:
         summarytab[k] = []
@@ -425,12 +425,12 @@ def df_selector(
             except AttributeError:
                 try:
                     select_mask &= df[k] == v
-                except (ValueError, TypeError, AttributeError):
+                except (ValueError, TypeError, AttributeError) as err:
                     raise TypeError(
                         "Both ``summarytab[k].str.fullmatch(v)`` and "
                         + f"``summarytab[{k}] == {v}`` failed.\n"
                         + "Maybe use `querystr` instead?"
-                    )
+                    ) from err
         df = df[~select_mask] if negate_fullmatch else df[select_mask]
 
     if querystr is not None:

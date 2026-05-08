@@ -1,10 +1,11 @@
 import numpy as np
-from astropy.units import Quantity, UnitsError
-from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling import Fittable2DModel, Parameter
+from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.nddata import Cutout2D
 from astropy.table import Table, vstack
+from astropy.units import UnitsError
 from photutils.psf import SourceGrouper
+from scipy.special import erf
 
 __all__ = [
     "dao_nstar_clamp",
@@ -36,9 +37,7 @@ def dao_weight_map(data, position, r_fit):
     https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/daophot/daopars.html
     """
     x0, y0 = position
-    is_cut = False
     if np.any(np.array(data.shape) > (2 * r_fit + 1)):  # To save CPU
-        is_cut = True
         cut = Cutout2D(
             data=data, position=(x0, y0), size=(2 * r_fit + 1), mode="partial"
         )
@@ -64,7 +63,7 @@ def dao_nstar(
     flux_init=1,
     sky=0,
     err=None,
-    fitter=LevMarLSQFitter(),
+    fitter=None,
     full=True,
 ):
     """
@@ -75,6 +74,8 @@ def dao_nstar(
 
     if err is None:
         err = np.zeros_like(data)
+    if fitter is None:
+        fitter = LevMarLSQFitter()
 
     psf_init = psf.copy()
     psf_init.flux = flux_init
@@ -251,7 +252,6 @@ FLOAT_EPSILON = float(np.finfo(np.float32).tiny)
 # astropy.stats to avoid importing astropy.stats every time astropy.modeling
 # is loaded.
 GAUSSIAN_SIGMA_TO_FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
-from scipy.special import erf
 
 
 class IntegratedGaussian2D(Fittable2DModel):

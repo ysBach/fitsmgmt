@@ -1,15 +1,16 @@
 """Airmass calculation and FITS header annotation helpers."""
 
+from typing import TypeAlias
+
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.io import fits
 from astropy.io.fits import Card
 from astropy.time import Time
-from typing import TypeAlias
 
-from .headers import cmt2hdr, hdrval
 from ..logging import logger
+from .headers import cmt2hdr, hdrval
 from .misc import change_to_quantity
 
 __all__ = ["calc_airmass", "airmass_obs", "airmass_to_hdr", "airmass_from_hdr"]
@@ -351,9 +352,8 @@ def airmass_from_hdr(
     def _conversion(header, val, key, unit=None):
         if val is None:
             val = header[key]  # assume it is in the unit of ``unit``.
-        elif unit is not None:
-            if isinstance(val, u.Quantity):
-                val = val.to(unit).value
+        elif unit is not None and isinstance(val, u.Quantity):
+            val = val.to(unit).value
             # else: just return ``val``.
         return val
 

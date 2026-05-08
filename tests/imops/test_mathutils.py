@@ -185,6 +185,7 @@ class TestBinning:
         with pytest.raises(ValueError, match="larger than"):
             mathutils.binning(arr, factors=(5, 2), order_xyz=False)
 
+
 class TestGainConversion:
     """Tests for gain conversion helpers."""
 

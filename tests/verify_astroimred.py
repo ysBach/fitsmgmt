@@ -3,38 +3,22 @@ import shutil
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.io import fits
 
 # Import astroimred
 try:
-    from astroimred import (
-        ccdutils,
-        headers,
-        io,
-        logging as airlogging,
-        mathutils,
-        misc,
-        paths,
-        summary,
-    )
+    from astroimred import ccdutils, headers, io, mathutils, misc, paths, summary
+    from astroimred import logging as airlogging
 except ImportError:
     # Use direct path if package not installed in env yet
     import sys
 
     sys.path.insert(0, os.path.abspath("src"))
 
-    from astroimred import (
-        ccdutils,
-        headers,
-        io,
-        logging as airlogging,
-        mathutils,
-        misc,
-        paths,
-        summary,
-    )
+    from astroimred import ccdutils, headers, io, mathutils, misc, paths, summary
+    from astroimred import logging as airlogging
 
 logger = airlogging.logger
 
@@ -71,7 +55,7 @@ def run_tests():
         # change_to_quantity
         q1 = misc.change_to_quantity(10, "km")
         assert q1.value == 10.0 and q1.unit == u.km
-        q2 = misc.change_to_quantity(10*u.m, "km")
+        q2 = misc.change_to_quantity(10 * u.m, "km")
         assert q2.value == 0.01 and q2.unit == u.km
 
         # binning
@@ -82,10 +66,10 @@ def run_tests():
 
         # Header utils
         hdr = fits.Header()
-        hdr['NAXIS'] = 2
+        hdr["NAXIS"] = 2
 
         # cmt2hdr
-        headers.cmt2hdr(hdr, 'h', "Test history")
+        headers.cmt2hdr(hdr, "h", "Test history")
         assert "Test history" in str(hdr.get("HISTORY"))
 
         # update_process
@@ -114,7 +98,7 @@ def run_tests():
 
         # inputs2list
         inputs = io.inputs2list(str(tmpdir / "*.fits"))
-        assert [Path(p).name for p in inputs] == ['test.fits']
+        assert [Path(p).name for p in inputs] == ["test.fits"]
 
         # imslice
         sl_ccd = ccdutils.imslice(ccd, "[2:5, 2:5]")
@@ -137,12 +121,12 @@ def run_tests():
 
         # key_remover
         h2 = hdr.copy()
-        h2['TEMP'] = 123
-        h2 = headers.key_remover(h2, ['TEMP'])
+        h2["TEMP"] = 123
+        h2 = headers.key_remover(h2, ["TEMP"])
         assert "TEMP" not in h2
 
         # set_ccd_attribute
-        ccdutils.set_ccd_attribute(ccd, 'gain', 2.0, unit='electron/adu')
+        ccdutils.set_ccd_attribute(ccd, "gain", 2.0, unit="electron/adu")
         assert ccd.gain.value == 2.0
         assert ccd.gain.unit == u.electron / u.adu
 
@@ -162,8 +146,8 @@ def run_tests():
         assert dpath.exists()
 
         # fits_summary
-        df = summary.fits_summary([fpath, outpath], keywords=['OBJECT', 'NAXIS'])
-        df = df.sort_values('file').reset_index(drop=True)
+        df = summary.fits_summary([fpath, outpath], keywords=["OBJECT", "NAXIS"])
+        df = df.sort_values("file").reset_index(drop=True)
         # out.fits is first (alphabetical o before t? No, fpath=test.fits,
         # outpath=out.fits)
         # test.fits (fpath) and out.fits (outpath)
@@ -190,8 +174,8 @@ def run_tests():
         # df[1] (test.fits) -> OBJECT=TestObj
 
         logger.info("Summary DF:\n%s", df)
-        assert str(df.iloc[1]['file']).endswith('test.fits')
-        assert df.iloc[1]['OBJECT'] == 'TestObj'
+        assert str(df.iloc[1]["file"]).endswith("test.fits")
+        assert df.iloc[1]["OBJECT"] == "TestObj"
 
     except Exception:
         shutil.rmtree(tmpdir)
@@ -199,6 +183,7 @@ def run_tests():
     else:
         shutil.rmtree(tmpdir)
         logger.info("Verification Finished Successfully.")
+
 
 if __name__ == "__main__":
     run_tests()

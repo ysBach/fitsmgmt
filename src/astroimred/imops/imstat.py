@@ -106,7 +106,7 @@ def give_stats(
     mask=None,
     extension=None,
     statsecs=None,
-    percentiles=[1, 99],
+    percentiles=None,
     N_extrema=None,
     return_header=False,
 ):
@@ -115,6 +115,8 @@ def give_stats(
     ``item`` is now intentionally accepted as either `~numpy.ndarray` or
     path-like FITS input. For CCDData/HDU inputs, pass their `.data` explicitly.
     """
+    if percentiles is None:
+        percentiles = [1, 99]
     data, hdr = _data_header_from_array_or_path(item, extension=extension)
     data = np.array(data, copy=True)
     if mask is not None:
@@ -134,18 +136,18 @@ def give_stats(
     stdf = np.std
     pctf = np.percentile
 
-    result = dict(
-        num=np.size(data),
-        min=minf(data),
-        max=maxf(data),
-        avg=avgf(data),
-        med=medf(data),
-        std=stdf(data, ddof=1),
-        madstd=mad_std(data),
-        percentiles=percentiles,
-        pct=pctf(data, percentiles),
-        slices=statsecs,
-    )
+    result = {
+        "num": np.size(data),
+        "min": minf(data),
+        "max": maxf(data),
+        "avg": avgf(data),
+        "med": medf(data),
+        "std": stdf(data, ddof=1),
+        "madstd": mad_std(data),
+        "percentiles": percentiles,
+        "pct": pctf(data, percentiles),
+        "slices": statsecs,
+    }
     # d_pct = np.percentile(data, percentiles)
     # for i, pct in enumerate(percentiles):
     #     result[f"percentile_{round(pct, 4)}"] = d_pct[i]
@@ -181,22 +183,25 @@ def give_stats(
         hdr["STATZMIN"] = (result["zmin"], "zscale minimum value of the pixels")
         hdr["STATZMAX"] = (result["zmax"], "zscale minimum value of the pixels")
         for i, p in enumerate(percentiles):
-            hdr[f"PERCTS{i+1:02d}"] = (p, "The percentile used in STATPCii")
-            hdr[f"STATPC{i+1:02d}"] = (result["pct"][i], "Percentile value at PERCTSii")
+            hdr[f"PERCTS{i + 1:02d}"] = (p, "The percentile used in STATPCii")
+            hdr[f"STATPC{i + 1:02d}"] = (
+                result["pct"][i],
+                "Percentile value at PERCTSii",
+            )
 
         if statsecs is not None:
             for i, sec in enumerate(statsecs):
-                hdr[f"STATSEC{i+1:01d}"] = (sec, "Sections used for statistics")
+                hdr[f"STATSEC{i + 1:01d}"] = (sec, "Sections used for statistics")
 
         if N_extrema is not None:
             if N_extrema > 99:
                 logger.warning("N_extrema > 99 may not work properly in header.")
             for i in range(N_extrema):
-                hdr[f"STATLO{i+1:02d}"] = (
+                hdr[f"STATLO{i + 1:02d}"] = (
                     result["ext_lo"][i],
                     f"Lower extreme values (N_extrema={N_extrema})",
                 )
-                hdr[f"STATHI{i+1:02d}"] = (
+                hdr[f"STATHI{i + 1:02d}"] = (
                     result["ext_hi"][i],
                     f"Upper extreme values (N_extrema={N_extrema})",
                 )

@@ -12,7 +12,8 @@ Primitive naming: ``<lin/circ/all>_<oe/sr>_<n>set``
 """
 
 import numpy as np
-from .util import err_prop, convert_pct, convert_deg
+
+from .util import convert_deg, convert_pct, err_prop
 
 __all__ = [
     "calc_stokes",
@@ -723,16 +724,16 @@ class LinPolOE4(PolObjMixin):
         ):
             raise ValueError("all ixxx_<oe> must share the identical shape.")
 
-        _dis = dict(
-            di000_o=di000_o,
-            di000_e=di000_e,
-            di450_o=di450_o,
-            di450_e=di450_e,
-            di225_o=di225_o,
-            di225_e=di225_e,
-            di675_o=di675_o,
-            di675_e=di675_e,
-        )
+        _dis = {
+            "di000_o": di000_o,
+            "di000_e": di000_e,
+            "di450_o": di450_o,
+            "di450_e": di450_e,
+            "di225_o": di225_o,
+            "di225_e": di225_e,
+            "di675_o": di675_o,
+            "di675_e": di675_e,
+        }
         for k, v in _dis.items():
             if v is None:
                 v = np.zeros_like(getattr(self, k[1:]))

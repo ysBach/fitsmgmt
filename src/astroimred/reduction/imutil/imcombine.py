@@ -3,25 +3,18 @@ from pathlib import Path
 import bottleneck as bn
 import numpy as np
 import pandas as pd
-from astro_ndslice import (
-    is_list_like,
-    listify,
-    offseted_shape,
-)
+from astro_ndslice import is_list_like, listify, offseted_shape
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from ..combutil import group_fits
-from astroimred.mgmt.summary import fits_summary
-from astroimred.mgmt.io import (
-    inputs2list,
-    load_ccd,
-)
-from astroimred.mgmt.headers import cmt2hdr
-from astroimred.mgmt.io import _parse_extension
-from astroimred.mgmt.misc import str_now
 from astroimred.logging import logger
-from . import docstrings
+from astroimred.mgmt.headers import cmt2hdr
+from astroimred.mgmt.io import _parse_extension, inputs2list, load_ccd
+from astroimred.mgmt.misc import str_now
+from astroimred.mgmt.summary import fits_summary
+
+from ..combutil import group_fits
+from . import config, docstrings
 from ._imcombine_fits import (
     apply_output_offsets,
     calculate_zsw,
@@ -35,7 +28,9 @@ from ._imcombine_fits import (
     write_imcombine_logfile,
     write_imcombine_outputs,
 )
+from .numba_combine import combine_along_axis0_numba
 from .util_comb import (
+    _default_zsw_kw,
     _set_cenfunc,
     _set_combfunc,
     _set_int_dtype,
@@ -44,13 +39,10 @@ from .util_comb import (
     _set_reject_name,
     _set_sigma,
     _set_thresh_mask,
-    _default_zsw_kw,
     do_zs,
     get_zsw,
 )
-from .numba_combine import combine_along_axis0_numba
 from .util_reject import ccdclip_mask, minmax_mask, sigclip_mask
-from . import config
 
 __all__ = ["group_combine", "group_save", "imcombine", "ndcombine"]
 
@@ -197,7 +189,7 @@ def group_combine(
         summary = fits_summary(inputs, verbose=verbose >= 2)
     else:
         inputs = listify(inputs)
-        load_fits = False if isinstance(inputs[0], CCDData) else True
+        load_fits = not isinstance(inputs[0], CCDData)
         # Assume all are CCDData if the first element is CCDData
         summary = fits_summary(inputs, verbose=verbose >= 2)
 
@@ -209,9 +201,8 @@ def group_combine(
 
     combined = {}
     for g_val, group in gs:
-        if is_list_like(g_val):
-            if len(g_val) == 1:
-                g_val = g_val[0]
+        if is_list_like(g_val) and len(g_val) == 1:
+            g_val = g_val[0]
         files = group["file"].to_list()
         if verbose >= 1:
             logger.info("* %s... (%d files)", g_val, len(files))
@@ -400,7 +391,7 @@ def imcombine(
     rds = metadata["rds"]
     sns = metadata["sns"]
 
-    # == Check the size of the temporary array for combination =========================== #
+    # == Check the size of the temporary array for combination ======================= #
     offsets, sh_comb = offseted_shape(
         shapes, offsets, method="outer", offset_order_xyz=False, intify_offsets=True
     )
@@ -423,7 +414,7 @@ def imcombine(
     _t = Time.now()
 
     if num_chunk == 1:
-        # == Setup offset-ed array ======================================================= #
+        # == Setup offset-ed array =================================================== #
         # NOTE: Using NaN does not set array with dtype of int... Any solution?
         arr_full, mask_full, var_full, zeros, scales, weights = load_full_stack(
             items=items,
@@ -466,7 +457,7 @@ def imcombine(
         )
 
     log_zsw_table(items, zeros, scales, weights, verbose)
-    # ------------------------------------------------------------------------------------ #
+    # -------------------------------------------------------------------------------- #
 
     cmt2hdr(
         hdr0,
@@ -476,35 +467,35 @@ def imcombine(
         s=f"Loaded {ncombine} FITS, calculated zero, scale, weights",
     )
 
-    ndcombine_kw = dict(
-        combine=combine,
-        reject=reject_fullname,
-        scale=scales,  # it is scales , NOT scale , as it was updated above.
-        zero=zeros,  # it is zeros  , NOT zero  , as it was updated above.
-        weight=weights,  # it is weights, NOT weight, as it was updated above.
-        zero_to_0th=zero_to_0th,
-        scale_to_0th=scale_to_0th,
-        scale_kw=scale_kw,
-        zero_kw=zero_kw,
-        thresholds=thresholds,
-        n_minmax=n_minmax,
-        nkeep=nkeep,
-        maxrej=maxrej,
-        cenfunc=cenfunc,
-        sigma=sigma,
-        maxiters=maxiters,
-        ddof=ddof,
-        rdnoise=rds,  # it is rds, not rdnoise, as it was updated above.
-        gain=gns,  # it is gns, not gain   , as it was updated above.
-        snoise=sns,  # it is sns, not snoise , as it was updated above.
-        pclip=pclip,
-        irafmode=irafmode,
-        full=full,
-        return_variance=return_variance,
-        verbose=verbose,
-    )
+    ndcombine_kw = {
+        "combine": combine,
+        "reject": reject_fullname,
+        "scale": scales,  # it is scales , NOT scale , as it was updated above.
+        "zero": zeros,  # it is zeros  , NOT zero  , as it was updated above.
+        "weight": weights,  # it is weights, NOT weight, as it was updated above.
+        "zero_to_0th": zero_to_0th,
+        "scale_to_0th": scale_to_0th,
+        "scale_kw": scale_kw,
+        "zero_kw": zero_kw,
+        "thresholds": thresholds,
+        "n_minmax": n_minmax,
+        "nkeep": nkeep,
+        "maxrej": maxrej,
+        "cenfunc": cenfunc,
+        "sigma": sigma,
+        "maxiters": maxiters,
+        "ddof": ddof,
+        "rdnoise": rds,  # it is rds, not rdnoise, as it was updated above.
+        "gain": gns,  # it is gns, not gain   , as it was updated above.
+        "snoise": sns,  # it is sns, not snoise , as it was updated above.
+        "pclip": pclip,
+        "irafmode": irafmode,
+        "full": full,
+        "return_variance": return_variance,
+        "verbose": verbose,
+    }
 
-    # == Combine with rejection! ========================================================= #
+    # == Combine with rejection! ===================================================== #
     _t = Time.now()
 
     if num_chunk == 1:
@@ -600,7 +591,7 @@ def imcombine(
         if not full:
             err = low = upp = mask_total = rejcode = None
 
-    # == Update header properly ========================================================== #
+    # == Update header properly ====================================================== #
     # Update WCS or PHYSICAL keywords so that "lock frame wcs", etc, on SAO
     # ds9, for example, to give proper visualization:
     apply_output_offsets(hdr0, ndim, offsets, use_wcs, use_phy)
@@ -629,7 +620,7 @@ def imcombine(
     if verbose:
         logger.info("- Writing output FITS...")
 
-    # == Save FITS files ================================================================= #
+    # == Save FITS files ============================================================= #
     write_imcombine_outputs(
         comb=comb,
         hdr0=hdr0,
@@ -658,12 +649,12 @@ def imcombine(
     if verbose:
         logger.info("Done.")
 
-    # == Return memory... ================================================================ #
+    # == Return memory... ============================================================ #
     if num_chunk == 1:
         del arr_full, mask_full
     del hdr0
 
-    # == Write logfile =================================================================== #
+    # == Write logfile =============================================================== #
     write_imcombine_logfile(
         logfile=logfile,
         table_dict=table_dict,
@@ -683,20 +674,20 @@ def imcombine(
         logger.info("")
         logger.info("%s (TOTAL dt = %.3f sec)", _t2.iso, (_t2 - _t1).sec)
 
-    # == Return ========================================================================== #
+    # == Return ====================================================================== #
     if full:
         if return_dict:
-            return dict(
-                comb=comb,
-                err=err,
-                mask_total=mask_total,
-                mask_rej=mask_rej,
-                mask_thresh=mask_thresh,
-                low=low,
-                upp=upp,
-                nit=nit,
-                rejcode=rejcode,
-            )
+            return {
+                "comb": comb,
+                "err": err,
+                "mask_total": mask_total,
+                "mask_rej": mask_rej,
+                "mask_thresh": mask_thresh,
+                "low": low,
+                "upp": upp,
+                "nit": nit,
+                "rejcode": rejcode,
+            }
         else:
             return (
                 comb,
@@ -713,9 +704,9 @@ def imcombine(
         return comb
 
 
-imcombine.__doc__ = """A helper function for ``imred.ndcombine`` to cope with FITS files.
+imcombine.__doc__ = f"""A helper function for ``imred.ndcombine`` to cope with FITS files.
 
-    {}
+    {docstrings.NDCOMB_NOT_IMPLEMENTED(indent=4)}
 
     Parameters
     ----------
@@ -746,9 +737,9 @@ imcombine.__doc__ = """A helper function for ``imred.ndcombine`` to cope with FI
         error-propagation or weighted combine is not supported, so only
         `extension_mask` can give difference to the output.
 
-    {}
+    {docstrings.OFFSETS_LONG(indent=4)}
 
-    {}
+    {docstrings.NDCOMB_PARAMETERS_COMMON(indent=4)}
 
     imcmb_key : `str`
         The thing to add as ``IMCMBnnn`` in the output FITS file header. If
@@ -800,19 +791,13 @@ imcombine.__doc__ = """A helper function for ``imred.ndcombine`` to cope with FI
     comb : `astropy.nddata.CCDData` (dtype `dtype`)
         The combined data.
 
-    {}
+    {docstrings.NDCOMB_RETURNS_COMMON(indent=4)}
 
-    {}
-    """.format(
-    docstrings.NDCOMB_NOT_IMPLEMENTED(indent=4),
-    docstrings.OFFSETS_LONG(indent=4),
-    docstrings.NDCOMB_PARAMETERS_COMMON(indent=4),
-    docstrings.NDCOMB_RETURNS_COMMON(indent=4),
-    docstrings.IMCOMBINE_LINK(indent=4),
-)
+    {docstrings.IMCOMBINE_LINK(indent=4)}
+    """
 
 
-# ---------------------------------------------------------------------------------------- #
+# ------------------------------------------------------------------------------------ #
 def ndcombine(
     arr,
     mask=None,
@@ -894,7 +879,7 @@ def ndcombine(
         # elif reject_fullname == "minmax":
         # print(f" (for minmaxclip): n_minmax={n_minmax}")
 
-    # == 01 - Thresholding + Initial masking ============================================= #
+    # === 01 - Thresholding + Initial masking ======================================== #
     # Updating mask: _mask = _mask | mask_thresh
     mask_thresh = _set_thresh_mask(
         arr=arr, mask=_mask, thresholds=thresholds, update_mask=True
@@ -908,9 +893,9 @@ def ndcombine(
 
     # TODO: remove this np.nan and instead, let `get_zsw` to accept mask.
     arr[_mask] = np.nan
-    # ------------------------------------------------------------------------------------ #
+    # -------------------------------------------------------------------------------- #
 
-    # == 02 - Calculate zero, scale, weights ============================================= #
+    # === 02 - Calculate zero, scale, weights ======================================== #
     # This should be done before rejection but after threshold masking..
     zeros, scales, weights = get_zsw(
         arr=arr,
@@ -925,9 +910,9 @@ def ndcombine(
         scale_section=scale_section,
     )
     arr = do_zs(arr, zeros=zeros, scales=scales)
-    # ------------------------------------------------------------------------------------ #
+    # -------------------------------------------------------------------------------- #
 
-    # == 02 - Rejection ================================================================== #
+    # === 02 - Rejection ============================================================== #
     if isinstance(reject_fullname, str):
         if reject_fullname == "sigclip":
             _mask_rej = sigclip_mask(
@@ -990,11 +975,11 @@ def ndcombine(
 
     _mask |= mask_rej
 
-    # ------------------------------------------------------------------------------------ #
+    # -------------------------------------------------------------------------------- #
 
     # TODO: add "grow" rejection here?
 
-    # == 03 - combine ==================================================================== #
+    # === 03 - combine ================================================================ #
     # Replace rejected / masked pixel to NaN and backup for debugging purpose.
     # This is done to reduce memory (instead of doing _arr = arr.copy())
     # backup_nan = arr[_mask]
@@ -1009,10 +994,7 @@ def ndcombine(
     if config.IMUTIL_USE_NUMBA:
         has_nan = np.any(_mask)
         comb_numba = combine_along_axis0_numba(arr, combine, has_nan=has_nan)
-        if comb_numba is not None:
-            comb = comb_numba
-        else:
-            comb = combfunc(arr, axis=0)
+        comb = comb_numba if comb_numba is not None else combfunc(arr, axis=0)
     else:
         comb = combfunc(arr, axis=0)
     if verbose:
@@ -1037,9 +1019,9 @@ def ndcombine(
         return comb
 
 
-ndcombine.__doc__ = """ Combines the given arr assuming no additional offsets.
+ndcombine.__doc__ = f""" Combines the given arr assuming no additional offsets.
 
-    {}
+    {docstrings.NDCOMB_NOT_IMPLEMENTED(indent=4)}
 
     Offsets are not implemented in ``imred.ndcombine``; use ``imred.imcombine``
     for FITS inputs with offsets.
@@ -1058,22 +1040,16 @@ ndcombine.__doc__ = """ Combines the given arr assuming no additional offsets.
         original array unchanged. Otherwise, the original array may be
         destroyed.
 
-    {}
+    {docstrings.OFFSETS_SHORT(indent=4)}
 
-    {}
+    {docstrings.NDCOMB_PARAMETERS_COMMON(indent=4)}
 
     Returns
     -------
     comb : `~numpy.ndarray`
         The combined array.
 
-    {}
+    {docstrings.NDCOMB_RETURNS_COMMON(indent=4)}
 
-    {}
-    """.format(
-    docstrings.NDCOMB_NOT_IMPLEMENTED(indent=4),
-    docstrings.OFFSETS_SHORT(indent=4),
-    docstrings.NDCOMB_PARAMETERS_COMMON(indent=4),
-    docstrings.NDCOMB_RETURNS_COMMON(indent=4),
-    docstrings.IMCOMBINE_LINK(indent=4),
-)
+    {docstrings.IMCOMBINE_LINK(indent=4)}
+    """

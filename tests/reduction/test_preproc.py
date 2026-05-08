@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-from astropy import units as u
 from astropy.nddata import CCDData
 
 import astroimred.reduction as imred
@@ -84,10 +83,7 @@ class TestDarkCor:
 
         # We need to tell the function to scale.
         corrected = imred.preproc.darkcor(
-            ccd,
-            mdark=mdark,
-            dark_scale=True,
-            exptime_key="EXPTIME"
+            ccd, mdark=mdark, dark_scale=True, exptime_key="EXPTIME"
         )
 
         # Expected: 100 - (5 * 10/5) = 100 - 10 = 90
@@ -115,10 +111,10 @@ class TestFlatCor:
         corrected = imred.preproc.flatcor(ccd, mflat=mflat, flat_norm_value=1.0)
 
         expected_left = 100 / 0.8  # 125
-        expected_right = 100 / 1.2 # 83.333...
+        expected_right = 100 / 1.2  # 83.333...
 
         np.testing.assert_allclose(corrected.data[:, :5], 125.0, rtol=1e-6)
-        np.testing.assert_allclose(corrected.data[:, 5:], 100/1.2, rtol=1e-6)
+        np.testing.assert_allclose(corrected.data[:, 5:], 100 / 1.2, rtol=1e-6)
 
 
 class TestCCDRed:
@@ -167,7 +163,7 @@ class TestCCDRed:
             dark_scale=True,
             exptime_dark=5.0,
             flat_norm_value=1.0,
-            verbose_bdf=0
+            verbose_bdf=0,
         )
 
         np.testing.assert_allclose(reduced.data, 490.0, rtol=1e-6)

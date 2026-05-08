@@ -52,9 +52,38 @@ full = [
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "ruff>=0.8",
     "sphinx>=7.2",
     "sphinx-rtd-theme>=2.0",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplifications
+]
+ignore = [
+    "E501",  # Let the formatter wrap what it can; tolerate intentional long lines.
+    "W605",  # Legacy astronomy strings often contain backslash-style notation.
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/astroimred/**/__init__.py" = ["F401", "F403"]
+
+[tool.ruff.format]
+line-ending = "auto"
 
 [build-system]
 requires = ["uv_build>=0.9.18,<0.10.0"]

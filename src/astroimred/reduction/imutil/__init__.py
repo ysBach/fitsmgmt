@@ -7,8 +7,7 @@ IRAF and other astronomy command-line tools.
 """
 
 from .config import IMUTIL_USE_NUMBA
-
+from .imarith import *
 from .imcombine import *
 from .imcopy import *
-from .imarith import *
 from .imsmooth import *

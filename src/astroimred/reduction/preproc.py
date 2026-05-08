@@ -5,20 +5,11 @@ from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.time import Time
 
-from astroimred.imops.ccdutils import (
-    CCDData_astype,
-    imslice,
-)
-from astroimred.mgmt.io import (
-    load_ccd,
-    _parse_image,
-)
+from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.imops.pixels import fixpix
-from astroimred.mgmt.headers import cmt2hdr, hdrval, update_process, update_tlm
-from astroimred.mgmt.misc import (
-    change_to_quantity,
-)
 from astroimred.logging import logger
+from astroimred.mgmt.headers import cmt2hdr, hdrval, update_process, update_tlm
+from astroimred.mgmt.io import _parse_image, load_ccd
 
 from .crrej import LACOSMIC_CRREJ, crrej, medfilt_bpm
 
@@ -718,36 +709,36 @@ def ccdred(
         master, imname, _ = _parse_image(master, name=path, force_ccddata=True)
         return do, master, imname
 
-    # ************************************************************************************ #
-    # *                                  INITIAL SETTING                                 * #
-    # ************************************************************************************ #
+    # ******************************************************************************** #
+    # *                                  INITIAL SETTING                             * #
+    # ******************************************************************************** #
     ccd, _, _ = _parse_image(ccd, extension=extension, force_ccddata=True)
     proc = ccd.copy()
 
-    # == Set for BIAS ==================================================================== #
+    # == Set for BIAS ================================================================ #
     do_b, mbias, mbiaspath = _load_master(mbiaspath, mbias)  # mbias in ndarray
     do_d, mdark, mdarkpath = _load_master(mdarkpath, mdark)  # mdark in ndarray
     do_f, mflat, mflatpath = _load_master(mflatpath, mflat)  # mflat in ndarray
     do_r, mfrin, mfrinpath = _load_master(mfrinpath, mfrin)  # mfrin in ndarray
 
-    # ************************************************************************************ #
-    # *                                 RUN PREPROCESSING                                * #
-    # ************************************************************************************ #
-    # == Do TRIM ========================================================================= #
+    # ******************************************************************************** #
+    # *                                 RUN PREPROCESSING                            * #
+    # ******************************************************************************** #
+    # == Do TRIM ===================================================================== #
     if trimsec is not None:
-        sect = dict(trimsec=trimsec, fill_value=None, update_header=False)
+        sect = {"trimsec": trimsec, "fill_value": None, "update_header": False}
         proc = imslice(proc, trimsec=trimsec, fill_value=None)  # update header
         mbias = imslice(mbias, **sect) if do_b else None
         mdark = imslice(mdark, **sect) if do_d else None
         mflat = imslice(mflat, **sect) if do_f else None
         mfrin = imslice(mfrin, **sect) if do_r else None
 
-    prockw = dict(copy=False, verbose=verbose_bdf)
-    # == Do BIAS ========================================================================= #
+    prockw = {"copy": False, "verbose": verbose_bdf}
+    # == Do BIAS ===================================================================== #
     if do_b:
         proc = biascor(proc, mbias=mbias, mbiaspath=mbiaspath, **prockw)
 
-    # == Do DARK ========================================================================= #
+    # == Do DARK ===================================================================== #
     if do_d:
         proc = darkcor(
             proc,
@@ -760,7 +751,7 @@ def ccdred(
             **prockw,
         )
 
-    # == Do FRINGE **before** flat if not `fringe_flat_fielded` ========================== #
+    # == Do FRINGE **before** flat if not `fringe_flat_fielded` ====================== #
     if do_r and not fringe_flat_fielded:
         proc = frincor(
             proc,
@@ -775,7 +766,7 @@ def ccdred(
             **prockw,
         )
 
-    # == Do FLAT ========================================================================= #
+    # == Do FLAT ===================================================================== #
     if do_f:
         proc = flatcor(
             proc,
@@ -787,7 +778,7 @@ def ccdred(
             **prockw,
         )
 
-    # == Do FRINGE **after** flat if `fringe_flat_fielded` =============================== #
+    # == Do FRINGE **after** flat if `fringe_flat_fielded` =========================== #
     if do_r and fringe_flat_fielded:
         proc = frincor(
             proc,
@@ -802,7 +793,7 @@ def ccdred(
             **prockw,
         )
 
-    # == Do CRREJ ======================================================================== #
+    # == Do CRREJ ==================================================================== #
     if do_crrej:
         if crrej_kw is None:
             crrej_kw = LACOSMIC_CRREJ.copy()
@@ -827,9 +818,9 @@ def ccdred(
             **crrej_kw,
         )
 
-    # ************************************************************************************ #
-    # *                                  PREPARE OUTPUT                                  * #
-    # ************************************************************************************ #
+    # ******************************************************************************** #
+    # *                                  PREPARE OUTPUT                              * #
+    # ******************************************************************************** #
     # To avoid ``pssl`` in cr rejection, subtract fringe AFTER the CRREJ.
     if pixel_min is not None:
         proc.data[proc.data < pixel_min] = pixel_min_fill
@@ -917,7 +908,7 @@ def run_reduc_plan(
     if len(output) != len(plan):
         raise ValueError("output must have the same length as the plan.")
     if fixpix_kw is None:
-        fixpix_kw = dict(priority=None, verbose=False)
+        fixpix_kw = {"priority": None, "verbose": False}
 
     mbiass = _get_frms(plan, col_bias) if preload_cals else {}
     mdarks = _get_frms(plan, col_dark) if preload_cals else {}
@@ -928,7 +919,7 @@ def run_reduc_plan(
     if return_ccd:
         ccds = []
 
-    for (_, row), outpath in zip(plan.iterrows(), output):
+    for (_, row), outpath in zip(plan.iterrows(), output, strict=False):
         mbiaspath = _get_path(row, col_bias)  # either path or None
         mdarkpath = _get_path(row, col_dark)  # either path or None
         mflatpath = _get_path(row, col_flat)  # either path or None

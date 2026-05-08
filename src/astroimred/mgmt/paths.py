@@ -7,8 +7,8 @@ from astro_ndslice import slice_from_string
 from astropy.io import fits
 from astropy.nddata import CCDData
 
-from .headers import key_mapper, key_remover
 from ..logging import logger
+from .headers import key_mapper, key_remover
 
 __all__ = [
     "mkdir",
@@ -76,10 +76,7 @@ def fits_newpath(
         The new path.
     """
 
-    if header is None:
-        hdr = fits.getheader(fpath)
-    else:
-        hdr = header.copy()
+    hdr = fits.getheader(fpath) if header is None else header.copy()
 
     if not fileext.startswith("."):
         fileext = f".{fileext}"
@@ -100,7 +97,7 @@ def fitsrenamer(
     fpath=None,
     header=None,
     newtop=None,
-    rename_by=["OBJECT"],
+    rename_by=None,
     mkdir_by=None,
     delimiter="_",
     archive_dir=None,
@@ -133,7 +130,7 @@ def fitsrenamer(
 
     rename_by : `list` of `str`, optional
         The keywords of the FITS header to rename by.
-        Default: ``['OBJECT']``.
+        Default: `None` which uses ``['OBJECT']``.
 
     mkdir_by : `list` of `str`, optional
         The keys which will be used to make subdirectories to classify files.
@@ -186,12 +183,11 @@ def fitsrenamer(
     """
 
     # Load fits file
+    if rename_by is None:
+        rename_by = ["OBJECT"]
     hdul = fits.open(fpath)
     data = hdul[0].data
-    if header is None:
-        hdr = hdul[0].header
-    else:
-        hdr = header.copy()
+    hdr = hdul[0].header if header is None else header.copy()
     hdul.close()
 
     # add keyword
