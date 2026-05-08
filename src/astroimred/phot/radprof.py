@@ -1,5 +1,4 @@
-""" Radial profiles
-"""
+"""Radial profiles"""
 
 from itertools import repeat
 
@@ -86,7 +85,14 @@ def fwhm_r(popt, fun):
 
 
 def radial_profile(
-    im, center, radii=1, thickness=1, mask=None, norm_by_center=False, add_center=False, **kwargs
+    im,
+    center,
+    radii=1,
+    thickness=1,
+    mask=None,
+    norm_by_center=False,
+    add_center=False,
+    **kwargs,
 ):
     """Calculate radial profile of the image.
 
@@ -240,13 +246,13 @@ def radcum_profile(
     x, y = center
     _mask_arr = np.asarray(mask, dtype=bool) if mask is not None else None
 
-    ap_masks = [fast_circ_apmask(x, y, r, use_exact=1) for r in radii]  # (mask, sl) pairs
+    ap_masks = [
+        fast_circ_apmask(x, y, r, use_exact=1) for r in radii
+    ]  # (mask, sl) pairs
 
     # aperture sums
     if _mask_arr is not None:
-        apsums = np.array([
-            np.sum(m * im[sl] * ~_mask_arr[sl]) for m, sl in ap_masks
-        ])
+        apsums = np.array([np.sum(m * im[sl] * ~_mask_arr[sl]) for m, sl in ap_masks])
     else:
         apsums = np.array([np.sum(m * im[sl]) for m, sl in ap_masks])
 
@@ -263,9 +269,9 @@ def radcum_profile(
     unc_col = None
     if var_map is not None:
         if _mask_arr is not None:
-            var_vals = np.array([
-                np.sum(m * var_map[sl] * ~_mask_arr[sl]) for m, sl in ap_masks
-            ])
+            var_vals = np.array(
+                [np.sum(m * var_map[sl] * ~_mask_arr[sl]) for m, sl in ap_masks]
+            )
         else:
             var_vals = np.array([np.sum(m * var_map[sl]) for m, sl in ap_masks])
         if return_var:
@@ -277,7 +283,7 @@ def radcum_profile(
         _norm = np.abs(apsums[-1])
         apsums /= _norm
         if unc_vals is not None:
-            unc_vals /= (_norm**2 if return_var else _norm)
+            unc_vals /= _norm**2 if return_var else _norm
 
     if unc_vals is not None:
         prof[unc_col] = unc_vals
@@ -332,7 +338,9 @@ def ee_radius(im, center, fraction=0.5, r_min=0.5, r_max=None, sum_is_unity=Fals
         return float(np.sum(m * im[sl])) - target
 
     from scipy.optimize import brentq
+
     return brentq(_residual, r_min, r_max)
+
 
 def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None, refit=1):
     """Get radial profile (pixel values) of an object from n-D image.

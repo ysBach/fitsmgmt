@@ -2,12 +2,12 @@
 Generate ground-truth regression data for imcombine/ndcombine and components.
 
 Run from repo root:
-  python -m tests.generate_imcombine_regression_data
+  python -m tests.reduction.generate_imcombine_regression_data
 
-Or from tests/:
+Or from tests/reduction/:
   python generate_imcombine_regression_data.py
 
-Output: tests/data/ndcombine_regression.pkl, tests/data/component_regression.pkl
+Output: tests/reduction/data/ndcombine_regression.pkl, tests/reduction/data/component_regression.pkl
 """
 
 from __future__ import annotations

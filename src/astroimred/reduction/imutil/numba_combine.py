@@ -15,8 +15,8 @@ from numba import njit, prange
 # Import config to access IMUTIL_USE_NUMBA dynamically
 from . import config
 
-
 # --- Fast-path 1d kernels (no NaN/inf handling); use when has_nan is False ---
+
 
 @njit(cache=True, fastmath=True)
 def _mean_1d(vals):
@@ -81,6 +81,7 @@ def _median_lower_1d(vals):
 
 
 # --- NaN-ignoring 1d kernels (use when has_nan is True) ---
+
 
 @njit(cache=True)
 def _nanmean_1d(vals):
@@ -244,6 +245,7 @@ def combine_nanlmedian(arr):
 
 
 # --- Fast-path combine (no NaN handling) ---
+
 
 @njit(cache=True, fastmath=True, parallel=True)
 def combine_mean(arr):

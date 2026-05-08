@@ -45,9 +45,9 @@ def _circ_bbox(x, y, r):
     if r <= 0:
         raise ValueError(f"Radius must be positive (got {r})")
     ixmin = math.floor((x - r) + 0.5)
-    ixmax = math.ceil((x + r) + 0.5)   # exclusive
+    ixmax = math.ceil((x + r) + 0.5)  # exclusive
     iymin = math.floor((y - r) + 0.5)
-    iymax = math.ceil((y + r) + 0.5)   # exclusive
+    iymax = math.ceil((y + r) + 0.5)  # exclusive
     nx = ixmax - ixmin
     ny = iymax - iymin
     xmin = ixmin - 0.5 - x
@@ -91,7 +91,9 @@ def fast_circ_apmask(x, y, r, slice_only=False, use_exact=1, subpixels=1):
     sl = (slice(iymin, iymax), slice(ixmin, ixmax))
     if slice_only:
         return sl
-    mask = circular_overlap_grid(xmin, xmax, ymin, ymax, nx, ny, r, use_exact, subpixels)
+    mask = circular_overlap_grid(
+        xmin, xmax, ymin, ymax, nx, ny, r, use_exact, subpixels
+    )
     return mask, sl
 
 
@@ -129,14 +131,20 @@ def fast_circ_anmask(x, y, r_in, r_out, use_exact=0, subpixels=1):
         raise ValueError(f"r_in must be less than r_out (got {r_in} >= {r_out})")
     ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(x, y, r_out)
     sl = (slice(iymin, iymax), slice(ixmin, ixmax))
-    mask = circular_overlap_grid(xmin, xmax, ymin, ymax, nx, ny, r_out, use_exact, subpixels)
+    mask = circular_overlap_grid(
+        xmin, xmax, ymin, ymax, nx, ny, r_out, use_exact, subpixels
+    )
     if r_in > 0:
-        mask_in = circular_overlap_grid(xmin, xmax, ymin, ymax, nx, ny, r_in, use_exact, subpixels)
+        mask_in = circular_overlap_grid(
+            xmin, xmax, ymin, ymax, nx, ny, r_in, use_exact, subpixels
+        )
         mask -= mask_in
     return mask, sl
 
 
-def fast_circ_apanmask(x, y, r, r_in, r_out, ap_use_exact=1, an_use_exact=0, subpixels=1):
+def fast_circ_apanmask(
+    x, y, r, r_in, r_out, ap_use_exact=1, an_use_exact=0, subpixels=1
+):
     """Generate overlap masks for a circular aperture and annulus simultaneously.
 
     Computes both masks over the outer bounding box in a single pass,
@@ -178,9 +186,15 @@ def fast_circ_apanmask(x, y, r, r_in, r_out, ap_use_exact=1, an_use_exact=0, sub
         raise ValueError(f"Aperture r must be <= r_out (got {r} > {r_out})")
     ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _circ_bbox(x, y, r_out)
     sl = (slice(iymin, iymax), slice(ixmin, ixmax))
-    mask_ap = circular_overlap_grid(xmin, xmax, ymin, ymax, nx, ny, r, ap_use_exact, subpixels)
-    mask_an = circular_overlap_grid(xmin, xmax, ymin, ymax, nx, ny, r_out, an_use_exact, subpixels)
-    mask_in = circular_overlap_grid(xmin, xmax, ymin, ymax, nx, ny, r_in, an_use_exact, subpixels)
+    mask_ap = circular_overlap_grid(
+        xmin, xmax, ymin, ymax, nx, ny, r, ap_use_exact, subpixels
+    )
+    mask_an = circular_overlap_grid(
+        xmin, xmax, ymin, ymax, nx, ny, r_out, an_use_exact, subpixels
+    )
+    mask_in = circular_overlap_grid(
+        xmin, xmax, ymin, ymax, nx, ny, r_in, an_use_exact, subpixels
+    )
     mask_an -= mask_in
     return mask_ap, mask_an, sl
 
@@ -223,9 +237,9 @@ def _ellip_bbox(x, y, rx, ry, theta):
     dx = math.sqrt((rx * cos_t) ** 2 + (ry * sin_t) ** 2)
     dy = math.sqrt((rx * sin_t) ** 2 + (ry * cos_t) ** 2)
     ixmin = math.floor((x - dx) + 0.5)
-    ixmax = math.ceil((x + dx) + 0.5)   # exclusive
+    ixmax = math.ceil((x + dx) + 0.5)  # exclusive
     iymin = math.floor((y - dy) + 0.5)
-    iymax = math.ceil((y + dy) + 0.5)   # exclusive
+    iymax = math.ceil((y + dy) + 0.5)  # exclusive
     nx = ixmax - ixmin
     ny = iymax - iymin
     xmin = ixmin - 0.5 - x
@@ -277,7 +291,9 @@ def fast_ellip_apmask(x, y, rx, ry, theta, use_exact=1, subpixels=5):
     return mask, sl
 
 
-def fast_ellip_anmask(x, y, rx_in, ry_in, rx_out, ry_out, theta, use_exact=0, subpixels=5):
+def fast_ellip_anmask(
+    x, y, rx_in, ry_in, rx_out, ry_out, theta, use_exact=0, subpixels=5
+):
     """Generate an overlap mask for a rotated elliptical annulus.
 
     Parameters
@@ -323,13 +339,9 @@ def fast_ellip_anmask(x, y, rx_in, ry_in, rx_out, ry_out, theta, use_exact=0, su
             f"Inner semi-axes must be non-negative (got rx_in={rx_in}, ry_in={ry_in})"
         )
     if rx_in >= rx_out:
-        raise ValueError(
-            f"rx_in must be less than rx_out (got {rx_in} >= {rx_out})"
-        )
+        raise ValueError(f"rx_in must be less than rx_out (got {rx_in} >= {rx_out})")
     if ry_in >= ry_out:
-        raise ValueError(
-            f"ry_in must be less than ry_out (got {ry_in} >= {ry_out})"
-        )
+        raise ValueError(f"ry_in must be less than ry_out (got {ry_in} >= {ry_out})")
     ixmin, ixmax, iymin, iymax, xmin, xmax, ymin, ymax, nx, ny = _ellip_bbox(
         x, y, rx_out, ry_out, theta
     )

@@ -188,9 +188,7 @@ def _sky_fit(
             std = np.std(sky_clipped, ddof=std_ddof)
             mean = np.mean(sky_clipped)
             med = np.median(sky_clipped)
-            msky = (
-                med if (mean - med) / std > 0.3 else (2.5 * med) - (1.5 * mean)
-            )
+            msky = med if (mean - med) / std > 0.3 else (2.5 * med) - (1.5 * mean)
         elif method == "median":
             std = np.std(sky_clipped, ddof=std_ddof)
             msky = np.median(sky_clipped)
@@ -478,7 +476,7 @@ def mmm_dao(
                 newmin += istep
                 done = (newmin == -1) or (newmin == (nsky - 1))
                 if not done:
-                     done = (sky[newmin] <= cut1) and (sky[newmin + 1] >= cut1)
+                    done = (sky[newmin] <= cut1) and (sky[newmin + 1] >= cut1)
                 if done:
                     break
 
@@ -541,8 +539,11 @@ def mmm_dao(
             L = int(round(center - 0.25))
             M = int(round(center + 0.25))
             R = 0.25 * readnoise
-            while (J > 0) and (K < nsky - 1) and \
-                  ((sky[L] - sky[J] < R) or (sky[K] - sky[M] < R)):
+            while (
+                (J > 0)
+                and (K < nsky - 1)
+                and ((sky[L] - sky[J] < R) or (sky[K] - sky[M] < R))
+            ):
                 J -= 1
                 K += 1
 

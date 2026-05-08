@@ -160,7 +160,8 @@ def group_combine(
         outdir = Path(".") if outdir is None else Path(outdir)
         if verbose >= 1 and not outdir.exists():
             logger.info(
-                "Output directory: '%s' <- does not exist! It will be newly made.", outdir
+                "Output directory: '%s' <- does not exist! It will be newly made.",
+                outdir,
             )
 
         outdir.mkdir(exist_ok=True, parents=True)
@@ -169,9 +170,7 @@ def group_combine(
             nk = len(group_key) if is_list_like(group_key) else 1  # 1 if str
             fmt = "_".join(["{}"] * nk)
             if verbose >= 1:
-                logger.warning(
-                    "fmt is not specified! Output file names might be ugly."
-                )
+                logger.warning("fmt is not specified! Output file names might be ugly.")
 
         if isinstance(groupname, tuple):
             fname = fmt.format(*groupname) + ".fits"
@@ -877,11 +876,19 @@ def ndcombine(
         if thresholds != [-np.inf, np.inf]:
             logger.info("-- thresholds (low, upp) = %s", thresholds)
         logger.info("-- reject=%s (irafmode=%s)", reject, irafmode)
-        logger.info("--       params: nkeep=%s, maxrej=%s, maxiters=%s, cenfunc=%s", nkeep, maxrej, maxiters, cenfunc)
+        logger.info(
+            "--       params: nkeep=%s, maxrej=%s, maxiters=%s, cenfunc=%s",
+            nkeep,
+            maxrej,
+            maxiters,
+            cenfunc,
+        )
         if reject_fullname == "sigclip":
             logger.info("  (for sigclip): sigma=%s, ddof=%s", sigma, ddof)
         elif reject_fullname == "ccdclip":
-            logger.info("  (for ccdclip): gain=%s, rdnoise=%s, snoise=%s", gain, rdnoise, snoise)
+            logger.info(
+                "  (for ccdclip): gain=%s, rdnoise=%s, snoise=%s", gain, rdnoise, snoise
+            )
         # elif reject_fullnme == "pclip":
         #   print(f"    (for pclip)  : spclip={pclip}")
         # elif reject_fullname == "minmax":

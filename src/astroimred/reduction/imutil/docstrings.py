@@ -1,24 +1,27 @@
-
-__all__ = ["REJECT_PARAMETERS_COMMON",
-           'REJECT_PARAMETERS_SIGMA',
-           "REJECT_RETURNS_SIGMA",
-           "NDCOMB_NOT_IMPLEMENTED",
-           "NDCOMB_PARAMETERS_COMMON", "NDCOMB_RETURNS_COMMON",
-           "OFFSETS_LONG", "OFFSETS_SHORT", "IMCOMBINE_LINK"]
+__all__ = [
+    "REJECT_PARAMETERS_COMMON",
+    "REJECT_PARAMETERS_SIGMA",
+    "REJECT_RETURNS_SIGMA",
+    "NDCOMB_NOT_IMPLEMENTED",
+    "NDCOMB_PARAMETERS_COMMON",
+    "NDCOMB_RETURNS_COMMON",
+    "OFFSETS_LONG",
+    "OFFSETS_SHORT",
+    "IMCOMBINE_LINK",
+]
 
 
 def _fix(content, indent=0):
-    ''' From astropy
+    """From astropy
     https://github.com/astropy/astropy/blob/a6a350570aec6600eb907fe9903585dd18dc0874/astropy/wcs/docstrings.py#L12
-    '''
-    lines = content.split('\n')
-    indent = '\n' + ' ' * indent
+    """
+    lines = content.split("\n")
+    indent = "\n" + " " * indent
     return indent.join(lines)
 
 
 def REJECT_PARAMETERS_COMMON(indent=0):
-    return _fix(
-        """
+    return _fix("""
 mask : `~numpy.ndarray`, optional.
     The initial mask provided prior to any rejection. `arr` and `mask` must have the identical
     shape.
@@ -27,8 +30,7 @@ axis : `int`, optional.
     The axis to combine the image.
 
 full : `bool`, optional.
-    Whether to return full results. See Return."""
-)
+    Whether to return full results. See Return.""")
 
 
 def REJECT_PARAMETERS_SIGMA(indent=0):
@@ -72,11 +74,14 @@ cenfunc : `str`, optional.
 
 irafmode : `bool`, optional.
         Whether to use IRAF-like pixel restoration scheme. Default is `True`.
-""", indent)
+""",
+        indent,
+    )
 
 
 def REJECT_RETURNS_SIGMA(indent=0):
-    return _fix("""
+    return _fix(
+        """
 o_mask : `~numpy.ndarray` of `bool`
     The mask of the same shape as `arr` and `mask`.
 
@@ -97,21 +102,26 @@ o_code : `~numpy.ndarray` of uint8
         * 4-th (8): rejected ndata > maxrej reached
 
     The code of 10 is, for example, 1010 in binary, so the iteration finished before `maxiters`
-    (2-th flag) because pixels more than `maxrej` are rejected (4-th flag).""", indent)
+    (2-th flag) because pixels more than `maxrej` are rejected (4-th flag).""",
+        indent,
+    )
 
 
 def NDCOMB_NOT_IMPLEMENTED(indent=0):
     return _fix(
-        '''
+        """
 .. warning::
 
     A few options are not implemented yet: blank, logfile, statsec with
     input/output/overlap, weight, scale_sample, zero_sample, ``"mode"`` for
-    scale/zero/weight, and memlimit chunking.''', indent)
+    scale/zero/weight.""",
+        indent,
+    )
 
 
 def NDCOMB_PARAMETERS_COMMON(indent=0):
-    return _fix(r'''
+    return _fix(
+        r"""
 thresholds : 2-`float` `list`-like, optional.
     The thresholds ``(lower, upper)`` applied to all images before any rejection/combination. Default
     is no thresholding, ``(-np.inf, +np.inf)``. One possible usage is to replace bad pixel to very
@@ -270,11 +280,14 @@ combine: `str`, optional.
         Currently there is no lmedian-alternative in bottleneck or numpy, so a custom-made version is
         used (in numpy_util.py), which is nothing but a simple modification to the original numpy
         source codes, and this is much slower than bottleneck's median. I think it must be
-        re-implemented in the future.''', indent)
+        re-implemented in the future.""",
+        indent,
+    )
 
 
 def NDCOMB_RETURNS_COMMON(indent=0):
-    return _fix("""
+    return _fix(
+        """
 err : `~numpy.ndarray`
     The standard deviation map (if `return_variance` is `False`) or the variance map (if
     `return_variance` is `True`) of the survived pixels (with `ddof`).
@@ -299,11 +312,14 @@ nit : `~numpy.ndarray` (dtype uint8)
     than 100, so set the dtype to ``uint8`` to reduce memory and filesize.
 
 rejcode : `~numpy.ndarray` (dtype uint8)
-    The exit code from rejection (``N``-D). See each rejection's docstring.""", indent)
+    The exit code from rejection (``N``-D). See each rejection's docstring.""",
+        indent,
+    )
 
 
 def OFFSETS_SHORT(indent=0):
-    return _fix('''
+    return _fix(
+        """
 offsets : (n, m)-d array
     If given, it must have shape such that ``n`` is the number of images and ``m`` is the dimension of
     the images (offsets in x, y, z, ... order, not pythonic order), and it is directly regarded as the
@@ -311,11 +327,14 @@ offsets : (n, m)-d array
 
     The raw offsets are then modified such that the minimum offsets in each axis becomes zero (in
     pythonic way, ``np.max(offsets, axis=0) - offsets``). The offsets are used to determine the final
-    output image's shape.''', indent)
+    output image's shape.""",
+        indent,
+    )
 
 
 def OFFSETS_LONG(indent=0):
-    return _fix('''
+    return _fix(
+        """
 offsets : `str` or (n, m)-d array
     If array, it must have shape such that ``n`` is the number of images and ``m`` is the dimension of
     the images (if ``m=3``, offsets in x, y, z, ... order, not pythonic order), and it is directly
@@ -344,9 +363,14 @@ offsets : `str` or (n, m)-d array
         IRAF does offset calculation for astropy.wcs.WCS, it's not reproducible using rounding. Even using astropy.wcs.WCS info
         correctly, it's not reproducible. Also, if we only use CRPIX, the offset calculations are
         completely wrong if CRPIX is not centered at the identical world coordinate (e.g., RA/DEC).
-        **IRAF indeed wrongly combines images** if this happens.''', indent)
+        **IRAF indeed wrongly combines images** if this happens.""",
+        indent,
+    )
 
 
 def IMCOMBINE_LINK(indent=0):
-    return _fix("""
-.. _IMCOMBINE: https://iraf.readthedocs.io/en/latest/tasks/images/immatch/imcombine.html""", indent)
+    return _fix(
+        """
+.. _IMCOMBINE: https://iraf.readthedocs.io/en/latest/tasks/images/immatch/imcombine.html""",
+        indent,
+    )

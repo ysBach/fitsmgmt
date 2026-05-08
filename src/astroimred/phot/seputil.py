@@ -36,7 +36,6 @@ import sep
 
 from .util import bezel_mask, gaussian_kernel
 
-
 __all__ = ["sep_back", "sep_extract", "sep_extract_iterative", "sep_flux_auto"]
 
 sep_default_kernel = np.array(
@@ -652,6 +651,7 @@ def sep_extract_iterative(
         src_mask = segm > 0
         if seg_dilate > 0:
             from scipy.ndimage import binary_dilation
+
             struct = _disk_struct(seg_dilate)
             src_mask = binary_dilation(src_mask, structure=struct)
 
@@ -663,8 +663,8 @@ def sep_extract_iterative(
 def _disk_struct(radius):
     """Boolean disk structuring element of given radius for dilation."""
     r = int(radius)
-    y, x = np.ogrid[-r: r + 1, -r: r + 1]
-    return x ** 2 + y ** 2 <= r ** 2
+    y, x = np.ogrid[-r : r + 1, -r : r + 1]
+    return x**2 + y**2 <= r**2
 
 
 def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):

@@ -681,6 +681,7 @@ class LinPolOE4(PolObjMixin):
         None.
         Default is `None`.
     """
+
     def __init__(
         self,
         i000_o,

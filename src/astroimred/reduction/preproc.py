@@ -196,7 +196,9 @@ def darkcor(
     _t = Time.now()
     nccd = ccd.copy() if copy else ccd
     use_ccddata = dark_scale and exptime_dark is None
-    mdark, mdarkname, _ = _parse_image(mdark or mdarkpath, name=mdarkpath, force_ccddata=use_ccddata)
+    mdark, mdarkname, _ = _parse_image(
+        mdark or mdarkpath, name=mdarkpath, force_ccddata=use_ccddata
+    )
 
     if dark_scale:
         exptime_data = exptime_data or ccd.header.get(exptime_key, None)
@@ -289,7 +291,9 @@ def flatcor(
 
     _t = Time.now()
     nccd = ccd.copy() if copy else ccd
-    mflat, mflatname, _ = _parse_image(mflat or mflatpath, name=mflatpath, force_ccddata=False)
+    mflat, mflatname, _ = _parse_image(
+        mflat or mflatpath, name=mflatpath, force_ccddata=False
+    )
     # For FLAT, header information is not needed at all... I guess?
     if flat_mask is not None:
         if isinstance(flat_mask, np.ndarray):

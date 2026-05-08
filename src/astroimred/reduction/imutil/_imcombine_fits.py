@@ -452,7 +452,9 @@ def extract_stack_metadata(
                     imcmb_val.append(Path(item).name)
                 except TypeError:
                     imcmb_val.append(f"User-provided {type(item)}")
-            data = _parse_imc_data_header(item, extension=extension, parse_header=False)[0]
+            data = _parse_imc_data_header(
+                item, extension=extension, parse_header=False
+            )[0]
             if data is None:
                 raise ValueError(f"Could not read data from input {i}.")
             raw_shapes[i,] = data.shape

@@ -608,7 +608,9 @@ def _centroiding_iteration(
         if cthresh < _mindata:
             if verbose:
                 logger.info(f"\tthreshold = {cthresh:.3f} < (min of pixels in cbox).")
-                logger.info(f"\t∴ threshold = {_mindata:.3f} (min of pixels in cbox)...")
+                logger.info(
+                    f"\t∴ threshold = {_mindata:.3f} (min of pixels in cbox)..."
+                )
             # msky = _mindata
             cthresh = _mindata
 
@@ -655,7 +657,7 @@ def _centroiding_iteration(
 
 
 def _fit_2dgaussian(data, error=None, mask=None):
-    """ Fit a 2D Gaussian plus a constant to a 2D image.
+    """Fit a 2D Gaussian plus a constant to a 2D image.
 
     Parameters
     ----------

@@ -102,6 +102,7 @@ def sigma_clipper(
         stdfunc=stdfunc,
     )
 
+
 def magsum(*args):
     """Calculates the "sum" of magnitudes.
 
@@ -113,8 +114,7 @@ def magsum(*args):
 
 
 def sqsum(*args):
-    """Calculates the sum of squares. (variance propagation)
-    """
+    """Calculates the sum of squares. (variance propagation)"""
     _sum = 0
     for a in args:
         _sum += a**2
@@ -122,8 +122,7 @@ def sqsum(*args):
 
 
 def err_prop(*errs):
-    """Propagate errors by the square-root of the sum of squares.
-    """
+    """Propagate errors by the square-root of the sum of squares."""
     return np.sqrt(sqsum(*errs))
 
 
@@ -223,8 +222,7 @@ def convert_pct(*args, already=False, convert2unit=False):
 
 
 def convert_deg(*args, already=False, convert2unit=False):
-    """Convert between degrees and radians.
-    """
+    """Convert between degrees and radians."""
     return _linear_unit_converter(
         *args, factor=180 / np.pi, already=already, convert2unit=convert2unit
     )
@@ -453,7 +451,7 @@ def Gaussian2D_correct(model, theta_lower=-np.pi / 2, theta_upper=np.pi / 2):
 
 
 def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
-    """ Fit an astropy model to 2D data.
+    """Fit an astropy model to 2D data.
 
     Parameters
     ----------

@@ -434,21 +434,33 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         for xy_position in xy_positions:
             # The ellipse on the "right" when theta = 0
             ellipse_1_in = mpatches.Ellipse(
-                xy_position + self.offset, 2.0 * self.a_in, 2.0 * self.b_in, angle=theta_deg
+                xy_position + self.offset,
+                2.0 * self.a_in,
+                2.0 * self.b_in,
+                angle=theta_deg,
             )
             # The ellipse on the "left" when theta = 0
             ellipse_2_in = mpatches.Ellipse(
-                xy_position - self.offset, 2.0 * self.a_in, 2.0 * self.b_in, angle=theta_deg
+                xy_position - self.offset,
+                2.0 * self.a_in,
+                2.0 * self.b_in,
+                angle=theta_deg,
             )
             p_inner = self._pill_patches(ellipse_1_in, ellipse_2_in)
 
             # The ellipse on the "right" when theta = 0
             ellipse_1_out = mpatches.Ellipse(
-                xy_position + self.offset, 2.0 * self.a_out, 2.0 * self.b_out, angle=theta_deg
+                xy_position + self.offset,
+                2.0 * self.a_out,
+                2.0 * self.b_out,
+                angle=theta_deg,
             )
             # The ellipse on the "left" when theta = 0
             ellipse_2_out = mpatches.Ellipse(
-                xy_position - self.offset, 2.0 * self.a_out, 2.0 * self.b_out, angle=theta_deg
+                xy_position - self.offset,
+                2.0 * self.a_out,
+                2.0 * self.b_out,
+                angle=theta_deg,
             )
             p_outer = self._pill_patches(ellipse_1_out, ellipse_2_out)
 

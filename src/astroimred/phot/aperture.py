@@ -115,8 +115,6 @@ def ap_to_cutout_position(ap, cutout2d):
     return newap
 
 
-
-
 def _sanitize_apsize(size=None, fwhm=None, factor=None, name="size", repeat=False):
     def __repeat(item, repeat=False, rep=2):
         if repeat and np.isscalar(item):
@@ -421,10 +419,12 @@ def pa2xytheta(pa, wcs, location="crpix", step_pix=0.1):
 
     # desired sky direction (unit vector in RA/Dec coords)
     pa_rad = np.deg2rad(pa)
-    v_sky = np.array([
-        np.sin(pa_rad) / np.cos(np.deg2rad(dec0)),  # dRA corrected
-        np.cos(pa_rad)                             # dDec
-    ])
+    v_sky = np.array(
+        [
+            np.sin(pa_rad) / np.cos(np.deg2rad(dec0)),  # dRA corrected
+            np.cos(pa_rad),  # dDec
+        ]
+    )
 
     # invert Jacobian: world -> pixel
     jacob = np.array([[dra_dx, dra_dy], [ddec_dx, ddec_dy]])
