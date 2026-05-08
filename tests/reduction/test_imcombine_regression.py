@@ -17,27 +17,27 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import astroimred.reduction as fir
+import astroimred.reduction as imred
 
-fir_uc = import_module("astroimred.reduction.imutil.util_comb")
-fir_ur = import_module("astroimred.reduction.imutil.util_reject")
-ndcombine = fir.ndcombine
-_get_dtype_limits = fir_uc._get_dtype_limits
-_set_cenfunc = fir_uc._set_cenfunc
-_set_combfunc = fir_uc._set_combfunc
-_set_gain_rdns = fir_uc._set_gain_rdns
-_set_int_dtype = fir_uc._set_int_dtype
-_set_keeprej = fir_uc._set_keeprej
-_set_mask = fir_uc._set_mask
-_set_minmax = fir_uc._set_minmax
-_set_reject_name = fir_uc._set_reject_name
-_set_sigma = fir_uc._set_sigma
-_set_thresh_mask = fir_uc._set_thresh_mask
-do_zs = fir_uc.do_zs
-get_zsw = fir_uc.get_zsw
-ccdclip_mask = fir_ur.ccdclip_mask
-minmax_mask = fir_ur.minmax_mask
-sigclip_mask = fir_ur.sigclip_mask
+imred_uc = import_module("astroimred.reduction.imutil.util_comb")
+imred_ur = import_module("astroimred.reduction.imutil.util_reject")
+ndcombine = imred.ndcombine
+_get_dtype_limits = imred_uc._get_dtype_limits
+_set_cenfunc = imred_uc._set_cenfunc
+_set_combfunc = imred_uc._set_combfunc
+_set_gain_rdns = imred_uc._set_gain_rdns
+_set_int_dtype = imred_uc._set_int_dtype
+_set_keeprej = imred_uc._set_keeprej
+_set_mask = imred_uc._set_mask
+_set_minmax = imred_uc._set_minmax
+_set_reject_name = imred_uc._set_reject_name
+_set_sigma = imred_uc._set_sigma
+_set_thresh_mask = imred_uc._set_thresh_mask
+do_zs = imred_uc.do_zs
+get_zsw = imred_uc.get_zsw
+ccdclip_mask = imred_ur.ccdclip_mask
+minmax_mask = imred_ur.minmax_mask
+sigclip_mask = imred_ur.sigclip_mask
 
 # Reuse same stack generator as in data generator
 from tests.generate_imcombine_regression_data import (

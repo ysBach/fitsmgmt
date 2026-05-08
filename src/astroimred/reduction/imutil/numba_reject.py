@@ -4,7 +4,7 @@ Per-pixel Numba JIT kernels for rejection algorithms (sigclip, ccdclip, minmax).
 Designed so that chunking can later pass slices arr[:, y0:y1, x0:x1]
 without changing the kernel signature (same 3D array, possibly a view).
 
-IMUTIL_USE_NUMBA is imported from fir.imutil (can be set via fir.IMUTIL_USE_NUMBA).
+IMUTIL_USE_NUMBA is imported from astroimred.reduction.imutil (can be set via imred.IMUTIL_USE_NUMBA).
 """
 
 import numpy as np

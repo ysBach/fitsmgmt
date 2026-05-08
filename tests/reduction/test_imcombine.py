@@ -4,10 +4,10 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy import units as u
 
-import astroimred.reduction as fir
+import astroimred.reduction as imred
 
 class TestNDCombine:
-    """Tests for `~fir.imutil.ndcombine` function (core algorithmic logic)."""
+    """Tests for `~imred.imutil.ndcombine` function (core algorithmic logic)."""
 
     def test_basic_average(self):
         """Test simple average combination."""
@@ -18,7 +18,7 @@ class TestNDCombine:
         arr[1] += 2
         arr[2] += 3
 
-        combined = fir.ndcombine(arr, combine="average")
+        combined = imred.ndcombine(arr, combine="average")
         np.testing.assert_allclose(combined, 2.0, rtol=1e-6)
 
     def test_basic_median(self):
@@ -29,7 +29,7 @@ class TestNDCombine:
         arr[2] += 100
 
         # Median is 10.
-        combined = fir.ndcombine(arr, combine="median")
+        combined = imred.ndcombine(arr, combine="median")
         np.testing.assert_allclose(combined, 10.0, rtol=1e-6)
 
     def test_basic_lmedian(self):
@@ -40,7 +40,7 @@ class TestNDCombine:
         arr[1] += 2
         arr[2] += 3
         arr[3] += 4
-        combined = fir.ndcombine(arr, combine="lmedian")
+        combined = imred.ndcombine(arr, combine="lmedian")
         np.testing.assert_allclose(combined, 2.0, rtol=1e-6)
 
     def test_sigma_clip(self):
@@ -57,7 +57,7 @@ class TestNDCombine:
         arr[4] = 1000.0
 
         # combine="average", reject="sigclip", sigma=[3, 3]
-        combined = fir.ndcombine(
+        combined = imred.ndcombine(
             arr,
             combine="average",
             reject="sigclip",
@@ -77,7 +77,7 @@ class TestNDCombine:
         arr = arr[:, None, None] * np.ones((5, 2, 2))
 
         # nlow=1, nhigh=1 -> reject lowest and highest.
-        combined = fir.ndcombine(
+        combined = imred.ndcombine(
             arr,
             combine="average",
             reject="minmax",
@@ -89,7 +89,7 @@ class TestNDCombine:
 
 
 class TestImCombine:
-    """Tests for `~fir.imutil.imcombine` wrapper with FITS files."""
+    """Tests for `~imred.imutil.imcombine` wrapper with FITS files."""
 
     def test_imcombine_files(self, tmp_path):
         """Test combining FITS files."""
@@ -105,7 +105,7 @@ class TestImCombine:
         # Combine
         outpath = tmp_path / "combined.fits"
 
-        res = fir.imcombine(
+        res = imred.imcombine(
             paths,
             output=outpath,
             combine="average",
