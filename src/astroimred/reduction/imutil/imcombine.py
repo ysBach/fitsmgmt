@@ -992,7 +992,7 @@ def ndcombine(
     # Original path (fallback when IMUTIL_USE_NUMBA is False or combine not supported):
     # comb = combfunc(arr, axis=0)
     if config.IMUTIL_USE_NUMBA:
-        has_nan = np.any(_mask)
+        has_nan = not np.all(np.isfinite(arr))
         comb_numba = combine_along_axis0_numba(arr, combine, has_nan=has_nan)
         comb = comb_numba if comb_numba is not None else combfunc(arr, axis=0)
     else:
