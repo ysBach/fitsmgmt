@@ -6,6 +6,7 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy.time import Time
 
+from astroimred._types import CCDLike, HDUExt, StrPathLike
 from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.logging import logger
 from astroimred.mgmt.headers import cmt2hdr, update_tlm
@@ -186,24 +187,24 @@ def _load_im_name_hdr(
 
 
 def imarith(
-    im1,
-    op,
-    im2,
-    output=None,
-    extension1=None,
-    extension2=None,
-    name1=None,
-    name2=None,
+    im1: CCDLike | np.ndarray | StrPathLike | float,
+    op: str,
+    im2: CCDLike | np.ndarray | StrPathLike | float,
+    output: StrPathLike | None = None,
+    extension1: HDUExt = None,
+    extension2: HDUExt = None,
+    name1: str | None = None,
+    name2: str | None = None,
     offsets=None,
-    replace=0,
-    header_params=None,
-    dtype="float32",
-    error_calc=False,
-    ignore_header=False,
-    overwrite=False,
-    output_verify="exception",
-    verbose=True,
-):
+    replace: float = 0,
+    header_params: str | dict | None = None,
+    dtype: str = "float32",
+    error_calc: bool = False,
+    ignore_header: bool = False,
+    overwrite: bool = False,
+    output_verify: str = "exception",
+    verbose: bool = True,
+) -> CCDData:
     """Similar to IRAF IMARITH
 
     Parameters
@@ -224,16 +225,16 @@ def imarith(
 
     extension1, extension2 : `int`, `str`, (`str`, `int`)
         The extension of FITS to be used. It can be given as integer
-        (0-indexing) of the extension, ``EXTNAME`` (single `str`), or a `tuple` of
-        `str` and `int`: ``(EXTNAME, EXTVER)``. If `None` (default), the *first
-        extension with data* will be used.
+        (0-indexing) of the extension, ``EXTNAME`` (single `str`), or a `tuple`
+        of `str` and `int`: ``(EXTNAME, EXTVER)``. If `None` (default), the
+        *first extension with data* will be used.
 
     name1, name2: `str`, optional.
         The names of the images that will be logged into the header
         (``HISTORY``). If `None`, function automatically chooses appropriate
         name for it: the number (if `im` is number-like), the path (if `im` is
-        path-like), or explanatory strings (if `im` is either `~numpy.ndarray` or
-        `~astropy.nddata.CCDData`)
+        path-like), or explanatory strings (if `im` is either `~numpy.ndarray`
+        or `~astropy.nddata.CCDData`)
         Default: `None`.
 
     replace : np.nan, `float`-like, optional.
@@ -299,10 +300,10 @@ def imarith(
     multiply used file** and give that HDU or `~astropy.nddata.CCDData` to
     `imarith`. This will reduce the time spent for file I/O.
 
-    Converting an array to `~astropy.nddata.CCDData` takes only ~ 10 us regardless on the array
-    size on MBP 15"*; this is because most time is spent on metadata
-    generation. Note, however, that *reading* a FITS file takes ~ 10 ms, i.e.,
-    1000 times slower.
+    Converting an array to `~astropy.nddata.CCDData` takes only ~ 10 us
+    regardless on the array size on MBP 15"*; this is because most time is
+    spent on metadata generation. Note, however, that *reading* a FITS file
+    takes ~ 10 ms, i.e., 1000 times slower.
 
     Tested on MBP 15" [2018, macOS 10.14.6, i7-8850H (2.6 GHz; 6-core), RAM 16
     GB (2400MHz DDR4), Radeon Pro 560X (4GB)] 2020-11-02 21:50:07 (KST:

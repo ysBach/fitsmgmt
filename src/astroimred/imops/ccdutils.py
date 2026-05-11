@@ -1,6 +1,8 @@
 """CCDData manipulation helpers."""
 
+from collections.abc import Callable
 from copy import deepcopy
+from typing import Any
 
 import numpy as np
 from astro_ndslice import calc_offset_physical, offseted_shape, slicefy
@@ -9,6 +11,7 @@ from astropy.nddata import CCDData, Cutout2D
 from astropy.time import Time
 from astropy.wcs import WCS
 
+from .._types import FQArr, HDUExt
 from ..mgmt import headers
 from ..mgmt import io as _io
 from ..mgmt.io import inputs2list
@@ -77,7 +80,12 @@ def _update_binning_header(header, factors):
         )
 
 
-def CCDData_astype(ccd, dtype="float32", uncertainty_dtype=None, copy=True):
+def CCDData_astype(
+    ccd: CCDData,
+    dtype: str | np.dtype = "float32",
+    uncertainty_dtype: str | np.dtype | None = None,
+    copy: bool = True,
+) -> CCDData:
     """Assign dtype to the `~astropy.nddata.CCDData` object (numpy uses float64 default).
 
     Parameters
@@ -119,18 +127,18 @@ def CCDData_astype(ccd, dtype="float32", uncertainty_dtype=None, copy=True):
 
 
 def set_ccd_attribute(
-    ccd,
-    name,
-    value=None,
-    key=None,
-    default=None,
-    unit=None,
-    header_comment=None,
-    update_header=True,
-    verbose=True,
-    wrapper=None,
-    wrapper_kw=None,
-):
+    ccd: CCDData,
+    name: str,
+    value: Any = None,
+    key: str | None = None,
+    default: Any = None,
+    unit: str | u.Unit | None = None,
+    header_comment: str | None = None,
+    update_header: bool = True,
+    verbose: bool = True,
+    wrapper: Callable | None = None,
+    wrapper_kw: dict | None = None,
+) -> None:
     """Set CCDData attributes from explicit values or header keywords.
 
     Parameters
@@ -169,7 +177,7 @@ def set_ccd_attribute(
 
     wrapper_kw : `dict`, optional.
         The keyword argument to `wrapper`.
-        Default: ``{}``.
+        Default: `None` (treated as ``{}``).
 
     Examples
     -------
@@ -236,16 +244,16 @@ def set_ccd_attribute(
 
 
 def set_ccd_gain_rdnoise(
-    ccd,
-    verbose=True,
-    update_header=True,
-    gain=None,
-    rdnoise=None,
-    gain_key="GAIN",
-    rdnoise_key="RDNOISE",
-    gain_unit=u.electron / u.adu,
-    rdnoise_unit=u.electron,
-):
+    ccd: CCDData,
+    verbose: bool = True,
+    update_header: bool = True,
+    gain: FQArr | None = None,
+    rdnoise: FQArr | None = None,
+    gain_key: str = "GAIN",
+    rdnoise_key: str = "RDNOISE",
+    gain_unit: u.Unit = u.electron / u.adu,
+    rdnoise_unit: u.Unit = u.electron,
+) -> None:
     """A convenience set_ccd_attribute for gain and readnoise.
 
     Parameters
@@ -297,7 +305,10 @@ def set_ccd_gain_rdnoise(
     )
 
 
-def propagate_ccdmask(ccd, additional_mask=None):
+def propagate_ccdmask(
+    ccd: CCDData | np.ndarray,
+    additional_mask: np.ndarray | None = None,
+) -> np.ndarray | None:
     """Propagate the `~astropy.nddata.CCDData`'s mask and additional mask.
 
     Parameters
@@ -330,8 +341,13 @@ def propagate_ccdmask(ccd, additional_mask=None):
 
 
 def imslice(
-    ccd, trimsec, fill_value=None, order_xyz=True, update_header=True, verbose=False
-):
+    ccd: CCDData | np.ndarray,
+    trimsec: str | int | list | None,
+    fill_value: float | None = None,
+    order_xyz: bool = True,
+    update_header: bool = True,
+    verbose: bool = False,
+) -> CCDData:
     """Slice the `~astropy.nddata.CCDData` using one of trimsec, bezels, or slices.
 
     Parameters
@@ -430,7 +446,11 @@ def imslice(
     return nccd
 
 
-def trim_overlap(inputs, extension=None, coordinate="image"):
+def trim_overlap(
+    inputs,
+    extension: HDUExt = None,
+    coordinate: str = "image",
+) -> None:
     """Trim only the overlapping regions of the two CCDs
 
     Parameters
@@ -477,16 +497,16 @@ def trim_overlap(inputs, extension=None, coordinate="image"):
 
 
 def cut_ccd(
-    ccd,
+    ccd: CCDData,
     position,
     size,
-    wcs=None,
-    mode="trim",
-    fill_value=np.nan,
-    warnings=True,
-    update_header=True,
-    verbose=0,
-):
+    wcs: WCS | None = None,
+    mode: str = "trim",
+    fill_value: float = np.nan,
+    warnings: bool = True,
+    update_header: bool = True,
+    verbose: int = 0,
+) -> tuple[CCDData, Cutout2D]:
     """Converts the Cutout2D object to proper CCDData.
 
     Parameters
@@ -583,13 +603,13 @@ def cut_ccd(
 
 
 def bin_ccd(
-    ccd,
+    ccd: CCDData,
     factors=None,
-    binfunc=np.mean,
-    trim_end=False,
-    update_header=True,
-    copy=True,
-):
+    binfunc: Callable = np.mean,
+    trim_end: bool = False,
+    update_header: bool = True,
+    copy: bool = True,
+) -> CCDData:
     """Bins the given ccd.
 
     Parameters
@@ -672,8 +692,13 @@ def bin_ccd(
 
 
 def convert_bit(
-    ccd, original_bit=12, target_bit=16, dtype="int16", bunit=None, copy=True
-):
+    ccd: CCDData,
+    original_bit: int = 12,
+    target_bit: int = 16,
+    dtype: str = "int16",
+    bunit: str | None = None,
+    copy: bool = True,
+) -> CCDData:
     """Converts a FIT(S) file's bit.
 
     Parameters

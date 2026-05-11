@@ -13,8 +13,8 @@ from astropy.nddata import CCDData
 from astropy.table import Table
 from astropy.wcs import WCS
 
-from ..logging import logger
 from .._types import HDUExt, StrPathLike
+from ..logging import logger
 
 try:
     import fitsio

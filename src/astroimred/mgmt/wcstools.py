@@ -11,8 +11,8 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy.wcs import WCS, Wcsprm
 
+from .._types import CCDLike, HDUExt, StrPathLike
 from ..logging import logger
-from .._types import HDUExt, HDULike, StrPathLike
 
 __all__ = ["wcs_crota", "center_radec", "fov_radius", "wcsremove", "pixel_scale"]
 
@@ -212,7 +212,7 @@ def wcsremove(
     overwrite: bool = False,
     checksum: bool = False,
     verbose: bool = True,
-) -> fits.Header | HDULike:
+) -> fits.Header | CCDLike:
     """Remove most `~astropy.wcs.WCS` related keywords from the header.
 
     Parameters

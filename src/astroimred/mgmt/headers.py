@@ -8,9 +8,9 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 from astropy.time import Time
 
+from .._types import CCDLike, StrPathLike
 from ..logging import logger
 from . import io as _io
-from .._types import HDULike, StrPathLike
 from .misc import change_to_quantity, str_now
 
 __all__ = [
@@ -225,7 +225,7 @@ def update_process(
 
 
 def hedit(
-    item: fits.Header | HDULike,
+    item: fits.Header | CCDLike,
     keys: str | list[str],
     values: object | list[object],
     comments: str | list[str] | None = None,

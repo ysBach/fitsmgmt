@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 from astropy.nddata import CCDData
 from astropy.table import Table
@@ -8,7 +11,14 @@ from .util import sigma_clipper
 __all__ = ["quick_sky_circ", "sky_fit", "annul2values", "mmm_dao"]
 
 
-def quick_sky_circ(ccd, pos, r_in=10, r_out=20, mask=None, **kwargs):
+def quick_sky_circ(
+    ccd: CCDData | np.ndarray,
+    pos: tuple[float, float],
+    r_in: float = 10,
+    r_out: float = 20,
+    mask: np.ndarray | None = None,
+    **kwargs: Any,
+) -> Table:
     """Estimate sky with crude presets.
 
     Parameters
@@ -38,16 +48,16 @@ def quick_sky_circ(ccd, pos, r_in=10, r_out=20, mask=None, **kwargs):
 
 # FIXME: use aputil to boost
 def sky_fit(
-    ccd,
+    ccd: CCDData | np.ndarray,
     annulus=None,
-    mask=None,
-    method="sex",
-    sky_clipper=sigma_clipper,
-    std_ddof=1,
-    to_table=True,
-    return_skyarr=False,
-    **kwargs,
-):
+    mask: np.ndarray | None = None,
+    method: str | Callable = "sex",
+    sky_clipper: Callable | None = sigma_clipper,
+    std_ddof: int = 1,
+    to_table: bool = True,
+    return_skyarr: bool = False,
+    **kwargs: Any,
+) -> Table | tuple[Table, np.ndarray]:
     """Estimate the sky value from image and annulus.
 
     Parameters
@@ -220,7 +230,11 @@ def _sky_fit(
     return msky, std, nsky, nrej
 
 
-def annul2values(ccd, annulus, mask=None):
+def annul2values(
+    ccd: CCDData | np.ndarray,
+    annulus,
+    mask: np.ndarray | None = None,
+) -> list[np.ndarray]:
     """Extracts the pixel values from the image with annuli.
 
     Parameters
@@ -342,12 +356,12 @@ def annul2values(ccd, annulus, mask=None):
 
 
 def mmm_dao(
-    sky,
-    highbad=None,
-    min_nsky=20,
-    maxiter=50,
-    readnoise=0,
-):
+    sky: np.ndarray,
+    highbad: bool | None = None,
+    min_nsky: int = 20,
+    maxiter: int = 50,
+    readnoise: float = 0,
+) -> tuple[float, float, float]:
     """Use the MMM-DAO algorithm to estimate the sky value.
 
     Notes

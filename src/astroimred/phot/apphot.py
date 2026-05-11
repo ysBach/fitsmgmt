@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.table import QTable
@@ -17,22 +18,22 @@ __all__ = ["apphot_annulus"]
 # radii aperture is given with column names starting from ``aperture_sum_0``
 # and ``aperture_sum_err_0``.
 def apphot_annulus(
-    ccd,
-    aperture,
-    annulus=None,
-    gain="GAIN",
-    rdnoise="RDNOISE",
-    t_exposure=None,
-    exposure_key="EXPTIME",
-    error=None,
-    mask=None,
-    sky_keys=None,
-    sky_min=None,
-    aparea_exact=False,
-    npix_mask_ap=2,
-    pandas=True,
+    ccd: CCDData,
+    aperture: Aperture | list[Aperture],
+    annulus: Aperture | list[Aperture] | None = None,
+    gain: str | float = "GAIN",
+    rdnoise: str | float = "RDNOISE",
+    t_exposure: float | None = None,
+    exposure_key: str = "EXPTIME",
+    error: np.ndarray | u.Quantity | None = None,
+    mask: np.ndarray | None = None,
+    sky_keys: dict | None = None,
+    sky_min: float | None = None,
+    aparea_exact: bool = False,
+    npix_mask_ap: int = 2,
+    pandas: bool = True,
     **kwargs,
-):
+) -> pd.DataFrame | QTable:
     """Do aperture photometry using annulus.
 
     Parameters

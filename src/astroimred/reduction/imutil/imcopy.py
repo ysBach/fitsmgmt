@@ -1,6 +1,9 @@
+from typing import Any
+
 import numpy as np
 from astropy.nddata import CCDData
 
+from astroimred._types import HDUExt, StrPathLike
 from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.logging import logger
 from astroimred.mgmt.headers import update_tlm
@@ -11,15 +14,15 @@ __all__ = ["imcopy"]
 
 # TODO: use fitsio if (outputs is None) and not return_ccd
 def imcopy(
-    inputs,
-    trimsecs=None,
-    outputs=None,
-    extension=None,
-    return_ccd=True,
-    dtype=None,
-    update_header=True,
-    **kwargs,
-):
+    inputs: Any,
+    trimsecs: str | list[str] | None = None,
+    outputs: StrPathLike | list | None = None,
+    extension: HDUExt = None,
+    return_ccd: bool = True,
+    dtype: str | None = None,
+    update_header: bool = True,
+    **kwargs: Any,
+) -> CCDData | list[CCDData] | None:
     """Copy FITS images or sections, similar to IRAF IMCOPY.
 
     Parameters

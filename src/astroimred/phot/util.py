@@ -30,7 +30,11 @@ __all__ = [
 ]
 
 
-def sample_std(arr, ddof=0, axis=None):
+def sample_std(
+    arr: np.ndarray,
+    ddof: int = 0,
+    axis: int | None = None,
+) -> float | np.ndarray:
     """Sample standard deviation, ignoring NaN values.
 
     Uses ``bottleneck.nanstd`` so that NaN-filled masked values passed by

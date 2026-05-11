@@ -1,15 +1,19 @@
 import contextlib
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import ccdproc
 import numpy as np
 import pandas as pd
+from astropy import units as u
 from astropy.io import fits
 from astropy.nddata import CCDData, StdDevUncertainty
 from astropy.table import Table
 from astropy.time import Time
 from ccdproc import combine
 
+from astroimred._types import HDUExt, StrPathLike
 from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.logging import logger
 from astroimred.mgmt.headers import chk_keyval, cmt2hdr
@@ -25,7 +29,7 @@ __all__ = [
 ]
 
 
-def sstd(a, **kwargs):
+def sstd(a: np.ndarray, **kwargs: Any) -> np.ndarray:
     """Return the sample standard deviation."""
     return np.std(a, ddof=1, **kwargs)
 
@@ -33,7 +37,10 @@ def sstd(a, **kwargs):
 # FIXME: Add this to Ccdproc esp. for mem_limit
 
 
-def weighted_mean(ccds, unit="adu"):
+def weighted_mean(
+    ccds: Sequence[CCDData],
+    unit: str | u.Unit = "adu",
+) -> CCDData:
     """Combine CCDs with inverse-variance weights.
 
     Parameters
@@ -61,13 +68,13 @@ def weighted_mean(ccds, unit="adu"):
 
 
 def group_fits(
-    summary_table,
-    type_key=None,
-    type_val=None,
-    group_key=None,
-    table_filecol="file",
-    verbose=False,
-):
+    summary_table: pd.DataFrame | Table,
+    type_key: str | list[str] | None = None,
+    type_val: Any = None,
+    group_key: str | list[str] | None = None,
+    table_filecol: str = "file",
+    verbose: bool = False,
+) -> tuple[pd.core.groupby.DataFrameGroupBy, list[str]]:
     """Organize the group_by and type_key for select_fits
 
     Parameters
@@ -151,17 +158,17 @@ def group_fits(
 
 
 def select_fits(
-    inputs,
-    extension=None,
-    unit=None,
-    trimsec=None,
-    table_filecol="file",
-    prefer_ccddata=False,
-    type_key=None,
-    type_val=None,
-    path_to_text=False,
-    verbose=True,
-):
+    inputs: Any,
+    extension: HDUExt = None,
+    unit: str | u.Unit | None = None,
+    trimsec: str | None = None,
+    table_filecol: str = "file",
+    prefer_ccddata: bool = False,
+    type_key: str | list[str] | None = None,
+    type_val: Any = None,
+    path_to_text: bool = False,
+    verbose: bool = True,
+) -> list[Path] | list[CCDData]:
     """Stacks the FITS files specified in fitslist
 
     Parameters
@@ -417,31 +424,31 @@ def select_fits(
 
 # TODO: accept the input like ``sigma_clip_func='median'``, etc.
 def combine_ccd(
-    fitslist=None,
-    summary_table=None,
-    table_filecol="file",
-    trimsec=None,
-    output=None,
-    unit=None,
-    subtract_frame=None,
-    combine_method="median",
-    reject_method=None,
-    normalize_exposure=False,
-    normalize_average=False,
-    normalize_median=False,
-    exposure_key="EXPTIME",
-    mem_limit=2e9,
+    fitslist: Any = None,
+    summary_table: pd.DataFrame | Table | None = None,
+    table_filecol: str = "file",
+    trimsec: str | None = None,
+    output: StrPathLike | None = None,
+    unit: str | u.Unit | None = None,
+    subtract_frame: CCDData | np.ndarray | None = None,
+    combine_method: str = "median",
+    reject_method: str | None = None,
+    normalize_exposure: bool = False,
+    normalize_average: bool = False,
+    normalize_median: bool = False,
+    exposure_key: str = "EXPTIME",
+    mem_limit: float = 2e9,
     combine_uncertainty_function=None,
-    extension=None,
-    type_key=None,
-    type_val=None,
-    dtype="float32",
-    uncertainty_dtype="float32",
-    output_verify="fix",
-    overwrite=False,
-    verbose=True,
-    **kwargs,
-):
+    extension: HDUExt = None,
+    type_key: str | list[str] | None = None,
+    type_val: Any = None,
+    dtype: str = "float32",
+    uncertainty_dtype: str = "float32",
+    output_verify: str = "fix",
+    overwrite: bool = False,
+    verbose: bool = True,
+    **kwargs: Any,
+) -> CCDData:
     """Combining images -- slight variant from ccdproc.
 
     Parameters

@@ -9,6 +9,7 @@ from astropy.stats import sigma_clipped_stats
 from astropy.time import Time
 from astroscrappy import detect_cosmics
 
+from astroimred._types import FQArr, StrPathLike
 from astroimred.imops.ccdutils import propagate_ccdmask
 from astroimred.logging import logger
 from astroimred.mgmt.headers import cmt2hdr, update_process, update_tlm
@@ -77,8 +78,12 @@ ASTROSCRAPPY_DIVFACTOR = detect_cosmics(np.ones((3, 3)), gain=1.0, niter=0)[1][0
 
 
 def parse_crrej_psf(
-    fs="median", psffwhm=2.5, psfsize=7, psfbeta=4.765, fill_with_none=True
-):
+    fs: str | np.ndarray | list = "median",
+    psffwhm: float | list = 2.5,
+    psfsize: int | list = 7,
+    psfbeta: float | list = 4.765,
+    fill_with_none: bool = True,
+) -> dict:
     """Translate a compact fine-structure spec into ``detect_cosmics`` kwargs.
 
     Parameters
@@ -212,33 +217,35 @@ def parse_crrej_psf(
                 "psffwhm": psffwhm,
                 "psfsize": psfsize,
             }
+        else:
+            raise ValueError(f"fs ({fs!r}) not understood")
     else:
-        raise ValueError(f"fs ({fs}) not understood")
+        raise ValueError(f"fs ({fs!r}) not understood")
 
 
 def crrej(
-    ccd,
-    mask=None,
-    inbkg=None,
-    invar=None,
-    propagate_crmask=False,
-    update_header=True,
-    add_process=True,
-    gain=None,
-    rdnoise=None,
-    sigclip=4.5,
-    sigfrac=0.5,
-    objlim=1.0,
-    satlevel=np.inf,
-    niter=4,
-    sepmed=False,
-    cleantype="medmask",
-    fs="median",
-    psffwhm=2.5,
-    psfsize=7,
-    psfbeta=4.765,
-    verbose=True,
-):
+    ccd: CCDData,
+    mask: np.ndarray | None = None,
+    inbkg: float | np.ndarray | StrPathLike | None = None,
+    invar: float | np.ndarray | None = None,
+    propagate_crmask: bool = False,
+    update_header: bool = True,
+    add_process: bool = True,
+    gain: FQArr | None = None,
+    rdnoise: FQArr | None = None,
+    sigclip: float = 4.5,
+    sigfrac: float = 0.5,
+    objlim: float = 1.0,
+    satlevel: float = np.inf,
+    niter: int = 4,
+    sepmed: bool = False,
+    cleantype: str = "medmask",
+    fs: str | np.ndarray | list = "median",
+    psffwhm: float = 2.5,
+    psfsize: int = 7,
+    psfbeta: float = 4.765,
+    verbose: bool = True,
+) -> tuple[CCDData, np.ndarray]:
     """Do cosmic-ray rejection using L.A.Cosmic default parameters.
 
     Parameters
@@ -314,7 +321,7 @@ def crrej(
         separable median is not identical to the full median filter, but they
         are approximately the same and the separable median filter is
         significantly faster and still detects cosmic rays well.
-        Default: `True`
+        Default: `False`
 
     cleantype : ``{'median', 'medmask', 'meanmask', 'idw'}``, optional
         Set which clean algorithm is used:
@@ -366,7 +373,7 @@ def crrej(
         Default: 4.765.
 
     verbose : boolean, optional
-        Print to the screen or not. Default: `False`.
+        Print to the screen or not. Default: `True`.
 
     Returns
     -------
@@ -433,7 +440,7 @@ def crrej(
 
     _ccd = ccd.copy()
     if mask is None:
-        inmask = None
+        inmask = propagate_ccdmask(_ccd) if _ccd.mask is not None else None
     else:
         inmask = _parse_image(mask)[0]
         inmask = propagate_ccdmask(_ccd, additional_mask=inmask)
@@ -521,28 +528,28 @@ def crrej(
 #   to get std at each pixel by medfilt[<medfilt_min] = 0, and std =
 #   sqrt((1+snoise)*medfilt/gain + rdn**2)
 def medfilt_bpm(
-    ccd,
-    cadd=1.0e-10,
-    std_model="std",
-    gain=1.0,
-    rdnoise=0.0,
-    snoise=0.0,
-    size=5,
-    sigclip_kw=None,
-    std_section=None,
-    footprint=None,
-    mode="reflect",
-    cval=0.0,
-    origin=0,
-    med_sub_clip=None,
-    med_rat_clip=None,
-    std_rat_clip=None,
-    dtype="float32",
-    update_header=True,
-    verbose=False,
-    logical="and",
-    full=False,
-):
+    ccd: CCDData,
+    cadd: float = 1.0e-10,
+    std_model: str = "std",
+    gain: float = 1.0,
+    rdnoise: float = 0.0,
+    snoise: float = 0.0,
+    size: int = 5,
+    sigclip_kw: dict | None = None,
+    std_section: str | None = None,
+    footprint: np.ndarray | None = None,
+    mode: str = "reflect",
+    cval: float = 0.0,
+    origin: int = 0,
+    med_sub_clip: tuple[float, float] | None = None,
+    med_rat_clip: tuple[float, float] | None = None,
+    std_rat_clip: tuple[float, float] | None = None,
+    dtype: str = "float32",
+    update_header: bool = True,
+    verbose: bool = False,
+    logical: str = "and",
+    full: bool = False,
+) -> CCDData | tuple[CCDData, dict]:
     """Find bad pixels from median filtering technique (non standard..?)
 
     Parameters

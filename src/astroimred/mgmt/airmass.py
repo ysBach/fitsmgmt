@@ -9,8 +9,8 @@ from astropy.io import fits
 from astropy.io.fits import Card
 from astropy.time import Time
 
-from ..logging import logger
 from .._types import FQArr
+from ..logging import logger
 from .headers import cmt2hdr, hdrval
 from .misc import change_to_quantity
 

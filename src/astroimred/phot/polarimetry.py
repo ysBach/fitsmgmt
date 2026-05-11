@@ -27,38 +27,38 @@ __all__ = [
 
 
 def calc_stokes(
-    o_000,
-    o_450,
-    o_225,
-    o_675,
-    e_000,
-    e_450,
-    e_225,
-    e_675,
-    do_000=0,
-    do_450=0,
-    do_225=0,
-    do_675=0,
-    de_000=0,
-    de_450=0,
-    de_225=0,
-    de_675=0,
-    p_eff=1,
-    dp_eff=0,
-    rot_q=0,
-    rot_u=0,
-    q_off=0,
-    u_off=0,
-    dq_off=0,
-    du_off=0,
-    pa_off=0,
-    dpa_off=0,
-    pa_obs=0,
-    pa_ccw=True,
-    use_pct=False,
-    use_deg=False,
-    eminuso=True,
-):
+    o_000: float | np.ndarray,
+    o_450: float | np.ndarray,
+    o_225: float | np.ndarray,
+    o_675: float | np.ndarray,
+    e_000: float | np.ndarray,
+    e_450: float | np.ndarray,
+    e_225: float | np.ndarray,
+    e_675: float | np.ndarray,
+    do_000: float | np.ndarray = 0,
+    do_450: float | np.ndarray = 0,
+    do_225: float | np.ndarray = 0,
+    do_675: float | np.ndarray = 0,
+    de_000: float | np.ndarray = 0,
+    de_450: float | np.ndarray = 0,
+    de_225: float | np.ndarray = 0,
+    de_675: float | np.ndarray = 0,
+    p_eff: float = 1,
+    dp_eff: float = 0,
+    rot_q: float | np.ndarray = 0,
+    rot_u: float | np.ndarray = 0,
+    q_off: float = 0,
+    u_off: float = 0,
+    dq_off: float = 0,
+    du_off: float = 0,
+    pa_off: float = 0,
+    dpa_off: float = 0,
+    pa_obs: float | np.ndarray = 0,
+    pa_ccw: bool = True,
+    use_pct: bool = False,
+    use_deg: bool = False,
+    eminuso: bool = True,
+) -> tuple[float | np.ndarray, ...]:
     """A one-line calculator of Stokes' parameters in 4-set linear polarimetry.
 
     Parameters
@@ -185,25 +185,27 @@ def calc_stokes(
 
 
 def calc_qu_4set(
-    o_000,
-    o_450,
-    o_225,
-    o_675,
-    e_000,
-    e_450,
-    e_225,
-    e_675,
-    do_000=0,
-    do_450=0,
-    do_225=0,
-    do_675=0,
-    de_000=0,
-    de_450=0,
-    de_225=0,
-    de_675=0,
-    out_pct=False,
-    eminuso=True,
-):
+    o_000: float | np.ndarray,
+    o_450: float | np.ndarray,
+    o_225: float | np.ndarray,
+    o_675: float | np.ndarray,
+    e_000: float | np.ndarray,
+    e_450: float | np.ndarray,
+    e_225: float | np.ndarray,
+    e_675: float | np.ndarray,
+    do_000: float | np.ndarray = 0,
+    do_450: float | np.ndarray = 0,
+    do_225: float | np.ndarray = 0,
+    do_675: float | np.ndarray = 0,
+    de_000: float | np.ndarray = 0,
+    de_450: float | np.ndarray = 0,
+    de_225: float | np.ndarray = 0,
+    de_675: float | np.ndarray = 0,
+    out_pct: bool = False,
+    eminuso: bool = True,
+) -> tuple[
+    float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray
+]:
     """Calculate the q, u, dq, and du of the 4 sets (HWP angles) of O-E rays.
 
     Parameters
@@ -261,7 +263,18 @@ def calc_qu_4set(
 
 
 # TODO: make calc_qu_3set, which uses 0, 60, 120 degree data.
-def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, out_pct=False):
+def correct_eff(
+    q: float | np.ndarray,
+    u: float | np.ndarray,
+    dq: float | np.ndarray = 0,
+    du: float | np.ndarray = 0,
+    p_eff: float = 1,
+    dp_eff: float = 0,
+    in_pct: bool = False,
+    out_pct: bool = False,
+) -> tuple[
+    float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray
+]:
     """Correct the polarimetric efficiency.
 
     Parameters
@@ -305,20 +318,22 @@ def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, out_pct=False
 
 
 def correct_off(
-    q,
-    u,
-    dq=0,
-    du=0,
-    rot_q=0,
-    rot_u=0,
-    q_off=0,
-    u_off=0,
-    dq_off=0,
-    du_off=0,
-    in_pct=False,
-    in_deg=False,
-    out_pct=False,
-):
+    q: float | np.ndarray,
+    u: float | np.ndarray,
+    dq: float | np.ndarray = 0,
+    du: float | np.ndarray = 0,
+    rot_q: float | np.ndarray = 0,
+    rot_u: float | np.ndarray = 0,
+    q_off: float = 0,
+    u_off: float = 0,
+    dq_off: float = 0,
+    du_off: float = 0,
+    in_pct: bool = False,
+    in_deg: bool = False,
+    out_pct: bool = False,
+) -> tuple[
+    float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray
+]:
     """Correct the instrument-induced polarization due to the offsets.
 
     Parameters
@@ -378,18 +393,20 @@ def correct_off(
 
 
 def correct_pa(
-    q,
-    u,
-    dq=0,
-    du=0,
-    pa_off=0,
-    dpa_off=0,
-    pa_obs=0,
-    pa_ccw=True,
-    in_pct=False,
-    in_deg=False,
-    out_pct=False,
-):
+    q: float | np.ndarray,
+    u: float | np.ndarray,
+    dq: float | np.ndarray = 0,
+    du: float | np.ndarray = 0,
+    pa_off: float = 0,
+    dpa_off: float = 0,
+    pa_obs: float | np.ndarray = 0,
+    pa_ccw: bool = True,
+    in_pct: bool = False,
+    in_deg: bool = False,
+    out_pct: bool = False,
+) -> tuple[
+    float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray
+]:
     """Convert the q, u values from image coordinate to the celestial one.
 
     Notes

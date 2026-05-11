@@ -7,6 +7,7 @@ from astro_ndslice import is_list_like, listify, offseted_shape
 from astropy.nddata import CCDData
 from astropy.time import Time
 
+from astroimred._types import HDUExt, StrPathLike
 from astroimred.logging import logger
 from astroimred.mgmt.headers import cmt2hdr
 from astroimred.mgmt.io import _parse_extension, inputs2list, load_ccd
@@ -75,14 +76,14 @@ lsigma    , hsigma     : sigma uple
 
 def group_combine(
     inputs,
-    type_key=None,
+    type_key: str | list[str] | None = None,
     type_val=None,
-    group_key=None,
-    fmt=None,
-    outdir=None,
-    verbose=1,
+    group_key: str | list[str] | None = None,
+    fmt: str | None = None,
+    outdir: StrPathLike | None = None,
+    verbose: int = 1,
     **kwargs,
-):
+) -> dict[tuple, CCDData]:
     """Combine sub-groups of FITS files from the given input.
 
     Parameters
@@ -90,10 +91,11 @@ def group_combine(
     inputs : `~pandas.DataFrame`, glob pattern, `list`-like of path-like
         If `DataFrame`, it must be the summary table made by ``fm.fits_summary``.
         The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
-        files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
-        good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of ``imred.imcombine``, the best use is to
-        use the `~glob` pattern or `list` of paths.
+        files (each element must be path-like or `~astropy.nddata.CCDData`).
+        Although it is not a good idea, a mixed `list` of
+        `~astropy.nddata.CCDData` and paths to the files is also acceptable.
+        For the purpose of ``imred.imcombine``, the best use is to use the
+        `~glob` pattern or `list` of paths.
 
     type_key, type_val : `str`, `list` of `str`
         The header keyword for the ccd type, and the value you want to match.
@@ -142,9 +144,10 @@ def group_combine(
     Returns
     -------
     combined : `dict` of `~astropy.nddata.CCDData`
-        The `dict` object where keys are the header value of the `group_key` and
-        the values are the combined images in `~astropy.nddata.CCDData` object. If multiple keys
-        for `group_key` is given, the key of this `dict` is a `tuple`.
+        The `dict` object where keys are the header value of the `group_key`
+        and the values are the combined images in `~astropy.nddata.CCDData`
+        object. If multiple keys for `group_key` is given, the key of this
+        `dict` is a `tuple`.
     """
 
     def _group_save(ccd, groupname, fmt=None, verbose=1, outdir=None):
@@ -234,7 +237,12 @@ def group_combine(
     return combined
 
 
-def group_save(combined, fmt="", verbose=1, outdir=None):
+def group_save(
+    combined: dict,
+    fmt: str = "",
+    verbose: int = 1,
+    outdir: StrPathLike | None = None,
+) -> None:
     """Saves the group_combine results.
     Parameters
     ---------
@@ -267,10 +275,10 @@ def group_save(combined, fmt="", verbose=1, outdir=None):
 
 def imcombine(
     inputs,
-    mask=None,
-    extension=None,
-    extension_uncertainty=None,
-    extension_mask=None,
+    mask: np.ndarray | None = None,
+    extension: HDUExt = None,
+    extension_uncertainty: HDUExt = None,
+    extension_mask: HDUExt = None,
     uncertainty_type="stddev",
     trimsec=None,
     blank=np.nan,
@@ -317,11 +325,11 @@ def imcombine(
     output_low=None,
     output_upp=None,
     output_rejcode=None,
-    return_dict=False,
-    output_verify="exception",
-    overwrite=False,
-    checksum=False,
-):
+    return_dict: bool = False,
+    output_verify: str = "exception",
+    overwrite: bool = False,
+    checksum: bool = False,
+) -> CCDData | dict:
     # === 1. Normalize defaults that must not use mutable signature values ===
     thresholds = [-np.inf, np.inf] if thresholds is None else list(thresholds)
     zero_kw = _default_zsw_kw() if zero_kw is None else dict(zero_kw)
@@ -712,11 +720,12 @@ imcombine.__doc__ = f"""A helper function for ``imred.ndcombine`` to cope with F
     ----------
 
     inputs : glob pattern, `list`-like of path-like, `list`-like of `~astropy.nddata.CCDData`-like
-        The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list` of
-        files (each element must be path-like or `~astropy.nddata.CCDData`). Although it is not a
-        good idea, a mixed `list` of `~astropy.nddata.CCDData` and paths to the files is also
-        acceptable. For the purpose of ``imred.imcombine``, the best use is to
-        use the `~glob` pattern or `list` of paths.
+        The `~glob` pattern for files (e.g., ``"2020*[012].fits"``) or `list`
+        of files (each element must be path-like or `~astropy.nddata.CCDData`).
+        Although it is not a good idea, a mixed `list` of
+        `~astropy.nddata.CCDData` and paths to the files is also acceptable.
+        For the purpose of ``imred.imcombine``, the best use is to use the
+        `~glob` pattern or `list` of paths.
 
     mask : `~numpy.ndarray`, optional.
         The mask of bad pixels. If given, it must satisfy
@@ -730,8 +739,8 @@ imcombine.__doc__ = f"""A helper function for ``imred.ndcombine`` to cope with F
     extension, extension_uncertainty, extension_mask : `int`, `str`, (`str`, `int`)
         The extension of FITS, uncertainty, and mask to be used. It can be
         given as integer (0-indexing) of the extension, ``EXTNAME`` (single
-        `str`), or a `tuple` of `str` and `int`: ``(EXTNAME, EXTVER)``. If `None`
-        (default), the *first extension with data* will be used. If
+        `str`), or a `tuple` of `str` and `int`: ``(EXTNAME, EXTVER)``. If
+        `None` (default), the *first extension with data* will be used. If
         `extension_uncertainty` or `extension_mask` is `None` (default),
         uncertainty and mask are all ignored (turned off). Currently
         error-propagation or weighted combine is not supported, so only
@@ -799,9 +808,9 @@ imcombine.__doc__ = f"""A helper function for ``imred.ndcombine`` to cope with F
 
 # ------------------------------------------------------------------------------------ #
 def ndcombine(
-    arr,
-    mask=None,
-    copy=True,
+    arr: np.ndarray,
+    mask: np.ndarray | None = None,
+    copy: bool = True,
     blank=np.nan,
     offsets=None,
     thresholds=None,
@@ -831,9 +840,9 @@ def ndcombine(
     memlimit=2.5e9,
     irafmode=True,
     verbose=False,
-    full=False,
-    return_variance=False,
-):
+    full: bool = False,
+    return_variance: bool = False,
+) -> np.ndarray | tuple:
     thresholds = [-np.inf, np.inf] if thresholds is None else list(thresholds)
     zero_kw = _default_zsw_kw() if zero_kw is None else dict(zero_kw)
     scale_kw = _default_zsw_kw() if scale_kw is None else dict(scale_kw)

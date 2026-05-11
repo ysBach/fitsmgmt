@@ -5,6 +5,7 @@ from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.time import Time
 
+from astroimred._types import CCDLike, StrPathLike
 from astroimred.imops.ccdutils import CCDData_astype, imslice
 from astroimred.imops.pixels import fixpix
 from astroimred.logging import logger
@@ -30,14 +31,14 @@ def _addfrm(ccd, name, path):
 
 
 def scancor(
-    ccd,
-    overscan=None,
-    scansec=None,
-    scanax=0,
-    fit_func="legendre",
-    fit_order=1,
-    fit_kw=None,
-):
+    ccd: CCDData,
+    overscan: np.ndarray | None = None,
+    scansec: str | None = None,
+    scanax: int | None = 0,
+    fit_func: str = "legendre",
+    fit_order: int = 1,
+    fit_kw: dict | None = None,
+) -> CCDData:
     """Do overscan correction
 
     Parameters
@@ -84,7 +85,13 @@ def scancor(
     # pass
 
 
-def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
+def biascor(
+    ccd: CCDData,
+    mbias: CCDData | np.ndarray | None = None,
+    mbiaspath: StrPathLike | None = None,
+    copy: bool = True,
+    verbose: int = 1,
+) -> CCDData:
     """Do bias correction (purpose: helper function of `~astroimred.reduction.preproc.ccdred`)
 
     Parameters
@@ -132,16 +139,16 @@ def biascor(ccd, mbias=None, mbiaspath=None, copy=True, verbose=1):
 
 
 def darkcor(
-    ccd,
-    mdark=None,
-    mdarkpath=None,
-    exptime_key="EXPTIME",
-    exptime_data=None,
-    exptime_dark=None,
-    dark_scale=False,
-    copy=True,
-    verbose=1,
-):
+    ccd: CCDData,
+    mdark: CCDData | np.ndarray | None = None,
+    mdarkpath: StrPathLike | None = None,
+    exptime_key: str = "EXPTIME",
+    exptime_data: float | None = None,
+    exptime_dark: float | None = None,
+    dark_scale: bool = False,
+    copy: bool = True,
+    verbose: int = 1,
+) -> CCDData:
     """Do dark correction (purpose: helper function of `~astroimred.reduction.preproc.ccdred`)
 
     Parameters
@@ -211,7 +218,7 @@ def darkcor(
         mdark = mdark.data * scale if use_ccddata else mdark * scale
         # ^ mdark is now ndarray regardless of use_ccddata
         cmt2hdr(
-            ccd.header,
+            nccd.header,
             "h",
             verbose=verbose >= 1,
             s=msg,
@@ -231,15 +238,15 @@ def darkcor(
 
 # add flat_norm_value
 def flatcor(
-    ccd,
-    mflat=None,
-    mflatpath=None,
-    flat_mask=0,
-    flat_fill=1,
-    copy=True,
-    flat_norm_value=1,
-    verbose=1,
-):
+    ccd: CCDData,
+    mflat: CCDData | np.ndarray | None = None,
+    mflatpath: StrPathLike | None = None,
+    flat_mask: float | np.ndarray | None = 0,
+    flat_fill: float = 1,
+    copy: bool = True,
+    flat_norm_value: float | None = 1,
+    verbose: int = 1,
+) -> CCDData:
     """Do flat correction (purpose: helper function of `~astroimred.reduction.preproc.ccdred`)
 
     Parameters
@@ -287,6 +294,7 @@ def flatcor(
     )
     # For FLAT, header information is not needed at all... I guess?
     if flat_mask is not None:
+        mflat = mflat.copy()
         if isinstance(flat_mask, np.ndarray):
             maskstr = "Flat pixels with `value < flat_mask (User-provided ndarray)`"
         else:
@@ -332,18 +340,18 @@ def flatcor(
 
 
 def frincor(
-    ccd,
-    mfrin,
-    mfrinpath=None,
+    ccd: CCDData,
+    mfrin: CCDData | np.ndarray | None,
+    mfrinpath: StrPathLike | None = None,
     fringe_scale=None,
-    fringe_scale_region=None,
-    fringe_scale_kw=None,
-    exptime_key="EXPTIME",
-    exptime_data=None,
-    exptime_frin=None,
-    copy=True,
-    verbose=1,
-):
+    fringe_scale_region: np.ndarray | str | None = None,
+    fringe_scale_kw: dict | None = None,
+    exptime_key: str = "EXPTIME",
+    exptime_data: float | None = None,
+    exptime_frin: float | None = None,
+    copy: bool = True,
+    verbose: int = 1,
+) -> CCDData:
     """Subtract fringe frame
 
     Parameters
@@ -424,8 +432,9 @@ def frincor(
     _t = Time.now()
     nccd = ccd.copy() if copy else ccd
 
-    mfrin, mfrinname, _ = _parse_image(mfrin, name=mfrinpath, force_ccddata=True)
-    #                                                         ^^^^^^^^^^^^^^^^^^
+    mfrin_input = mfrin if mfrin is not None else mfrinpath
+    mfrin, mfrinname, _ = _parse_image(mfrin_input, name=mfrinpath, force_ccddata=True)
+    #                                                                ^^^^^^^^^^^^^^^^^^
     # Converting an ndarray to CCDData (or vice versa) is very quick, so just
     # force CCDData for the sake of simplicity.
 
@@ -473,15 +482,15 @@ def frincor(
 
     # FRINSCAL=FRINFUNC(FRINFRM[FRINSECT])
     _addfrm(nccd, "FRIN", mfrinname)
-    cmt2hdr(ccd.header, "h", verbose=verbose, t_ref=_t, s=infostr)
+    cmt2hdr(nccd.header, "h", verbose=verbose, t_ref=_t, s=infostr)
     update_process(nccd.header, "R")
 
     return nccd
 
 
 def illumcor(
-    ccd,
-):
+    ccd: CCDData,
+) -> CCDData:
     """Apply illumination correction.
 
     This placeholder is reserved for a future implementation.
@@ -493,8 +502,8 @@ def illumcor(
 # TODO: add normalization (e.g., `normalize` = {"mean", "median", "mode",
 # "sum", "exptime", })
 def ccdred(
-    ccd,
-    output: str | None = None,
+    ccd: CCDLike | np.ndarray | StrPathLike,
+    output: StrPathLike | None = None,
     extension: int | str | None = None,
     trimsec: str | None = None,
     mbiaspath: str | None = None,
@@ -535,7 +544,7 @@ def ccdred(
     output_verify: str = "fix",
     overwrite: bool = True,
     dtype: str = "float32",
-):
+) -> CCDData:
     """Do basic CCD reduction.
 
     Parameters
@@ -839,21 +848,21 @@ def ccdred(
 
 
 def run_reduc_plan(
-    plan,
-    output=None,
-    extension=None,
-    col_file="file",
-    col_bias="BIASFRM",
-    col_dark="DARKFRM",
-    col_flat="FLATFRM",
-    col_mask="MASKFILE",
-    col_fringe="FRINFRM",
-    fixpix_kw=None,
-    do_crrej=False,
-    preload_cals=False,
-    return_ccd=False,
-    verbose=False,
-):
+    plan: pd.DataFrame,
+    output: StrPathLike | list[StrPathLike] | None = None,
+    extension: int | str | None = None,
+    col_file: str = "file",
+    col_bias: str = "BIASFRM",
+    col_dark: str = "DARKFRM",
+    col_flat: str = "FLATFRM",
+    col_mask: str = "MASKFILE",
+    col_fringe: str = "FRINFRM",
+    fixpix_kw: dict | None = None,
+    do_crrej: bool = False,
+    preload_cals: bool = False,
+    return_ccd: bool = False,
+    verbose: bool = False,
+) -> list[CCDData] | None:
     """Run `ccdred` for each row in a reduction plan.
 
     Parameters
@@ -941,9 +950,14 @@ def run_reduc_plan(
         # ^ Better to load as CCDData here rather than pass filepath to
         #   `ccdred`, to avoid parsing overhead in `_parse_image`.
 
+        mask_ccd = (
+            mmasks.get(maskpath)
+            if preload_cals
+            else (load_ccd(maskpath) if maskpath is not None else None)
+        )
         ccd = fixpix(
             ccd,
-            mmasks.get(maskpath),  # = None if not preload_cals or mmaskpath=None
+            mask_ccd,
             maskpath=maskpath,
             **fixpix_kw,
         )
@@ -951,7 +965,7 @@ def run_reduc_plan(
         if do_crrej:
             ccd, _ = crrej(
                 ccd,
-                mask=mmasks.get(maskpath),
+                mask=mask_ccd,
                 gain=row.get("gain", LACOSMIC_CRREJ.get("gain")),
                 rdnoise=row.get("rdnoise", LACOSMIC_CRREJ.get("rdnoise")),
                 sigclip=row.get("sigclip", LACOSMIC_CRREJ.get("sigclip")),

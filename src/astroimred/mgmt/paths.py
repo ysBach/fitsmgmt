@@ -7,8 +7,8 @@ from astro_ndslice import slice_from_string
 from astropy.io import fits
 from astropy.nddata import CCDData
 
-from ..logging import logger
 from .._types import StrPathLike
+from ..logging import logger
 from .headers import key_mapper, key_remover
 
 __all__ = [

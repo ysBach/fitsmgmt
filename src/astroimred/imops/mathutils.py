@@ -1,5 +1,7 @@
 """Standalone array math helpers."""
 
+from collections.abc import Callable
+
 import numpy as np
 
 __all__ = [
@@ -14,7 +16,10 @@ __all__ = [
 ]
 
 
-def weighted_avg(val, err):
+def weighted_avg(
+    val: np.ndarray,
+    err: np.ndarray,
+) -> tuple[float, float]:
     """Return the inverse-variance weighted mean and standard error.
 
     Parameters
@@ -38,15 +43,15 @@ def weighted_avg(val, err):
 
 
 def quantile_lh(
-    a,
-    lq,
-    hq,
-    axis=None,
-    nanfunc=False,
-    interpolation="linear",
-    linterp=None,
-    hinterp=None,
-):
+    a: np.ndarray,
+    lq: float,
+    hq: float,
+    axis: int | tuple[int, ...] | None = None,
+    nanfunc: bool = False,
+    interpolation: str = "linear",
+    linterp: str | None = None,
+    hinterp: str | None = None,
+) -> list[np.ndarray]:
     """Return lower and upper quantiles.
 
     Parameters
@@ -103,8 +108,13 @@ def quantile_lh(
 
 
 def quantile_sigma(
-    a, axis=None, nanfunc=False, interpolation="linear", linterp=None, hinterp=None
-):
+    a: np.ndarray,
+    axis: int | tuple[int, ...] | None = None,
+    nanfunc: bool = False,
+    interpolation: str = "linear",
+    linterp: str | None = None,
+    hinterp: str | None = None,
+) -> np.ndarray:
     """Estimate sigma from the 15.87 and 84.13 percent quantiles."""
     low, upp = quantile_lh(
         a,
@@ -119,7 +129,7 @@ def quantile_sigma(
     return np.abs(upp - low) / 2
 
 
-def min_max_med_1d(arr):
+def min_max_med_1d(arr: np.ndarray) -> tuple[float, float, float]:
     """Return the minimum, maximum, and median of a 1-D array."""
     arr = np.asarray(arr)
     if arr.size < 1000:
@@ -131,7 +141,12 @@ def min_max_med_1d(arr):
         return np.min(arr), np.max(arr), np.median(arr)
 
 
-def mean_std_1d(arr, ddof=0, std=True, var=False):
+def mean_std_1d(
+    arr: np.ndarray,
+    ddof: int = 0,
+    std: bool = True,
+    var: bool = False,
+) -> tuple[float, ...]:
     """Return mean with standard deviation and/or variance.
 
     Parameters
@@ -194,12 +209,12 @@ def _normalize_binning_factors(arr_shape, factors, order_xyz):
 
 
 def binning(
-    arr,
+    arr: np.ndarray,
     factors=None,
-    order_xyz=True,
-    binfunc=np.mean,
-    trim_end=False,
-):
+    order_xyz: bool = True,
+    binfunc: Callable = np.mean,
+    trim_end: bool = False,
+) -> np.ndarray:
     """Bin an array by integer factors.
 
     Parameters

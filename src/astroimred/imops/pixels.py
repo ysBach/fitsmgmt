@@ -5,6 +5,7 @@ from astro_ndslice import bezel2slice
 from astropy.nddata import CCDData
 from astropy.time import Time
 
+from .._types import CCDLike, HDUExt, StrPathLike
 from ..mgmt import headers
 from ..mgmt import io as _io
 
@@ -16,15 +17,15 @@ __all__ = [
 
 
 def fixpix(
-    ccd,
-    mask=None,
-    maskpath=None,
-    extension=None,
-    mask_extension=None,
-    priority=None,
-    update_header=True,
-    verbose=True,
-):
+    ccd: CCDLike | np.ndarray | StrPathLike,
+    mask: CCDLike | np.ndarray | StrPathLike | None = None,
+    maskpath: StrPathLike | None = None,
+    extension: HDUExt = None,
+    mask_extension: HDUExt = None,
+    priority: tuple[int, ...] | None = None,
+    update_header: bool = True,
+    verbose: bool = True,
+) -> CCDData:
     """Interpolate the masked location (N-D generalization of IRAF PROTO.FIXPIX)
 
     Parameters
@@ -221,15 +222,15 @@ def fixpix(
 
 
 def find_extpix(
-    ccd,
-    mask=None,
-    npixs=(1, 1),
+    ccd: CCDData,
+    mask: CCDData | np.ndarray | None = None,
+    npixs: tuple[int | None, int | None] = (1, 1),
     bezels=None,
-    order_xyz=True,
-    sort=True,
-    update_header=True,
-    verbose=0,
-):
+    order_xyz: bool = True,
+    sort: bool = True,
+    update_header: bool = True,
+    verbose: int = 0,
+) -> list[np.ndarray | None]:
     """Finds the N extrema pixel values excluding masked pixels.
 
     Parameters
@@ -331,14 +332,14 @@ def find_extpix(
 
 
 def find_satpix(
-    ccd,
-    mask=None,
-    satlevel=65535,
+    ccd: CCDData | np.ndarray,
+    mask: CCDData | np.ndarray | None = None,
+    satlevel: float = 65535,
     bezels=None,
-    order_xyz=True,
-    update_header=True,
-    verbose=0,
-):
+    order_xyz: bool = True,
+    update_header: bool = True,
+    verbose: int = 0,
+) -> np.ndarray:
     """Finds saturated pixel values excluding masked pixels.
 
     Parameters

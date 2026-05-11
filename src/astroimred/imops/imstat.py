@@ -1,6 +1,6 @@
 """IRAF IMSTAT-like image statistics and uncertainty helpers."""
 
-from os import PathLike
+import os
 
 import bottleneck as bn
 import numpy as np
@@ -10,6 +10,7 @@ from astropy.io import fits
 from astropy.stats import mad_std
 from astropy.visualization import ZScaleInterval
 
+from .._types import StrPathLike
 from ..mgmt.logging import logger
 
 try:
@@ -25,10 +26,13 @@ __all__ = [
 ]
 
 
-def _data_header_from_array_or_path(item, extension=None):
+def _data_header_from_array_or_path(
+    item: np.ndarray | StrPathLike,
+    extension: int | str | None = None,
+) -> tuple[np.ndarray, fits.Header | None]:
     if isinstance(item, np.ndarray):
         return item, None
-    if isinstance(item, (str, PathLike)):
+    if isinstance(item, (str, os.PathLike)):
         with fits.open(item) as hdul:
             data = hdul[extension if extension is not None else 0].data.copy()
             hdr = hdul[extension if extension is not None else 0].header.copy()
@@ -40,16 +44,16 @@ def _data_header_from_array_or_path(item, extension=None):
 
 
 def errormap(
-    ccd_biassub,
-    gain_epadu=1,
-    rdnoise_electron=0,
-    subtracted_dark=0.0,
-    flat=1.0,
-    dark_std=0.0,
-    flat_err=0.0,
-    dark_std_min="rdnoise",
-    return_variance=False,
-):
+    ccd_biassub: np.ndarray | StrPathLike,
+    gain_epadu: float | u.Quantity = 1,
+    rdnoise_electron: float | u.Quantity = 0,
+    subtracted_dark: float | np.ndarray = 0.0,
+    flat: float | np.ndarray = 1.0,
+    dark_std: float | np.ndarray = 0.0,
+    flat_err: float | np.ndarray = 0.0,
+    dark_std_min: float | str = "rdnoise",
+    return_variance: bool = False,
+) -> np.ndarray:
     """Calculate the detailed pixel-wise error map in ADU unit.
 
     ``ccd_biassub`` is now intentionally accepted as either `~numpy.ndarray` or
@@ -102,14 +106,14 @@ def errormap(
 
 # TODO: add sigma-clipped statistics option (hdr key can be using "SIGC", e.g., SIGCAVG.)
 def give_stats(
-    item,
-    mask=None,
-    extension=None,
+    item: np.ndarray | StrPathLike,
+    mask: np.ndarray | None = None,
+    extension: int | str | None = None,
     statsecs=None,
-    percentiles=None,
-    N_extrema=None,
-    return_header=False,
-):
+    percentiles: list[float] | None = None,
+    N_extrema: int | None = None,
+    return_header: bool = False,
+) -> dict | tuple[dict, fits.Header]:
     """Calculates simple statistics.
 
     ``item`` is now intentionally accepted as either `~numpy.ndarray` or

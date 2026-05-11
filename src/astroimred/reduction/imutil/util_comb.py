@@ -27,7 +27,12 @@ def _default_zsw_kw():
     return {"cenfunc": "median", "stdfunc": "std", "std_ddof": 1}
 
 
-def do_zs(arr, zeros, scales, copy=False):
+def do_zs(
+    arr: np.ndarray,
+    zeros: np.ndarray | float | None,
+    scales: np.ndarray | float | None,
+    copy: bool = False,
+) -> np.ndarray:
     """Apply per-image zero subtraction and scale division.
 
     Parameters

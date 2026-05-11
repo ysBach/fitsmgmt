@@ -216,20 +216,20 @@ def _iter_rej(
 # *                                    SIGMA-CLIPPING                                * #
 # ************************************************************************************ #
 def sigclip_mask(
-    arr,
-    mask=None,
-    sigma=3.0,
-    sigma_lower=None,
-    sigma_upper=None,
-    maxiters=5,
-    ddof=0,
-    nkeep=3,
-    maxrej=None,
-    cenfunc="median",
-    irafmode=False,
-    axis=0,
-    full=True,
-):
+    arr: np.ndarray,
+    mask: np.ndarray | None = None,
+    sigma: float = 3.0,
+    sigma_lower: float | None = None,
+    sigma_upper: float | None = None,
+    maxiters: int = 5,
+    ddof: int = 0,
+    nkeep: int = 3,
+    maxrej: int | None = None,
+    cenfunc: str = "median",
+    irafmode: bool = False,
+    axis: int = 0,
+    full: bool = True,
+) -> np.ndarray | tuple:
     if axis != 0:
         raise ValueError("Currently only axis=0 is supported")
 
@@ -366,7 +366,12 @@ def _minmax(arr, mask=None, q_low=0, q_upp=0, calc_low=True, calc_upp=True):
     return (mask, low, upp, 1, code)
 
 
-def minmax_mask(arr, mask=None, n_minmax=None, full=True):
+def minmax_mask(
+    arr: np.ndarray,
+    mask: np.ndarray | None = None,
+    n_minmax: list[int] | None = None,
+    full: bool = True,
+) -> np.ndarray | tuple:
     n_minmax = [1, 1] if n_minmax is None else n_minmax
     mask = _set_mask(arr, mask)
     q_low, q_upp = _set_minmax(arr, n_minmax, axis=0)
@@ -422,26 +427,26 @@ minmax_mask.__doc__ = f""" Finds masks of `arr` after rejecting `n_minmax` pixel
 # *                          CCD NOISE MODEL CLIPPING (CCDCLIP)                      * #
 # ************************************************************************************ #
 def ccdclip_mask(
-    arr,
-    mask=None,
-    sigma=3.0,
-    sigma_lower=None,
-    sigma_upper=None,
-    maxiters=5,
-    ddof=0,
-    nkeep=3,
-    maxrej=None,
-    cenfunc="median",
-    irafmode=False,
-    axis=0,
-    gain=1.0,
-    rdnoise=0.0,
-    snoise=0.0,
-    scale_ref=1,
-    zero_ref=0,
-    dtype="float32",
-    full=True,
-):
+    arr: np.ndarray,
+    mask: np.ndarray | None = None,
+    sigma: float = 3.0,
+    sigma_lower: float | None = None,
+    sigma_upper: float | None = None,
+    maxiters: int = 5,
+    ddof: int = 0,
+    nkeep: int = 3,
+    maxrej: int | None = None,
+    cenfunc: str = "median",
+    irafmode: bool = False,
+    axis: int = 0,
+    gain: float = 1.0,
+    rdnoise: float = 0.0,
+    snoise: float = 0.0,
+    scale_ref: float = 1,
+    zero_ref: float = 0,
+    dtype: str = "float32",
+    full: bool = True,
+) -> np.ndarray | tuple:
     if axis != 0:
         raise ValueError("Currently only axis=0 is supported")
 

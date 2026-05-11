@@ -35,11 +35,22 @@ __all__ = [
 #         cut, dists, pos_cut = circular_cut(img, pos, radius=crad)
 
 
-def gauss_r(r, amp=1, sig=1, const=0):
+def gauss_r(
+    r: float | np.ndarray,
+    amp: float = 1,
+    sig: float = 1,
+    const: float = 0,
+) -> float | np.ndarray:
     return amp * np.exp(-0.5 * (r / sig) ** 2) + const
 
 
-def moffat_r(r, amp=1, core=1, power=2.5, const=0):
+def moffat_r(
+    r: float | np.ndarray,
+    amp: float = 1,
+    core: float = 1,
+    power: float = 2.5,
+    const: float = 0,
+) -> float | np.ndarray:
     return amp * (1 + (r / core) ** 2) ** (-power) + const
 
 
@@ -84,15 +95,15 @@ def fwhm_r(popt, fun):
 
 
 def radial_profile(
-    im,
-    center,
-    radii=1,
-    thickness=1,
-    mask=None,
-    norm_by_center=False,
-    add_center=False,
+    im: CCDData | np.ndarray,
+    center: tuple[float, float],
+    radii: float | np.ndarray = 1,
+    thickness: int | np.ndarray = 1,
+    mask: np.ndarray | None = None,
+    norm_by_center: bool = False,
+    add_center: bool = False,
     **kwargs,
-):
+) -> tuple[pd.DataFrame, float]:
     """Calculate radial profile of the image.
 
     Parameters

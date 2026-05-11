@@ -32,7 +32,7 @@ to +0.5. Simple test code::
 import numpy as np
 import pandas as pd
 import sep
-from astropy.nddata import support_nddata
+from astropy.nddata import CCDData, support_nddata
 
 from .util import bezel_mask, gaussian_kernel
 
@@ -54,14 +54,14 @@ def _sanitize_byteorder(data):
 
 
 def sep_back(
-    data,
-    mask=None,
-    maskthresh=0.0,
-    filter_threshold=0.0,
-    box_size=(64, 64),
-    filter_size=(3, 3),
-    byteorder=">",
-):
+    data: CCDData | np.ndarray,
+    mask: np.ndarray | None = None,
+    maskthresh: float = 0.0,
+    filter_threshold: float = 0.0,
+    box_size: tuple[int, int] = (64, 64),
+    filter_size: tuple[int, int] = (3, 3),
+    byteorder: str = ">",
+) -> sep.Background:
     """
     Notes
     -----
@@ -339,29 +339,29 @@ def _sep_extract(
 
 # TODO: use astropy.nddata's @support_nddata
 def sep_extract(
-    data,
-    thresh,
-    bkg=None,
-    mask=None,
-    maskthresh=0.0,
-    err=None,
-    var=None,
-    pos_ref=None,
-    sort_by=None,
-    sort_ascending=True,
-    bezel_x=None,
-    bezel_y=None,
-    gain=None,
-    minarea=5,
-    maxarea=None,
-    filter_kernel=sep_default_kernel,
-    filter_type="matched",
-    deblend_nthresh=32,
-    deblend_cont=0.005,
-    clean=True,
-    clean_param=1.0,
-    seg_remove_mask=True,
-):
+    data: CCDData | np.ndarray,
+    thresh: float,
+    bkg: sep.Background | np.ndarray | None = None,
+    mask: np.ndarray | None = None,
+    maskthresh: float = 0.0,
+    err: np.ndarray | None = None,
+    var: np.ndarray | None = None,
+    pos_ref: tuple[float, float] | None = None,
+    sort_by: str | None = None,
+    sort_ascending: bool = True,
+    bezel_x: float | tuple[float, float] | None = None,
+    bezel_y: float | tuple[float, float] | None = None,
+    gain: float | None = None,
+    minarea: int = 5,
+    maxarea: int | None = None,
+    filter_kernel: np.ndarray = sep_default_kernel,
+    filter_type: str = "matched",
+    deblend_nthresh: int = 32,
+    deblend_cont: float = 0.005,
+    clean: bool = True,
+    clean_param: float = 1.0,
+    seg_remove_mask: bool = True,
+) -> tuple[pd.DataFrame, np.ndarray]:
     """
     Notes
     -----

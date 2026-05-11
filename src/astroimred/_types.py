@@ -16,7 +16,7 @@ StrPathLike: TypeAlias = str | os.PathLike[str]
 HDUExt: TypeAlias = int | str | tuple[str, int] | None
 """FITS extension specifier: index, EXTNAME, (EXTNAME, EXTVER), or None (auto)."""
 
-HDULike: TypeAlias = CCDData | fits.PrimaryHDU | fits.ImageHDU
+CCDLike: TypeAlias = CCDData | fits.PrimaryHDU | fits.ImageHDU
 """Any astropy CCD-like image container."""
 
 FQArr: TypeAlias = float | np.ndarray | u.Quantity

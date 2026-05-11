@@ -1,8 +1,10 @@
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy.nddata import Cutout2D
+from astropy.nddata import CCDData, Cutout2D
+from astropy.wcs import WCS
 from photutils.aperture import (
+    Aperture,
     CircularAnnulus,
     CircularAperture,
     EllipticalAnnulus,
@@ -32,7 +34,13 @@ __all__ = [
 ]
 
 
-def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
+def cutout_from_ap(
+    ap: Aperture,
+    ccd: CCDData | np.ndarray,
+    method: str = "bbox",
+    subpixels: int = 5,
+    fill_value: float = np.nan,
+) -> Cutout2D | list[Cutout2D]:
     """Returns a Cutout2D object from bounding boxes of aperture/annulus.
 
     Parameters
@@ -93,7 +101,7 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
         return cuts
 
 
-def ap_to_cutout_position(ap, cutout2d):
+def ap_to_cutout_position(ap: Aperture, cutout2d: Cutout2D) -> Aperture:
     """Returns a new aperture/annulus only by updating ``positions``.
 
     Parameters
@@ -136,14 +144,14 @@ def _sanitize_apsize(size=None, fwhm=None, factor=None, name="size", repeat=Fals
 
 def circ_ap_an(
     positions,
-    r_ap=None,
-    r_in=None,
-    r_out=None,
-    fwhm=None,
-    f_ap=1.5,
-    f_in=4.0,
-    f_out=6.0,
-):
+    r_ap: float | None = None,
+    r_in: float | None = None,
+    r_out: float | None = None,
+    fwhm: float | None = None,
+    f_ap: float = 1.5,
+    f_in: float = 4.0,
+    f_out: float = 6.0,
+) -> tuple[CircularAperture, CircularAnnulus]:
     """A convenience function for pixel circular aperture/annulus.
 
     Parameters
@@ -184,15 +192,15 @@ def circ_ap_an(
 
 def ellip_ap_an(
     positions,
-    r_ap=None,
-    r_in=None,
-    r_out=None,
-    fwhm=None,
-    theta=0.0,
-    f_ap=(1.5, 1.5),
-    f_in=(4.0, 4.0),
-    f_out=(6.0, 6.0),
-):
+    r_ap: float | tuple[float, float] | None = None,
+    r_in: float | tuple[float, float] | None = None,
+    r_out: float | tuple[float, float] | None = None,
+    fwhm: float | None = None,
+    theta: float = 0.0,
+    f_ap: float | tuple[float, float] = (1.5, 1.5),
+    f_in: float | tuple[float, float] = (4.0, 4.0),
+    f_out: float | tuple[float, float] = (6.0, 6.0),
+) -> tuple[EllipticalAperture, EllipticalAnnulus]:
     """A convenience function for pixel elliptical aperture/annulus.
 
     Parameters
@@ -327,7 +335,11 @@ def pill_ap_an(
     return ap, an
 
 
-def eofn_ccw(wcs, full=False, tol=5.0):
+def eofn_ccw(
+    wcs: WCS,
+    full: bool = False,
+    tol: float = 5.0,
+) -> bool | tuple[bool, float, float]:
     """Checks whether the East of North is counter-clockwise in the image.
 
     Parameters
@@ -364,7 +376,12 @@ def eofn_ccw(wcs, full=False, tol=5.0):
         raise ValueError("PA calculation is problematic.")
 
 
-def pa2xytheta(pa, wcs, location="crpix", step_pix=0.1):
+def pa2xytheta(
+    pa: float,
+    wcs: WCS,
+    location: str | tuple[float, float] = "crpix",
+    step_pix: float = 0.1,
+) -> float:
     """
     pa : float
         The position angle in degrees, East of North.
