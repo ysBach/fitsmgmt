@@ -4,7 +4,7 @@ import numpy as np
 from astroimred.logging import logger
 
 from . import config, docstrings
-from .numba_reject import reject_minmax_numba, reject_sigclip_numba
+from .numba_reject import ccdclip_std_numba, reject_minmax_numba, reject_sigclip_numba
 from .util_comb import (
     _get_dtype_limits,
     _set_cenfunc,
@@ -18,14 +18,6 @@ from .util_comb import (
 )
 
 __all__ = ["sigclip_mask", "ccdclip_mask", "minmax_mask"]
-
-
-try:
-    import numexpr as ne
-
-    HAS_NE = True
-except ImportError:
-    HAS_NE = False
 
 
 def _iter_rej(
@@ -67,11 +59,14 @@ def _iter_rej(
         cen = cenfunc(_arr, axis=0)
         if ccdclip:  # use abs(pix value) to avoid NaN from negative pixels.
             # Calculate: sqrt((1 + snoise_ref) * abs(cen + zero_ref) * scale_ref + rdnoise_ref**2)
-            if HAS_NE:
-                std = ne.evaluate(
-                    "sqrt((1 + snoise_ref) * abs(cen + zero_ref) * scale_ref + rdnoise_ref**2)"
-                )
-            else:
+            std = ccdclip_std_numba(
+                cen=cen,
+                snoise_ref=snoise_ref,
+                zero_ref=zero_ref,
+                scale_ref=scale_ref,
+                rdnoise_ref=rdnoise_ref,
+            )
+            if std is None:
                 std = np.sqrt(
                     (1 + snoise_ref) * np.abs(cen + zero_ref) * scale_ref
                     + rdnoise_ref**2
@@ -354,20 +349,15 @@ def _minmax(arr, mask=None, q_low=0, q_upp=0, calc_low=True, calc_upp=True):
         # Double-argsort gives per-element rank (0 = smallest) along axis 0.
         rank_low = np.argsort(np.argsort(_arr, axis=0), axis=0)
         mask |= rank_low < n_rej_low[np.newaxis]
-        if calc_low:
-            _arr_tmp = _arr.copy()
-            _arr_tmp[mask] = np.nan
-            low = np.nanmin(_arr_tmp, axis=0)
+        # low stays as the pre-rejection nanmin from _setup_reject (same as
+        # the original argpartition path and the numba path).
 
     if np.any(n_rej_upp > 0):
         _arr[mask] = -np.inf  # push rejected/masked to the low end
         # Negate so that the largest original values get the smallest ranks.
         rank_upp = np.argsort(np.argsort(-_arr, axis=0), axis=0)
         mask |= rank_upp < n_rej_upp[np.newaxis]
-        if calc_upp:
-            _arr_tmp = _arr.copy()
-            _arr_tmp[mask] = np.nan
-            upp = np.nanmax(_arr_tmp, axis=0)
+        # upp stays as the pre-rejection nanmax from _setup_reject.
 
     code = np.zeros(_arr.shape[1:], dtype=np.uint8)
     no_rej = (n_rej_low == 0) | (n_rej_upp == 0)

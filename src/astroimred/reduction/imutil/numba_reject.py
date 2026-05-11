@@ -69,6 +69,33 @@ def _nanstd_1d(vals, ddof=0):
     return np.sqrt(s / (n - ddof))
 
 
+@njit(cache=True, parallel=True)
+def ccdclip_std_2d(cen, snoise_ref, zero_ref, scale_ref, rdnoise_ref):
+    """CCD-clip std map for 2-D center images."""
+    out = np.empty_like(cen)
+    rdnoise_sq = rdnoise_ref * rdnoise_ref
+    scale_factor = (1.0 + snoise_ref) * scale_ref
+    for i in prange(cen.shape[0]):
+        for j in range(cen.shape[1]):
+            out[i, j] = np.sqrt(scale_factor * abs(cen[i, j] + zero_ref) + rdnoise_sq)
+    return out
+
+
+def ccdclip_std_numba(cen, snoise_ref, zero_ref, scale_ref, rdnoise_ref):
+    """Return CCD-clip std via Numba, or None when disabled/unsupported.
+
+    Originally this was done by numexpr
+    std = ne.evaluate("sqrt((1 + snoise_ref) * abs(cen + zero_ref) * scale_ref + rdnoise_ref**2)"
+
+    """
+    if not config._get_use_numba():
+        return None
+    if cen.ndim != 2:
+        return None
+    cen = np.ascontiguousarray(cen)
+    return ccdclip_std_2d(cen, snoise_ref, zero_ref, scale_ref, rdnoise_ref)
+
+
 @njit(cache=True)
 def _reject_sigclip_pixel(
     col,
