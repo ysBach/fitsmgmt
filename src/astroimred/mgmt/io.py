@@ -14,7 +14,7 @@ from astropy.table import Table
 from astropy.wcs import WCS
 
 from ..logging import logger
-from ._types import HDUExt, StrPathLike
+from .._types import HDUExt, StrPathLike
 
 try:
     import fitsio

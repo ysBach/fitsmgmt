@@ -1,4 +1,4 @@
-"""Shared type aliases for the mgmt subpackage."""
+"""Shared type aliases for the astroimred package."""
 
 from __future__ import annotations
 

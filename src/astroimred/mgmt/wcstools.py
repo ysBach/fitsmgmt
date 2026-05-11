@@ -12,7 +12,7 @@ from astropy.nddata import CCDData
 from astropy.wcs import WCS, Wcsprm
 
 from ..logging import logger
-from ._types import HDUExt, HDULike, StrPathLike
+from .._types import HDUExt, HDULike, StrPathLike
 
 __all__ = ["wcs_crota", "center_radec", "fov_radius", "wcsremove", "pixel_scale"]
 

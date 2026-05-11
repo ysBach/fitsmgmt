@@ -10,7 +10,7 @@ from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
 
 from ..logging import logger
-from ._types import HDUExt, StrPathLike
+from .._types import HDUExt, StrPathLike
 from .io import _parse_extension, inputs2list
 
 __all__ = [

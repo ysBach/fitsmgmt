@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from os import PathLike
 from pathlib import Path
 from typing import Any
 
@@ -16,14 +15,13 @@ from astropy.nddata import CCDData
 from astropy.table import Table
 from astropy.wcs import WCS
 
+from astroimred._types import HDUExt, StrPathLike
 from astroimred.logging import logger
 from astroimred.mgmt.headers import update_tlm
 from astroimred.mgmt.io import _parse_data_header, get_size, load_ccd, write2fits
 
 from .util_comb import _set_combfunc, _set_gain_rdns, get_zsw
 
-HduExtension = int | str | tuple[str, int] | None
-PathLikeStr = str | PathLike[str]
 Key_or_Val = str | npt.ArrayLike | None
 
 
@@ -94,7 +92,7 @@ def _hdu_has_data(hdu: fits.hdu.base.ExtensionHDU | fits.PrimaryHDU) -> bool:
 
 def _get_image_hdu(
     hdul: fits.HDUList,
-    extension: HduExtension,
+    extension: HDUExt,
 ) -> fits.hdu.base.ExtensionHDU | fits.PrimaryHDU | None:
     """Return the requested image HDU, falling back from primary to image HDU.
 
@@ -118,7 +116,7 @@ def _get_image_hdu(
 
 def _read_hdul_section(
     hdul: fits.HDUList,
-    extension: HduExtension,
+    extension: HDUExt,
     section: tuple[slice, ...],
 ) -> np.ndarray | None:
     """Read a section from an HDUList without forcing a full-image load."""
@@ -133,7 +131,7 @@ def _read_hdul_section(
 
 def _parse_imc_data_header(
     item: Any,
-    extension: HduExtension,
+    extension: HDUExt,
     parse_data: bool = True,
     parse_header: bool = True,
     copy: bool = True,
@@ -236,7 +234,7 @@ def update_hdr(
 
 
 def init_log_table(
-    items: Sequence[Any], logfile: PathLikeStr | None
+    items: Sequence[Any], logfile: StrPathLike | None
 ) -> tuple[Path | None, dict[str, list[Any]] | None]:
     """Initialize the optional imcombine CSV log table.
 
@@ -331,7 +329,7 @@ def setup_offsets(
 def extract_stack_metadata(
     items: Sequence[Any],
     ncombine: int,
-    extension: HduExtension,
+    extension: HDUExt,
     trimsec: str | None,
     imcmb_key: str | None,
     scale: Key_or_Val,
@@ -579,9 +577,9 @@ def calculate_zsw(
     items: Sequence[Any],
     dtype: npt.DTypeLike,
     trimsec: str | None,
-    extension: HduExtension,
-    extension_mask: HduExtension,
-    extension_uncertainty: HduExtension,
+    extension: HDUExt,
+    extension_mask: HDUExt,
+    extension_uncertainty: HDUExt,
     extract_exptime: bool,
     scale: Key_or_Val,
     zero: Key_or_Val,
@@ -662,9 +660,9 @@ def calculate_zsw(
 def load_imcombine_item(
     item: Any,
     trimsec: str | None,
-    extension: HduExtension,
-    extension_mask: HduExtension,
-    extension_uncertainty: HduExtension,
+    extension: HDUExt,
+    extension_mask: HDUExt,
+    extension_uncertainty: HDUExt,
 ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
     """Load one complete imcombine input as data, variance, and mask arrays.
 
@@ -717,9 +715,9 @@ def load_imcombine_item_region(
     data_slices: tuple[slice, ...],
     raw_shape: Sequence[int],
     trimsec: str | None,
-    extension: HduExtension,
-    extension_mask: HduExtension,
-    extension_uncertainty: HduExtension,
+    extension: HDUExt,
+    extension_mask: HDUExt,
+    extension_uncertainty: HDUExt,
 ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
     """Load only one region of an imcombine input.
 
@@ -767,9 +765,9 @@ def load_full_stack(
     dtype: npt.DTypeLike,
     mask: np.ndarray | None,
     trimsec: str | None,
-    extension: HduExtension,
-    extension_mask: HduExtension,
-    extension_uncertainty: HduExtension,
+    extension: HDUExt,
+    extension_mask: HDUExt,
+    extension_uncertainty: HDUExt,
     extract_exptime: bool,
     scale: Key_or_Val,
     zero: Key_or_Val,
@@ -863,9 +861,9 @@ def load_stack_chunk(
     dtype: npt.DTypeLike,
     mask: np.ndarray | None,
     trimsec: str | None,
-    extension: HduExtension,
-    extension_mask: HduExtension,
-    extension_uncertainty: HduExtension,
+    extension: HDUExt,
+    extension_mask: HDUExt,
+    extension_uncertainty: HDUExt,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     """Load one output-image chunk into an offset-expanded mini stack.
 
@@ -975,13 +973,13 @@ def apply_output_offsets(
 def write_imcombine_outputs(
     comb: CCDData,
     hdr0: fits.Header,
-    output: PathLikeStr | None,
-    output_err: PathLikeStr | None,
-    output_low: PathLikeStr | None,
-    output_upp: PathLikeStr | None,
-    output_nrej: PathLikeStr | None,
-    output_mask: PathLikeStr | None,
-    output_rejcode: PathLikeStr | None,
+    output: StrPathLike | None,
+    output_err: StrPathLike | None,
+    output_low: StrPathLike | None,
+    output_upp: StrPathLike | None,
+    output_nrej: StrPathLike | None,
+    output_mask: StrPathLike | None,
+    output_rejcode: StrPathLike | None,
     err: np.ndarray | None,
     low: np.ndarray | None,
     upp: np.ndarray | None,
@@ -1053,7 +1051,7 @@ def write_imcombine_outputs(
 
 
 def write_imcombine_logfile(
-    logfile: PathLikeStr | None,
+    logfile: StrPathLike | None,
     table_dict: dict[str, list[Any]] | None,
     ndim: int,
     offsets: np.ndarray,

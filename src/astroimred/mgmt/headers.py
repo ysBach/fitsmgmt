@@ -10,7 +10,7 @@ from astropy.time import Time
 
 from ..logging import logger
 from . import io as _io
-from ._types import HDULike, StrPathLike
+from .._types import HDULike, StrPathLike
 from .misc import change_to_quantity, str_now
 
 __all__ = [

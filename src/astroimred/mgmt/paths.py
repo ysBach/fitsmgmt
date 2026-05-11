@@ -8,7 +8,7 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 
 from ..logging import logger
-from ._types import StrPathLike
+from .._types import StrPathLike
 from .headers import key_mapper, key_remover
 
 __all__ = [
