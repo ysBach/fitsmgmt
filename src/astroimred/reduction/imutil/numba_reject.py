@@ -86,6 +86,7 @@ def _reject_sigclip_pixel(
     snoise_ref,
     scale_ref,
     zero_ref,
+    dtype_max,
 ):
     """
     Per-pixel sigclip rejection.
@@ -253,7 +254,6 @@ def _reject_sigclip_pixel(
         if n_minimum > 0:
             # Compute residuals from original array (matching original: resid = abs(_arr - cen))
             resid = np.empty(n)
-            dtype_max = 1e10  # Approximate max for float32/float64
             for i in range(n):
                 if mask_final[i]:
                     resid[i] = dtype_max  # Set to large value so it won't be selected
@@ -300,6 +300,7 @@ def reject_sigclip_3d(
     snoise_ref,
     scale_ref,
     zero_ref,
+    dtype_max,
 ):
     """
     (N, H, W) -> (H, W) masks, bounds, nit, code.
@@ -330,6 +331,7 @@ def reject_sigclip_3d(
                 snoise_ref,
                 scale_ref,
                 zero_ref,
+                dtype_max,
             )
             mask_out[:, i, j] = m
             low_out[i, j] = low
@@ -462,6 +464,7 @@ def reject_sigclip_numba(
         else np.zeros(arr.shape, dtype=np.bool_)
     )
     use_median = "median" in str(cenfunc).lower() if cenfunc is not None else True
+    dtype_max = float(np.finfo(arr.dtype).max)
     return reject_sigclip_3d(
         arr,
         mask,
@@ -478,6 +481,7 @@ def reject_sigclip_numba(
         snoise_ref,
         scale_ref,
         zero_ref,
+        dtype_max,
     )
 
 
