@@ -344,32 +344,30 @@ def _minmax(arr, mask=None, q_low=0, q_upp=0, calc_low=True, calc_upp=True):
     _, ncombine, n_old = _nvals  # nit is not used in MINMAX.
     low, upp, _, _ = _lowupp  # low_new, upp_new are not used in MINMAX.
 
-    # adding 0.001 following IRAF
-    n_rej_low = (n_old * q_low + 0.001).astype(int)  # 2-D array
-    n_rej_upp = (n_old * q_upp + 0.001).astype(int)  # 2-D array
-    n_low = np.max(n_rej_low)  # only ~ 0.1 ms for 1k x 1k array of int
-    n_upp = np.max(n_rej_upp)
+    # adding 0.001 following IRAF; per-pixel counts to avoid over-rejecting
+    # pixels that have fewer finite values due to an inhomogeneous input mask.
+    n_rej_low = (n_old * q_low + 0.001).astype(int)  # shape == _arr.shape[1:]
+    n_rej_upp = (n_old * q_upp + 0.001).astype(int)
 
-    # NOTE: Below, the `partition` by bottleneck is only marginally faster than
-    #   numpy at best. Sometimes I found it slower than numpy. Furthermore, it does not
-    #   support negative `kth`. Thus, I use numpy for simplicity without losing much speed.
-    # get lower value map
-    if n_low != 0:
-        _arr[mask] = np.inf  # replace with largest value
-        lowidx = np.argpartition(_arr, kth=n_low, axis=0)[:n_low,]
-        np.put_along_axis(mask, lowidx, True, axis=0)
+    if np.any(n_rej_low > 0):
+        _arr[mask] = np.inf  # push already-masked to the high end when sorting
+        # Double-argsort gives per-element rank (0 = smallest) along axis 0.
+        rank_low = np.argsort(np.argsort(_arr, axis=0), axis=0)
+        mask |= rank_low < n_rej_low[np.newaxis]
         if calc_low:
-            low = np.min(_arr, axis=0)
-    # if n_low == 0: do not update mask & use `low` obtained above.
+            _arr_tmp = _arr.copy()
+            _arr_tmp[mask] = np.nan
+            low = np.nanmin(_arr_tmp, axis=0)
 
-    # remove upper values
-    if n_upp != 0:
-        _arr[mask] = -np.inf  # replace with lowest values
-        uppidx = np.argpartition(_arr, kth=-n_upp, axis=0)[-n_upp:,]
-        np.put_along_axis(mask, uppidx, True, axis=0)
+    if np.any(n_rej_upp > 0):
+        _arr[mask] = -np.inf  # push rejected/masked to the low end
+        # Negate so that the largest original values get the smallest ranks.
+        rank_upp = np.argsort(np.argsort(-_arr, axis=0), axis=0)
+        mask |= rank_upp < n_rej_upp[np.newaxis]
         if calc_upp:
-            upp = np.max(_arr, axis=0)
-    # if n_upp == 0: use `upp` obtained above.
+            _arr_tmp = _arr.copy()
+            _arr_tmp[mask] = np.nan
+            upp = np.nanmax(_arr_tmp, axis=0)
 
     code = np.zeros(_arr.shape[1:], dtype=np.uint8)
     no_rej = (n_rej_low == 0) | (n_rej_upp == 0)
@@ -468,8 +466,8 @@ def ccdclip_mask(
     _, rds = _set_gain_rdns(rdnoise, ncombine, dtype=dtype)
     _, sns = _set_gain_rdns(snoise, ncombine, dtype=dtype)
 
-    # Convert to gain-corrected
-    arr = do_zs(arr, zeros=None, scales=1 / gns)
+    # Convert to gain-corrected (Use copy!)
+    arr = do_zs(arr, zeros=None, scales=1 / gns, copy=True)
 
     # Original path (fallback when IMUTIL_USE_NUMBA is False or arr not 3D):
     # o_mask, o_low, o_upp, o_nit, o_code = _iter_rej(
