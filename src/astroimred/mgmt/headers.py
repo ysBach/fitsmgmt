@@ -5,10 +5,12 @@ import contextlib
 from astro_ndslice import is_list_like, listify
 from astropy import units as u
 from astropy.io import fits
+from astropy.nddata import CCDData
 from astropy.time import Time
 
 from ..logging import logger
 from . import io as _io
+from ._types import HDULike, StrPathLike
 from .misc import change_to_quantity, str_now
 
 __all__ = [
@@ -25,16 +27,16 @@ __all__ = [
 
 
 def cmt2hdr(
-    header,
-    histcomm,
-    s,
-    precision=3,
-    time_fmt="{:.>72s}",
-    t_ref=None,
-    dt_fmt="(dt = {:.3f} s)",
-    set_kw=None,
-    verbose=False,
-):
+    header: fits.Header,
+    histcomm: str,
+    s: str | list[str],
+    precision: int = 3,
+    time_fmt: str | None = "{:.>72s}",
+    t_ref: Time | None = None,
+    dt_fmt: str = "(dt = {:.3f} s)",
+    set_kw: dict | None = None,
+    verbose: bool = False,
+) -> None:
     """Add HISTORY/COMMENT entries, optionally with a timestamp.
 
     Parameters
@@ -76,7 +78,7 @@ def cmt2hdr(
 
     set_kw : `dict`, optional.
         The keyword arguments added to `~astropy.io.fits.Header.set()`. Default is
-        ``{'after':-1}``, i.e., the history or comment will be appended to the
+        ``{'after': -1}``, i.e., the history or comment will be appended to the
         very last part of the header.
 
     Notes
@@ -129,7 +131,7 @@ def cmt2hdr(
     update_tlm(header)
 
 
-def update_tlm(header):
+def update_tlm(header: fits.Header) -> None:
     """Adds the IRAF-like ``FITS-TLM`` right after ``NAXISi``.
 
      Timing on MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB
@@ -152,13 +154,13 @@ def update_tlm(header):
 
 
 def update_process(
-    header,
-    process=None,
-    key="PROCESS",
-    delimiter="",
-    add_comment=True,
-    additional_comment=None,
-):
+    header: fits.Header,
+    process: str | list[str] | None = None,
+    key: str = "PROCESS",
+    delimiter: str = "",
+    add_comment: bool = True,
+    additional_comment: dict | None = None,
+) -> None:
     """Update the process history keyword in the header.
 
     Parameters
@@ -223,18 +225,18 @@ def update_process(
 
 
 def hedit(
-    item,
-    keys,
-    values,
-    comments=None,
-    befores=None,
-    afters=None,
-    add=False,
-    output=None,
-    overwrite=False,
-    output_verify="fix",
-    verbose=True,
-):
+    item: fits.Header | HDULike,
+    keys: str | list[str],
+    values: object | list[object],
+    comments: str | list[str] | None = None,
+    befores: str | int | list[str | int] | None = None,
+    afters: str | int | list[str | int] | None = None,
+    add: bool = False,
+    output: StrPathLike | None = None,
+    overwrite: bool = False,
+    output_verify: str = "fix",
+    verbose: bool = True,
+) -> CCDData | None:
     """Edit FITS header keyword values.
 
     Parameters
@@ -247,9 +249,9 @@ def hedit(
         The key to edit.
 
     values : `str`, numeric, or `list`-like of such
-        The new value. To pass one single iterable (e.g., `[1, 2, 3]`) for one
-        single `key`, use a `list` of it (e.g., `[[1, 2, 3]]`) to circumvent
-        problem.
+        The new value. To pass one single iterable (e.g., ``[1, 2, 3]``) for one
+        single `key`, use a `list` of it (e.g., ``[[1, 2, 3]]``) to circumvent
+        the problem.
 
     comments : `str`, `list`-like of `str`, optional
         Comments to add.
@@ -336,7 +338,9 @@ def hedit(
     return ccd
 
 
-def key_remover(header, remove_keys, deepremove=True):
+def key_remover(
+    header: fits.Header, remove_keys: list[str], deepremove: bool = True
+) -> fits.Header:
     """Remove keywords from a header.
 
     Parameters
@@ -352,7 +356,7 @@ def key_remover(header, remove_keys, deepremove=True):
         keywords as discussed in the following issue:
         https://github.com/astropy/ccdproc/issues/464
         If it is set to `True`, ALL the keywords having the name specified in
-        `remove_keys` will be removed. If not, only the first occurence of each
+        `remove_keys` will be removed. If not, only the first occurrence of each
         key in `remove_keys` will be removed. It is more sensible to set it
         `True` in most of the cases.
         Default: `True`.
@@ -375,7 +379,12 @@ def key_remover(header, remove_keys, deepremove=True):
     return nhdr
 
 
-def key_mapper(header, keymap=None, deprecation=False, remove=False):
+def key_mapper(
+    header: fits.Header,
+    keymap: dict | None = None,
+    deprecation: bool = False,
+    remove: bool = False,
+) -> fits.Header:
     """Update a header to match a keyword map.
 
     Parameters
@@ -443,7 +452,7 @@ def key_mapper(header, keymap=None, deprecation=False, remove=False):
     return newhdr
 
 
-def chk_keyval(type_key, type_val, group_key):
+def chk_keyval(type_key, type_val, group_key) -> tuple[list[str], list, list[str]]:
     """Validate type and group keyword/value arguments.
 
     Parameters
@@ -530,13 +539,13 @@ def chk_keyval(type_key, type_val, group_key):
 
 def hdrval(
     value=None,
-    header=None,
-    key=None,
+    header: fits.Header | None = None,
+    key: str | None = None,
     default=None,
-    unit=None,
-    verbose=False,
-    to_value=False,
-    return_source=False,
+    unit: str | u.Unit | None = None,
+    verbose: bool = False,
+    to_value: bool = False,
+    return_source: bool = False,
 ):
     """Get a value by priority: ``value`` > ``header[key]`` > ``default``.
 
@@ -562,9 +571,10 @@ def hdrval(
         available, this value is used.
         Default: `None`.
 
-    unit : `str`, optional.
-        `None` to ignore unit. ``''`` (empty string) means `Unit(dimensionless)`.
-        Better to leave it as `None` unless astropy unit is truly needed.
+    unit : `str` or `~astropy.units.Unit`, optional.
+        `None` to ignore unit. ``''`` (empty string) is interpreted as
+        `~astropy.units.dimensionless_unscaled`.
+        Better to leave it as `None` unless an astropy unit is truly needed.
         Default: `None`.
 
     verbose : `bool`, optional.
@@ -649,17 +659,17 @@ def hdrval(
 
 
 def midtime_obs(
-    header=None,
-    dateobs="DATE-OBS",
-    format=None,
-    scale=None,
-    precision=None,
-    in_subfmt=None,
-    out_subfmt=None,
+    header: fits.Header | None = None,
+    dateobs: str | Time = "DATE-OBS",
+    format: str | None = None,
+    scale: str | None = None,
+    precision: int | None = None,
+    in_subfmt: str | None = None,
+    out_subfmt: str | None = None,
     location=None,
-    exptime="EXPTIME",
-    exptime_unit=u.s,
-):
+    exptime: str | float | u.Quantity = "EXPTIME",
+    exptime_unit: u.Unit = u.s,
+) -> Time:
     """Calculate the mid-observation time.
 
     Parameters

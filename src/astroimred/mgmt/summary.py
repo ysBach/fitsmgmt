@@ -10,6 +10,7 @@ from astropy.io.fits.verify import VerifyError
 from astropy.nddata import CCDData
 
 from ..logging import logger
+from ._types import HDUExt, StrPathLike
 from .io import _parse_extension, inputs2list
 
 __all__ = [
@@ -18,7 +19,9 @@ __all__ = [
 ]
 
 
-def _write_summary(output, summarytab, verbose=True):
+def _write_summary(
+    output: StrPathLike, summarytab: pd.DataFrame, verbose: bool = True
+) -> None:
     """Write a summary table, choosing format from the file suffix."""
     output = Path(output)
     if verbose:
@@ -33,22 +36,22 @@ def _write_summary(output, summarytab, verbose=True):
 
 def fits_summary(
     inputs=None,
-    extension=None,
-    verify_fix=False,
-    fname_option="relative",
-    output=None,
-    keywords=None,
-    example_header=None,
-    sort_by="file",
-    sort_map=None,
-    fullmatch=None,
-    flags=0,
-    querystr=None,
-    negate_fullmatch=False,
-    nonunique_keys=False,
-    verbose=True,
+    extension: HDUExt = None,
+    verify_fix: bool = False,
+    fname_option: str = "relative",
+    output: StrPathLike | None = None,
+    keywords: list[str] | str | None = None,
+    example_header: StrPathLike | None = None,
+    sort_by: str = "file",
+    sort_map: dict | None = None,
+    fullmatch: dict | None = None,
+    flags: int = 0,
+    querystr: str | None = None,
+    negate_fullmatch: bool = False,
+    nonunique_keys: bool = False,
+    verbose: bool = True,
     **kwargs,
-):
+) -> pd.DataFrame | None:
     """Extract summary rows from FITS headers.
 
     Parameters
@@ -126,7 +129,7 @@ def fits_summary(
 
     nonunique_keys : `bool`, optional
         Whether to remove the keys that have only one unique value throughout
-        *ALL* input objects. Even if it is unique, keys specified in `keywords`
+        *ALL* input objects. Even if they are unique, keys specified in `keywords`
         will not be removed.
         Default is `False`.
 
@@ -351,15 +354,15 @@ def fits_summary(
 
 
 def df_selector(
-    summarytab,
-    fullmatch=None,
-    flags=0,
-    negate_fullmatch=False,
-    querystr=None,
-    columns=None,
-    columns_drop=None,
-    reset_index=True,
-):
+    summarytab: pd.DataFrame,
+    fullmatch: dict | None = None,
+    flags: int = 0,
+    negate_fullmatch: bool = False,
+    querystr: str | None = None,
+    columns: str | list[str] | None = None,
+    columns_drop: str | list[str] | None = None,
+    reset_index: bool = True,
+) -> pd.DataFrame:
     """Select rows from a summary table.
 
     Parameters
@@ -386,6 +389,10 @@ def df_selector(
         The `list` of columns to be returned/dropped after selection. No need to
         setup both, but no Error will be raised even the user does so.
         Default: `None`.
+
+    reset_index : `bool`, optional.
+        Whether to reset the DataFrame index after selection.
+        Default: `True`.
 
     Returns
     -------

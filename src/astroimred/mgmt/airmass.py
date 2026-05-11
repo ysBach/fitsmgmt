@@ -10,30 +10,30 @@ from astropy.io.fits import Card
 from astropy.time import Time
 
 from ..logging import logger
+from ._types import FQArr
 from .headers import cmt2hdr, hdrval
 from .misc import change_to_quantity
 
 __all__ = ["calc_airmass", "airmass_obs", "airmass_to_hdr", "airmass_from_hdr"]
 
-NumberLike: TypeAlias = float | np.ndarray | u.Quantity
 AirmassTrace: TypeAlias = dict[str, list[float | str]]
 
 
 def calc_airmass(
-    zd_deg: NumberLike | None = None,
-    cos_zd: NumberLike | None = None,
+    zd_deg: FQArr | None = None,
+    cos_zd: FQArr | None = None,
     scale: float = 750.0,
-) -> NumberLike:
+) -> FQArr:
     """Calculate airmass by nonrefracting radially symmetric atmosphere model.
 
     Parameters
     ----------
-    zd_deg : `float`, optional
-        The zenithal distance in degrees
+    zd_deg : `float` or array-like, optional
+        The zenithal distance in degrees.
         Default: `None`.
 
-    cos_zd : `float`, optional
-        The cosine of zenithal distance. If given, ``zd_deg`` is not used.
+    cos_zd : `float` or array-like, optional
+        The cosine of zenithal distance. If given, `zd_deg` is not used.
         Default: `None`.
 
     scale : `float`, optional
@@ -86,21 +86,21 @@ def airmass_obs(
     scale: float = 750.0,
     full: bool = False,
     in_deg: bool = True,
-) -> NumberLike | tuple[NumberLike, AirmassTrace]:
+) -> FQArr | tuple[FQArr, AirmassTrace]:
     """Calculate effective airmass during an exposure.
 
     Parameters
     ----------
-    targetcoord: astropy.SkyCoord
+    targetcoord : `~astropy.coordinates.SkyCoord`
         The target's coordinate.
 
-    obscoord : astropy.EarthLocation
+    obscoord : `~astropy.coordinates.EarthLocation`
         The observer's location.
 
-    ut : astropy.Time
+    ut : `str` or `~astropy.time.Time`
         The time when the exposure is started.
 
-    exptime : astropy.`~astropy.units.Quantity`
+    exptime : `float` or `~astropy.units.Quantity`
         The exposure time.
 
     scale : `float`, optional
@@ -187,19 +187,19 @@ def airmass_to_hdr(
     header : `~astropy.io.fits.Header`
         The header of the image to calculate airmass from.
 
-    obscoord : EarthLocation
+    obscoord : `~astropy.coordinates.EarthLocation`
         The location of the observatory.
 
-    targetcoord : SkyCoord, optional
+    targetcoord : `~astropy.coordinates.SkyCoord`, optional
         The coordinate of the target. If not given, it will be calculated from
-        the header.
+        the header using `ra`, `dec`, and `frame`.
 
-    ra, dec : `str`|`float`|u.`~astropy.units.Quantity`, optional
+    ra, dec : `str`, `float`, or `~astropy.units.Quantity`, optional
         The name of the header keyword or the value of the RA and DEC of the
-        target. If `float`, it should be in [deg].
-        Default: `None`.
+        target. If `float`, it should be in degrees.
+        Default: ``'RA'`` and ``'DEC'``.
 
-    time_start : `str`|`~astropy.time.Time`, optional
+    time_start : `str` or `~astropy.time.Time`, optional
         The name of the header keyword or the value of the time when the
         exposure started.
         Default: ``'DATE-OBS'``.
@@ -207,9 +207,9 @@ def airmass_to_hdr(
     time_scale : `str`, optional
         The scale of the time if it is read from header. Default is "utc".
 
-    exptime : `str`|`float`|u.`~astropy.units.Quantity`, optional
+    exptime : `str`, `float`, or `~astropy.units.Quantity`, optional
         The name of the header keyword or the value of the exposure time. If
-        given as `float`, it should be in [sec].
+        given as `float`, it should be in seconds.
         Default: ``'EXPTIME'``.
 
     scale : `float`, optional
@@ -308,14 +308,14 @@ def airmass_from_hdr(
     ut_scale: str = "utc",
     return_header: bool = False,
     verbose: bool = False,
-) -> fits.Header | tuple[NumberLike, AirmassTrace]:
+) -> fits.Header | tuple[FQArr, AirmassTrace]:
     """Calculate airmass using the header.
 
     Parameters
     ----------
     ra, dec: `float` or `~astropy.units.Quantity`, optional
         The RA and DEC of the target. If not specified, it tries to find them
-        in the header using ``ra_key`` and ``dec_key``.
+        in the header using `ra_key` and `dec_key`.
 
     ut: `str` or `~astropy.time.Time`, optional
         The *starting* time of the observation in UT.
@@ -325,7 +325,7 @@ def airmass_from_hdr(
 
     lon, lat, height: `str`, `float`, or `~astropy.units.Quantity`
         The longitude, latitude, and height of the observatory. See
-        astropy.coordinates.EarthLocation.
+        `~astropy.coordinates.EarthLocation`.
 
     equinox, frame: `str`, optional
         The `equinox` and `frame` for SkyCoord.

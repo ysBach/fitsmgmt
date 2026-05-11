@@ -12,11 +12,12 @@ from astropy.nddata import CCDData
 from astropy.wcs import WCS, Wcsprm
 
 from ..logging import logger
+from ._types import HDUExt, HDULike, StrPathLike
 
 __all__ = ["wcs_crota", "center_radec", "fov_radius", "wcsremove", "pixel_scale"]
 
 
-def wcs_crota(wcs, degree=True):
+def wcs_crota(wcs: WCS | Wcsprm, degree: bool = True) -> float:
     """Calculate CROTA-like rotation angle from a WCS CD matrix.
 
     Parameters
@@ -52,20 +53,20 @@ def wcs_crota(wcs, degree=True):
 
 
 def center_radec(
-    ccd_or_header,
-    center_of_image=True,
-    ra_key="RA",
-    dec_key="DEC",
+    ccd_or_header: CCDData | fits.Header,
+    center_of_image: bool = True,
+    ra_key: str = "RA",
+    dec_key: str = "DEC",
     equinox=None,
     frame=None,
-    equinox_key="EPOCH",
-    frame_key="RADECSYS",
-    ra_unit=u.hourangle,
-    dec_unit=u.deg,
-    mode="all",
-    verbose=True,
-    plain=False,
-):
+    equinox_key: str = "EPOCH",
+    frame_key: str = "RADECSYS",
+    ra_unit: u.Unit = u.hourangle,
+    dec_unit: u.Unit = u.deg,
+    mode: str = "all",
+    verbose: bool = True,
+    plain: bool = False,
+) -> SkyCoord | tuple[float, float]:
     """Returns the central ra/dec from header or `~astropy.wcs.WCS`.
 
     Notes
@@ -87,7 +88,7 @@ def center_radec(
 
     equinox, frame : `str`, optional
         The `equinox` and `frame` for SkyCoord. Default (`None`) will use the
-        default of SkyCoord. Important only if ``usewcs=False``.
+        default of SkyCoord. Important only if ``center_of_image=False``.
         Default: `None`.
 
     ra_key, dec_key, equinox_key, frame_key : `str`, optional
@@ -100,7 +101,7 @@ def center_radec(
     mode : 'all' or 'wcs', optional
         Whether to do the transformation including distortions (``'all'``) or
         only including only the core `~astropy.wcs.WCS` transformation (``'wcs'``). Important
-        only if ``usewcs=True``.
+        only if ``center_of_image=True``.
         Default: ``'all'``.
 
     plain : `bool`, optional.
@@ -143,7 +144,9 @@ def center_radec(
     return coo
 
 
-def fov_radius(header=None, wcs=None, unit=u.deg):
+def fov_radius(
+    header: fits.Header | None = None, wcs: WCS | None = None, unit: u.Unit = u.deg
+) -> u.Quantity:
     """Calculates the rough radius (cone) of the (square) FOV using `~astropy.wcs.WCS`.
 
     Parameters
@@ -200,16 +203,16 @@ def _parse_wcsremove_extension(extension):
 
 # TODO: do not load data extension if not explicitly ordered
 def wcsremove(
-    path_or_header=None,
-    additional_keys=None,
-    ccddata=True,
-    extension=None,
-    output=None,
-    output_verify="fix",
-    overwrite=False,
-    checksum=False,
-    verbose=True,
-):
+    path_or_header: StrPathLike | fits.Header | None = None,
+    additional_keys: list[str] | None = None,
+    ccddata: bool = True,
+    extension: HDUExt = None,
+    output: StrPathLike | None = None,
+    output_verify: str = "fix",
+    overwrite: bool = False,
+    checksum: bool = False,
+    verbose: bool = True,
+) -> fits.Header | HDULike:
     """Remove most `~astropy.wcs.WCS` related keywords from the header.
 
     Parameters
@@ -425,7 +428,12 @@ def wcsremove(
     )
 
 
-def pixel_scale(header=None, wcs=None, unit=u.arcsec, position=None):
+def pixel_scale(
+    header: fits.Header | None = None,
+    wcs: WCS | None = None,
+    unit: u.Unit | None = u.arcsec,
+    position: tuple[float, float] | str | None = None,
+) -> u.Quantity | float:
     """Calculates the rough pixel scale using `~astropy.wcs.WCS`.
 
     Parameters
@@ -440,9 +448,9 @@ def pixel_scale(header=None, wcs=None, unit=u.arcsec, position=None):
         from `header`.
         Default: `None`.
 
-    unit : astropy unit, optional.
-        The desired output unit. Default is arcsec. If `None`, the output will be
-        in radians.
+    unit : `~astropy.units.Unit`, optional.
+        The desired output unit. Default is ``u.arcsec``. If `None`, the output
+        will be in radians.
 
     position : `tuple` of `float`, optional
         The position (x, y) in pixel coordinates to calculate the pixel scale.
@@ -453,7 +461,7 @@ def pixel_scale(header=None, wcs=None, unit=u.arcsec, position=None):
 
     Returns
     -------
-    pscale: `~astropy.Quantity` or `float`
+    pscale: `~astropy.units.Quantity` or `float`
         The pixel scale in `unit`/pixel. If `unit` is `None`, it will be in radians.
     """
     if wcs is None:

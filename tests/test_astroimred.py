@@ -8,16 +8,16 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-from astroimred import ccdutils, headers, io
+from astroimred import ccdutils, headers, io, mathutils, misc, summary
 from astroimred import logging as airlogging
-from astroimred import mathutils, misc, summary
 
 
 def test_canonical_subpackages_match_compatibility_wrappers():
     """Canonical subpackages and top-level wrappers expose the same objects."""
-    import astroimred as air
     import astroimred.ccdutils as ccdutils_module
     import astroimred.io as io_module
+
+    import astroimred as air
 
     assert air.mgmt.io.load_ccd is io.load_ccd
     assert io_module is air.mgmt.io

@@ -69,7 +69,9 @@ MEDCOMB_KEYS_FLT32 = {
 
 # !FIXME: not finished
 # TODO: add err_lower, err_upper, sigma_lower, sigma_upper
-def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
+def sigclip_dataerr(
+    val, err, cenfunc: str = "wvg", sigma: float = 3, maxiters: int = 3
+):
     """Sigma-clip values using per-point error estimates.
 
     Parameters
@@ -111,7 +113,12 @@ def sigclip_dataerr(val, err, cenfunc="wvg", sigma=3, maxiters=3):
     return val, mask
 
 
-def circular_mask(shape, center=None, radius=None, center_xyz=True):
+def circular_mask(
+    shape: tuple[int, ...],
+    center: tuple | None = None,
+    radius: float | None = None,
+    center_xyz: bool = True,
+) -> np.ndarray:
     """Creates an N-D circular (circular, spherical, ...) mask.
 
     Parameters
@@ -164,14 +171,14 @@ def circular_mask(shape, center=None, radius=None, center_xyz=True):
 
 
 def circular_mask_2d(
-    shape,
+    shape: tuple[int, int],
     center=None,
-    radius=0.5,
-    method="center",
-    subpixels=5,
-    maskmin=0,
-    return_apertures=False,
-):
+    radius: float = 0.5,
+    method: str = "center",
+    subpixels: int = 5,
+    maskmin: float = 0,
+    return_apertures: bool = False,
+) -> np.ndarray:
     """Creates a 2-D circular mask using photutils CircularAperture.
 
     Parameters
@@ -233,6 +240,7 @@ def circular_mask_2d(
     return_apertures : `bool`, optional
         If `True`, return the `CircularAperture` objects and the masks
         instead of the 2D mask. This is useful if you want to use the
+        aperture objects directly for further computation.
         Default: `False`.
     """
     try:
@@ -308,7 +316,9 @@ def _enclosing_circle_radius(segm, center, segm_id, output):
         output[i] = np.sqrt(rsq_max)
 
 
-def enclosing_circle_radius(segm, center, segm_id=None):
+def enclosing_circle_radius(
+    segm: np.ndarray, center, segm_id: np.ndarray | None = None
+) -> np.ndarray:
     """
     Calculate the radius of the smallest enclosing circle for a given mask.
 
@@ -356,8 +366,12 @@ def enclosing_circle_radius(segm, center, segm_id=None):
 
 
 def str_now(
-    precision=3, fmt="{:.>72s}", t_ref=None, dt_fmt="(dt = {:.3f} s)", return_time=False
-):
+    precision: int = 3,
+    fmt: str = "{:.>72s}",
+    t_ref: Time | None = None,
+    dt_fmt: str = "(dt = {:.3f} s)",
+    return_time: bool = False,
+) -> str | tuple:
     """Get stringified time now in UT ISOT format.
 
     Parameters
@@ -402,7 +416,9 @@ def str_now(
         return fmt.format(timestr)
 
 
-def change_to_quantity(x, desired="", to_value=False):
+def change_to_quantity(
+    x, desired: str | u.Unit = "", to_value: bool = False
+) -> u.Quantity | object:
     """Convert an object to `~astropy.units.Quantity`, or to a scalar value.
 
     Parameters
@@ -411,9 +427,9 @@ def change_to_quantity(x, desired="", to_value=False):
         Input value. If a `~astropy.units.Quantity` is given, `x` is converted
         to `desired`, i.e., ``x.to(desired)``.
 
-    desired : `str` or astropy `~astropy.units.Unit`, optional.
-        The desired unit for `x`. If `''` (default), it will be interpreted as
-        `Unit(dimensionless)`.
+    desired : `str` or `~astropy.units.Unit`, optional.
+        The desired unit for `x`. If ``''`` (default), it will be interpreted as
+        `~astropy.units.dimensionless_unscaled`.
         Default: ``''``.
 
     to_value : `bool`, optional.
@@ -427,9 +443,10 @@ def change_to_quantity(x, desired="", to_value=False):
 
     Notes
     -----
-    If `~astropy.units.Quantity`, transform to `desired`. If `desired` is `None`, return it as
-    is. If not `Quantity`, multiply the `desired`. `desired` is `None`, return
-    `x` with dimensionless unscaled unit.
+    If `x` is `~astropy.units.Quantity`, it is converted via ``.to(desired)``.
+    If `x` is not `~astropy.units.Quantity`, it is multiplied by `desired`.
+    If conversion fails (e.g., incompatible unit or unsupported type), a deep
+    copy of `x` is returned unchanged.
     """
 
     def _copy(xx):

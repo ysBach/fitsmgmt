@@ -14,6 +14,7 @@ from astropy.table import Table
 from astropy.wcs import WCS
 
 from ..logging import logger
+from ._types import HDUExt, StrPathLike
 
 try:
     import fitsio
@@ -38,7 +39,7 @@ __all__ = [
 ASTROPY_CCD_TYPES = (CCDData, fits.PrimaryHDU, fits.ImageHDU)  # fits.CompImageHDU ?
 
 
-def get_size(obj, seen=None):
+def get_size(obj: object, seen: set | None = None) -> int:
     """Recursively estimate an object's memory size in bytes.
 
     Based on the recursive recipe from
@@ -73,7 +74,11 @@ def get_size(obj, seen=None):
 # *                                         PARSERS                                  * #
 # ************************************************************************************ #
 def _parse_data_header(
-    ccdlike, extension=None, parse_data=True, parse_header=True, copy=True
+    ccdlike,
+    extension: HDUExt = None,
+    parse_data: bool = True,
+    parse_header: bool = True,
+    copy: bool = True,
 ):
     """Parse data and header from a CCD-like object, array, header, or path.
 
@@ -194,11 +199,11 @@ def _parse_data_header(
 # TODO: str(pathlibPath)
 def _parse_image(
     ccdlike,
-    extension=None,
-    name=None,
-    force_ccddata=False,
-    prefer_ccddata=False,
-    copy=True,
+    extension: HDUExt = None,
+    name: str | None = None,
+    force_ccddata: bool = False,
+    prefer_ccddata: bool = False,
+    copy: bool = True,
 ):
     """Parse an image-like input as an array or `~astropy.nddata.CCDData`.
 
@@ -206,7 +211,7 @@ def _parse_image(
     ----------
     ccdlike : `~astropy.nddata.CCDData`-like (e.g., `~astropy.io.fits.PrimaryHDU`, `~astropy.io.fits.ImageHDU`, `~astropy.io.fits.HDUList`), `~numpy.ndarray`, path-like, or number-like
         The "image" that will be parsed. A string that can be converted to
-        `float` (``float(im)``) will be interpreted as numbers; if not, it will
+        `float` (``float(ccdlike)``) will be interpreted as numbers; if not, it will
         be interpreted as a path to the FITS file.
 
     extension : `int`, `str`, (`str`, `int`), optional.
@@ -219,7 +224,7 @@ def _parse_image(
     force_ccddata, prefer_ccddata : `bool`, optional
         `force_ccddata` forces return as `~astropy.nddata.CCDData`. This is
         useful when error calculation is turned on.
-        `prefer_ccddata` returns `~astropy.nddata.CCDData` only if `im` was
+        `prefer_ccddata` returns `~astropy.nddata.CCDData` only if `ccdlike` was
         `~astropy.nddata.CCDData`,
         HDU object, or `~pathlib.Path`-like to a FITS file, but **not** if it was `~numpy.ndarray`
         or numbers.
@@ -360,7 +365,7 @@ def _parse_image(
     return new_im, imname, imtype
 
 
-def _has_header(ccdlike, extension=None, open_if_file=True):
+def _has_header(ccdlike, extension: HDUExt = None, open_if_file: bool = True) -> bool:
     """Return whether an object has, or points to, a FITS-like header.
 
     Parameters
@@ -426,7 +431,9 @@ def _has_header(ccdlike, extension=None, open_if_file=True):
     return hashdr
 
 
-def _parse_extension(*args, ext=None, extname=None, extver=None):
+def _parse_extension(
+    *args, ext: HDUExt = None, extname: str | None = None, extver: int | None = None
+) -> HDUExt:
     """
     Open the input file, return the `~astropy.io.fits.HDUList` and the extension.
 
@@ -511,7 +518,7 @@ def _parse_extension(*args, ext=None, extname=None, extver=None):
     return ext
 
 
-def _parse_extension_or_none(ext):
+def _parse_extension_or_none(ext: HDUExt) -> HDUExt:
     """Return `None` if ext is `None`, otherwise parse it."""
     if ext is None:
         return None
@@ -519,16 +526,16 @@ def _parse_extension_or_none(ext):
 
 
 def _build_ccd_reader_kwargs(
-    path,
-    extension,
-    extension_uncertainty,
-    extension_mask,
-    extension_flags,
-    key_uncertainty_type,
-    memmap,
-    use_wcs,
+    path: StrPathLike,
+    extension: HDUExt,
+    extension_uncertainty: str | None,
+    extension_mask: str | None,
+    extension_flags: str | None,
+    key_uncertainty_type: str,
+    memmap: bool,
+    use_wcs: bool,
     **kwd,
-):
+) -> dict:
     reader_kw = dict(
         hdu=extension,
         hdu_uncertainty=_parse_extension_or_none(extension_uncertainty),
@@ -551,18 +558,18 @@ def _build_ccd_reader_kwargs(
 
 
 def _load_ccd_astropy(
-    path,
-    extension,
-    trimsec,
-    unit,
-    extension_uncertainty,
-    extension_mask,
-    extension_flags,
-    key_uncertainty_type,
-    memmap,
-    use_wcs,
+    path: StrPathLike,
+    extension: HDUExt,
+    trimsec: str | None,
+    unit: u.Unit | None,
+    extension_uncertainty: str | None,
+    extension_mask: str | None,
+    extension_flags: str | None,
+    key_uncertainty_type: str,
+    memmap: bool,
+    use_wcs: bool,
     **kwd,
-):
+) -> tuple[CCDData, dict]:
     reader_kw = _build_ccd_reader_kwargs(
         path=path,
         extension=extension,
@@ -589,7 +596,9 @@ def _load_ccd_astropy(
     return ccd, reader_kw
 
 
-def _read_fitsio_extension(hdul, ext, trimsec=None):
+def _read_fitsio_extension(
+    hdul, ext: HDUExt, trimsec: str | None = None
+) -> np.ndarray | None:
     if ext is None:
         return None
     ext = _parse_extension_or_none(ext)
@@ -611,13 +620,13 @@ def _read_fitsio_extension(hdul, ext, trimsec=None):
 
 
 def _load_ccd_fitsio(
-    path,
-    extension,
-    trimsec,
-    full,
-    extension_uncertainty,
-    extension_mask,
-    extension_flags,
+    path: StrPathLike,
+    extension: HDUExt,
+    trimsec: str | None,
+    full: bool,
+    extension_uncertainty: str | None,
+    extension_mask: str | None,
+    extension_flags: str | None,
 ):
     # Use fitsio and only load the data as soon as possible.
     # This is much quicker than astropy's getdata
@@ -633,7 +642,11 @@ def _load_ccd_fitsio(
 
 
 def _astropy_raw_return(
-    ccd, full, extension_uncertainty, extension_mask, extension_flags
+    ccd: CCDData,
+    full: bool,
+    extension_uncertainty: HDUExt,
+    extension_mask: HDUExt,
+    extension_flags: HDUExt,
 ):
     if full:
         try:
@@ -651,19 +664,19 @@ def _astropy_raw_return(
 
 
 def load_ccd(
-    path,
-    extension=None,
-    trimsec=None,
-    ccddata=True,
-    use_wcs=True,
-    unit=None,
-    extension_uncertainty="UNCERT",
-    extension_mask="MASK",
-    extension_flags=None,
-    full=False,
-    key_uncertainty_type="UTYPE",
-    memmap=False,
-    as_ccd=True,  # DEPRECATED
+    path: StrPathLike,
+    extension: HDUExt = None,
+    trimsec: str | None = None,
+    ccddata: bool = True,
+    use_wcs: bool = True,
+    unit: u.Unit | None = None,
+    extension_uncertainty: str | None = "UNCERT",
+    extension_mask: str | None = "MASK",
+    extension_flags: str | None = None,
+    full: bool = False,
+    key_uncertainty_type: str = "UTYPE",
+    memmap: bool = False,
+    as_ccd: bool = True,  # DEPRECATED
     **kwd,
 ):
     """Load CCD-like image data from a FITS file.
@@ -712,7 +725,7 @@ def load_ccd(
 
     full : `bool`, optional.
         Whether to return full `(data, unc, mask, flag)` when using
-        `fitsio` (i.e., when `ccddata=False`). If `False`(default), only `data`
+        `fitsio` (i.e., when ``ccddata=False``). If `False` (default), only `data`
         will be returned.
         Default: `False`.
 
@@ -808,21 +821,21 @@ def load_ccd(
 
 
 def load_ccds(
-    paths,
-    extension=None,
-    trimsec=None,
-    ccddata=True,
-    as_ccd=True,
-    use_wcs=True,
-    unit=None,
-    extension_uncertainty="UNCERT",
-    extension_mask="MASK",
-    extension_flags=None,
-    full=False,
-    key_uncertainty_type="UTYPE",
-    memmap=False,
+    paths: StrPathLike | list[StrPathLike],
+    extension: HDUExt = None,
+    trimsec: str | None = None,
+    ccddata: bool = True,
+    as_ccd: bool = True,
+    use_wcs: bool = True,
+    unit: u.Unit | None = None,
+    extension_uncertainty: str | None = "UNCERT",
+    extension_mask: str | None = "MASK",
+    extension_flags: str | None = None,
+    full: bool = False,
+    key_uncertainty_type: str = "UTYPE",
+    memmap: bool = False,
     **kwd,
-):
+) -> list:
     """Load multiple FITS files with `load_ccd`.
 
     Parameters
@@ -865,7 +878,13 @@ def load_ccds(
     ]
 
 
-def write2fits(data, header, output, return_ccd=False, **kwargs):
+def write2fits(
+    data: np.ndarray,
+    header: fits.Header,
+    output: StrPathLike,
+    return_ccd: bool = False,
+    **kwargs,
+) -> CCDData | None:
     """Write data and a header to a FITS file via `~astropy.nddata.CCDData`.
 
     Parameters
@@ -897,8 +916,12 @@ def write2fits(data, header, output, return_ccd=False, **kwargs):
 
 
 def inputs2list(
-    inputs, sort=True, accept_ccdlike=True, path_to_text=False, check_coherency=False
-):
+    inputs,
+    sort: bool = True,
+    accept_ccdlike: bool = True,
+    path_to_text: bool = False,
+    check_coherency: bool = False,
+) -> list | None:
     """Convert paths, globs, tables, or CCD-like objects to a list.
 
     Parameters
@@ -906,10 +929,10 @@ def inputs2list(
     inputs : `str`, path-like, CCD-like, or table-like
         If `~pandas.DataFrame`-convertible, e.g., `dict`, `~pandas.DataFrame` or
         `~astropy.table.Table`, it must have column named ``"file"``, such that
-        ``outlist = `list`(inputs["file"])`` is possible. Otherwise, please use,
-        e.g., ``inputs = `list`(that_table["filenamecolumn"])``. If a `str` starts
-        with ``"@"`` (e.g., ``"@darks.`list`"``), it assumes the file contains a
-        `list` of paths separated by ``"\\n"``, as in IRAF.
+        ``list(inputs["file"])`` is possible. Otherwise, please use,
+        e.g., ``inputs = list(that_table["filenamecolumn"])``. If a `str` starts
+        with ``"@"`` (e.g., ``"@darks.list"``), it assumes the file contains a
+        list of paths separated by ``"\\n"``, as in IRAF.
 
     sort : `bool`, optional.
         Whether to sort the output `list`.
@@ -922,7 +945,7 @@ def inputs2list(
 
     path_to_text : `bool`, optional
         Whether to convert the `pathlib.Path` object to `str`.
-        Default: `True`.
+        Default: `False`.
 
     check_coherency : `bool`, optional
         Whether to check if all elements of the `inputs` have the identical

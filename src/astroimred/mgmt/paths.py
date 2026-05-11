@@ -8,6 +8,7 @@ from astropy.io import fits
 from astropy.nddata import CCDData
 
 from ..logging import logger
+from ._types import StrPathLike
 from .headers import key_mapper, key_remover
 
 __all__ = [
@@ -17,21 +18,21 @@ __all__ = [
 ]
 
 
-def mkdir(fpath, mode=0o777, exist_ok=True):
+def mkdir(fpath: StrPathLike, mode: int = 0o777, exist_ok: bool = True) -> None:
     """Convenience function for `~pathlib.Path`.mkdir()"""
     fpath = Path(fpath)
     Path.mkdir(fpath, mode=mode, exist_ok=exist_ok)
 
 
 def fits_newpath(
-    fpath,
-    rename_by,
-    mkdir_by=None,
-    header=None,
-    delimiter="_",
-    fillnan="",
-    fileext=".fits",
-):
+    fpath: StrPathLike,
+    rename_by: list[str],
+    mkdir_by: list[str] | None = None,
+    header: fits.Header | None = None,
+    delimiter: str = "_",
+    fillnan: str = "",
+    fileext: str = ".fits",
+) -> Path:
     """Give the new path of a FITS file from header values.
 
     Parameters
@@ -64,10 +65,9 @@ def fits_newpath(
 
     fileext : `str`, optional
         The extension of the file name to be returned. Normally it should be
-        ``'.fits'`` since this function is `fits_newname`, but you may prefer,
+        ``'.fits'`` since this function is ``fits_newpath``, but you may prefer,
         e.g., ``'.fit'`` for some reason. If `fileext` does not start with a
-        period (``"."``), it is automatically added to the final file name in
-        front of the ``fileext``.
+        period (``"."``), one is prepended automatically.
         Default: ``'.fits'``.
 
     Returns
@@ -94,22 +94,22 @@ def fits_newpath(
 
 
 def fitsrenamer(
-    fpath=None,
-    header=None,
-    newtop=None,
-    rename_by=None,
-    mkdir_by=None,
-    delimiter="_",
-    archive_dir=None,
-    keymap=None,
-    key_deprecation=True,
-    remove_keys=None,
-    overwrite=False,
-    fillnan="",
-    trimsec=None,
-    verbose=True,
+    fpath: StrPathLike | None = None,
+    header: fits.Header | None = None,
+    newtop: StrPathLike | None = None,
+    rename_by: list[str] | None = None,
+    mkdir_by: list[str] | None = None,
+    delimiter: str = "_",
+    archive_dir: StrPathLike | None = None,
+    keymap: dict | None = None,
+    key_deprecation: bool = True,
+    remove_keys: list[str] | None = None,
+    overwrite: bool = False,
+    fillnan: str = "",
+    trimsec: str | None = None,
+    verbose: bool = True,
     add_header=None,
-):
+) -> Path:
     """Rename a FITS file using header values.
 
     Parameters
@@ -156,7 +156,7 @@ def fitsrenamer(
     key_deprecation : `bool`, optional
         Whether to change the original keywords' comments to contain
         deprecation warning. If `True`, the original keywords' comments will
-        become ``Deprecated. See <standard_key>.``.
+        become ``DEPRECATED. See <standard_key>.``.
         Default: `True`.
 
     trimsec : `str` or `None`, optional
